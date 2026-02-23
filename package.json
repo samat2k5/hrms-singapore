@@ -4,10 +4,12 @@
   "description": "Singapore MOM/IRAS/CPF Compliant Payroll System",
   "private": true,
   "scripts": {
-    "dev:client": "cd client && npm run dev",
-    "dev:server": "cd server && node index.js",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+    "postinstall": "npm install --prefix server && npm install --prefix client",
+    "build": "npm run build --prefix client",
+    "start": "npm start --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
