@@ -100,8 +100,8 @@ router.post('/', authMiddleware, async (req, res) => {
         }
 
         db.run(
-            `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, designation, department, employee_group, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [entityId, e.employee_id || '', e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.designation || '', e.department || '', e.employee_group || 'General', e.date_joined || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.status || 'Active']
+            `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, designation, department, employee_group, employee_grade, date_joined, cessation_date, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, status, payment_mode, custom_allowances, custom_deductions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [entityId, e.employee_id || '', e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.designation || '', e.department || '', e.employee_group || 'General', e.employee_grade || '', e.date_joined || null, e.cessation_date || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.status || 'Active', e.payment_mode || 'Bank Transfer', e.custom_allowances || '{}', e.custom_deductions || '{}']
         );
         saveDb();
 
@@ -163,8 +163,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
 
         db.run(
-            `UPDATE employees SET full_name=?, date_of_birth=?, national_id=?, nationality=?, tax_residency=?, race=?, designation=?, department=?, employee_group=?, date_joined=?, basic_salary=?, transport_allowance=?, meal_allowance=?, other_allowance=?, bank_name=?, bank_account=?, cpf_applicable=?, status=? WHERE id=? AND entity_id=?`,
-            [e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.designation || '', e.department || '', e.employee_group || 'General', e.date_joined || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.status || 'Active', req.params.id, entityId]
+            `UPDATE employees SET full_name=?, date_of_birth=?, national_id=?, nationality=?, tax_residency=?, race=?, designation=?, department=?, employee_group=?, employee_grade=?, date_joined=?, cessation_date=?, basic_salary=?, transport_allowance=?, meal_allowance=?, other_allowance=?, bank_name=?, bank_account=?, cpf_applicable=?, status=?, payment_mode=?, custom_allowances=?, custom_deductions=? WHERE id=? AND entity_id=?`,
+            [e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.designation || '', e.department || '', e.employee_group || 'General', e.employee_grade || '', e.date_joined || null, e.cessation_date || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.status || 'Active', e.payment_mode || 'Bank Transfer', e.custom_allowances || '{}', e.custom_deductions || '{}', req.params.id, entityId]
         );
         saveDb();
 
@@ -222,9 +222,9 @@ router.post('/:id/transfer', authMiddleware, async (req, res) => {
 
             // 2. Clone basic profile
             db.run(
-                `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, designation, department, employee_group, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, status) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [targetEntityId, emp.employee_id || '', emp.full_name || '', emp.date_of_birth || null, emp.national_id || null, emp.nationality || 'Citizen', emp.tax_residency || 'Resident', emp.race || 'Chinese', emp.designation || '', emp.department || '', emp.employee_group || 'General', emp.date_joined || null, emp.basic_salary || 0, emp.transport_allowance || 0, emp.meal_allowance || 0, emp.other_allowance || 0, emp.bank_name || '', emp.bank_account || '', emp.cpf_applicable !== undefined ? emp.cpf_applicable : 1, 'Active']
+                `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, designation, department, employee_group, employee_grade, date_joined, cessation_date, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, status, payment_mode, custom_allowances, custom_deductions) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [targetEntityId, emp.employee_id || '', emp.full_name || '', emp.date_of_birth || null, emp.national_id || null, emp.nationality || 'Citizen', emp.tax_residency || 'Resident', emp.race || 'Chinese', emp.designation || '', emp.department || '', emp.employee_group || 'General', emp.employee_grade || '', emp.date_joined || null, emp.cessation_date || null, emp.basic_salary || 0, emp.transport_allowance || 0, emp.meal_allowance || 0, emp.other_allowance || 0, emp.bank_name || '', emp.bank_account || '', emp.cpf_applicable !== undefined ? emp.cpf_applicable : 1, 'Active', emp.payment_mode || 'Bank Transfer', emp.custom_allowances || '{}', emp.custom_deductions || '{}']
             );
 
             const newEmpIdResult = db.exec(`SELECT last_insert_rowid() AS id`);

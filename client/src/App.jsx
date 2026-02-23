@@ -6,11 +6,14 @@ import Dashboard from './pages/Dashboard'
 import Entities from './pages/Entities'
 import Departments from './pages/Departments'
 import EmployeeGroups from './pages/EmployeeGroups'
+import EmployeeGrades from './pages/EmployeeGrades'
 import Holidays from './pages/Holidays'
 import Employees from './pages/Employees'
 import EmployeeKETs from './pages/EmployeeKETs'
 import EmployeeDocuments from './pages/EmployeeDocuments'
 import Leave from './pages/Leave'
+import LeavePolicies from './pages/LeavePolicies'
+import Attendance from './pages/Attendance'
 import Payroll from './pages/Payroll'
 import Payslip from './pages/Payslip'
 import Reports from './pages/Reports'
@@ -65,11 +68,14 @@ export default function App() {
         <Route path="entities" element={<Entities />} />
         <Route path="departments" element={<Departments />} />
         <Route path="employee-groups" element={<EmployeeGroups />} />
+        <Route path="employee-grades" element={<EmployeeGrades />} />
         <Route path="holidays" element={<Holidays />} />
         <Route path="employees" element={<Employees />} />
         <Route path="employees/:id/kets" element={<EmployeeKETs />} />
         <Route path="employees/:id/documents" element={<EmployeeDocuments />} />
         <Route path="leave" element={<Leave />} />
+        <Route path="leave-policies" element={<LeavePolicies />} />
+        <Route path="attendance" element={<Attendance />} />
         <Route path="payroll" element={<Payroll />} />
         <Route path="payroll/payslip/:id" element={<Payslip />} />
         <Route path="reports" element={<Reports />} />

@@ -22,10 +22,17 @@ export default function Reports() {
         try {
             let result
             switch (tab) {
-                case 'cpf': result = await api.getCPFReport(year, month); break
-                case 'ir8a': result = await api.getIR8AReport(year); break
-                case 'sdl': result = await api.getSDLReport(year, month); break
-                case 'shg': result = await api.getSHGReport(year, month); break
+                case 'cpf': result = await api.getCPFReport(year, month); break;
+                case 'sdl': result = await api.getSDLReport(year, month); break;
+                case 'shg': result = await api.getSHGReport(year, month); break;
+                case 'ir8a':
+                    const summary = await api.getIR8AReport(year);
+                    const forms = await api.getIRASForms(year).catch(() => []);
+                    const logs = await api.getIRASLogs().catch(() => []);
+                    const cessation = await api.getIRASCessation().catch(() => []);
+                    const cpfExcess = await api.getIRASCpfExcess().catch(() => []);
+                    result = { summary, forms, logs, cessation, cpfExcess, year };
+                    break;
             }
             setData(result)
         } catch (err) {
@@ -59,9 +66,9 @@ export default function Reports() {
             if (tab === 'cpf' && data?.employees) {
                 headers = [['Employee', 'ID', 'Gross Pay', 'CPF (EE)', 'CPF (ER)', 'OA', 'SA', 'MA']]
                 tableData = data.employees.map(e => [e.employee_name, e.employee_code, formatCurrency(e.gross_pay), formatCurrency(e.cpf_employee), formatCurrency(e.cpf_employer), formatCurrency(e.cpf_oa), formatCurrency(e.cpf_sa), formatCurrency(e.cpf_ma)])
-            } else if (tab === 'ir8a' && data?.employees) {
+            } else if (tab === 'ir8a' && data?.summary?.employees) {
                 headers = [['Employee', 'ID', 'Total Gross', 'CPF (EE)', 'CPF (ER)', 'Bonus']]
-                tableData = data.employees.map(e => [e.employee_name, e.employee_code, formatCurrency(e.total_gross), formatCurrency(e.total_cpf_employee), formatCurrency(e.total_cpf_employer), formatCurrency(e.total_bonus)])
+                tableData = data.summary.employees.map(e => [e.employee_name, e.employee_code, formatCurrency(e.total_gross), formatCurrency(e.total_cpf_employee), formatCurrency(e.total_cpf_employer), formatCurrency(e.total_bonus)])
             } else if (tab === 'sdl' && data?.employees) {
                 headers = [['Employee', 'ID', 'Gross Pay', 'SDL']]
                 tableData = data.employees.map(e => [e.employee_name, e.employee_code, formatCurrency(e.gross_pay), formatCurrency(e.sdl)])
@@ -163,20 +170,118 @@ export default function Reports() {
                         </>
                     )}
 
-                    {/* IR8A Report */}
+                    {/* IR8A / IRAS Compliance Dashboard */}
                     {tab === 'ir8a' && (
-                        <>
-                            <h3 className="text-lg font-semibold text-white mb-1">IRAS IR8A Annual Summary</h3>
-                            <p className="text-sm text-slate-400 mb-4">Year: {data.year}</p>
-                            <table className="table-glass">
-                                <thead><tr><th>Employee</th><th>ID</th><th>Total Gross</th><th>Total CPF (EE)</th><th>Total CPF (ER)</th><th>Total Bonus</th></tr></thead>
-                                <tbody>
-                                    {data.employees?.map((e, i) => (
-                                        <tr key={i}><td className="text-white">{e.employee_name}</td><td>{e.employee_code}</td><td>{formatCurrency(e.total_gross)}</td><td>{formatCurrency(e.total_cpf_employee)}</td><td>{formatCurrency(e.total_cpf_employer)}</td><td>{formatCurrency(e.total_bonus)}</td></tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </>
+                        <div className="space-y-8 animate-fade-in transition-all">
+                            {/* ALERTS */}
+                            {data.cessation && data.cessation.length > 0 && (
+                                <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                                    <h4 className="flex items-center gap-2 text-amber-400 font-bold mb-2">⚠️ IR21 Required (Foreign Cessation)</h4>
+                                    <p className="text-sm text-slate-300 mb-3">The following foreign employees have a cessation date and require Form IR21 submission to withhold tax clearance. They have been automatically excluded from the standard IR8A generation batch.</p>
+                                    <table className="table-glass w-full text-sm">
+                                        <thead><tr><th>Employee</th><th>ID</th><th>Nationality</th><th>Cessation Date</th></tr></thead>
+                                        <tbody>
+                                            {data.cessation.map((e, i) => (
+                                                <tr key={i}><td className="text-white">{e.full_name}</td><td>{e.employee_id}</td><td>{e.nationality}</td><td className="text-amber-400 font-medium">{e.cessation_date}</td></tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {data.cpfExcess && data.cpfExcess.length > 0 && (
+                                <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10">
+                                    <h4 className="flex items-center gap-2 text-rose-400 font-bold mb-2">🚨 CPF Excess Contribution Detected</h4>
+                                    <p className="text-sm text-slate-300 mb-3">The following employees appear to have CPF contributions exceeding their Ordinary Wage/Additional Wage caps. You must claim a refund from the CPF Board.</p>
+                                    <table className="table-glass w-full text-sm">
+                                        <thead><tr><th>Employee</th><th>ID</th><th>Total CPF Paid</th></tr></thead>
+                                        <tbody>
+                                            {data.cpfExcess.map((e, i) => (
+                                                <tr key={i}><td className="text-white">{e.full_name}</td><td>{e.emp_code}</td><td className="text-rose-400 font-bold">{formatCurrency(e.total_cpf)}</td></tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            <div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white mb-1">Generated IR8A Forms ({data.year})</h3>
+                                        <p className="text-sm text-slate-400">Strictly immutable generated statutory PDFs.</p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            try { await api.generateIR8A(data.year); toast.success('Generated Successfully'); fetchReport(); }
+                                            catch (e) { toast.error(e.message) }
+                                        }}
+                                        className="gradient-btn py-1.5 px-4 text-sm"
+                                        disabled={data.forms?.length > 0}
+                                    >
+                                        {data.forms?.length > 0 ? 'Batch Generated' : 'Generate New IR8A Batch'}
+                                    </button>
+                                </div>
+                                <table className="table-glass">
+                                    <thead><tr><th>Employee</th><th>ID</th><th>Form Data Extracted</th><th>Status</th><th>Version</th><th>Actions</th></tr></thead>
+                                    <tbody>
+                                        {data.forms?.map((f, i) => {
+                                            const payload = JSON.parse(f.data_json);
+                                            return (
+                                                <tr key={i}>
+                                                    <td className="text-white">{f.full_name}</td>
+                                                    <td>{f.emp_code}</td>
+                                                    <td className="text-xs space-y-1">
+                                                        <p>Gross: {formatCurrency(payload.gross_salary)}</p>
+                                                        <p>Bonus: {formatCurrency(payload.bonus)}</p>
+                                                    </td>
+                                                    <td><span className={f.status === 'Amended' ? 'badge-info' : 'badge-success'}>{f.status}</span></td>
+                                                    <td className="font-mono text-slate-400">v{f.version}</td>
+                                                    <td>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (window.confirm('Recalculate and generate an Amendment for this employee?')) {
+                                                                    try {
+                                                                        const res = await api.amendIR8A(data.year, f.employee_id);
+                                                                        toast.success(res.message);
+                                                                        if (res.requiresFormSG) {
+                                                                            window.open(res.formSgUrl, '_blank');
+                                                                            toast('Complete FormSG for back-year amendment!', { icon: '⚠️' })
+                                                                        }
+                                                                        fetchReport();
+                                                                    } catch (e) { toast.error(e.message) }
+                                                                }
+                                                            }}
+                                                            className="text-amber-400 text-xs hover:underline"
+                                                        >Amend</button>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                        {(!data.forms || data.forms.length === 0) && (
+                                            <tr><td colSpan="6" className="text-center py-4 text-slate-500">No forms generated yet for {data.year}.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* AUDIT LOGS */}
+                            <div className="pt-6 border-t border-white/10">
+                                <h3 className="text-lg font-semibold text-white mb-2">Submission Audit Trail</h3>
+                                <table className="table-glass w-full text-sm">
+                                    <thead><tr><th>Timestamp</th><th>User</th><th>Submission Type</th><th>Records</th></tr></thead>
+                                    <tbody>
+                                        {data.logs?.slice(0, 5).map((log, i) => (
+                                            <tr key={i}>
+                                                <td className="text-slate-400">{new Date(log.timestamp).toLocaleString()}</td>
+                                                <td className="text-white">{log.username}</td>
+                                                <td><span className={log.submission_type.includes('Original') ? 'badge-success' : 'badge-info'}>{log.submission_type}</span></td>
+                                                <td>{log.records_count}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     )}
 
                     {/* SDL Report */}
@@ -223,9 +328,9 @@ export default function Reports() {
                         </>
                     )}
 
-                    {(!data.employees || data.employees.length === 0) && (
+                    {(!data.employees && tab !== 'ir8a') || (data.employees?.length === 0) ? (
                         <p className="text-center py-8 text-slate-500">No data found for this period. Process a payroll run first.</p>
-                    )}
+                    ) : null}
                 </div>
             )}
         </div>

@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 import { formatDate, formatCurrency } from '../utils/formatters'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 export default function EmployeeKETs() {
     const { id } = useParams()
@@ -18,7 +20,20 @@ export default function EmployeeKETs() {
             .then(([ketData, empData]) => {
                 setKet(ketData)
                 setEmployee(empData)
-                setForm(ketData)
+
+                let parsedAllowances = [], parsedDeductions = [];
+                try {
+                    if (ketData.custom_allowances) {
+                        const obj = JSON.parse(ketData.custom_allowances);
+                        parsedAllowances = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+                    }
+                    if (ketData.custom_deductions) {
+                        const obj = JSON.parse(ketData.custom_deductions);
+                        parsedDeductions = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+                    }
+                } catch (e) { }
+
+                setForm({ ...ketData, _parsedCustomAllowances: parsedAllowances, _parsedCustomDeductions: parsedDeductions })
             })
             .catch(e => toast.error(e.message))
             .finally(() => setLoading(false))
@@ -26,12 +41,35 @@ export default function EmployeeKETs() {
 
     const handleSave = async () => {
         try {
-            await api.updateKETs(id, form)
+            const payload = { ...form };
+            const cAllowances = {};
+            payload._parsedCustomAllowances?.forEach(item => { if (item.key) cAllowances[item.key] = Number(item.value) || 0; });
+            const cDeductions = {};
+            payload._parsedCustomDeductions?.forEach(item => { if (item.key) cDeductions[item.key] = Number(item.value) || 0; });
+
+            payload.custom_allowances = JSON.stringify(cAllowances);
+            payload.custom_deductions = JSON.stringify(cDeductions);
+            delete payload._parsedCustomAllowances;
+            delete payload._parsedCustomDeductions;
+
+            await api.updateKETs(id, payload)
             toast.success('KETs updated')
             setEditing(false)
             const updated = await api.getKETs(id)
             setKet(updated)
-            setForm(updated)
+
+            let pAllowances = [], pDeductions = [];
+            try {
+                if (updated.custom_allowances) {
+                    const obj = JSON.parse(updated.custom_allowances);
+                    pAllowances = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+                }
+                if (updated.custom_deductions) {
+                    const obj = JSON.parse(updated.custom_deductions);
+                    pDeductions = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+                }
+            } catch (e) { }
+            setForm({ ...updated, _parsedCustomAllowances: pAllowances, _parsedCustomDeductions: pDeductions })
         } catch (err) {
             toast.error(err.message)
         }
@@ -44,9 +82,76 @@ export default function EmployeeKETs() {
             toast.success('KETs issued successfully')
             const updated = await api.getKETs(id)
             setKet(updated)
-            setForm(updated)
+
+            let pAllowances = [], pDeductions = [];
+            try {
+                if (updated.custom_allowances) {
+                    const obj = JSON.parse(updated.custom_allowances);
+                    pAllowances = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+                }
+                if (updated.custom_deductions) {
+                    const obj = JSON.parse(updated.custom_deductions);
+                    pDeductions = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+                }
+            } catch (e) { }
+            setForm({ ...updated, _parsedCustomAllowances: pAllowances, _parsedCustomDeductions: pDeductions })
         } catch (err) {
             toast.error(err.message)
+        }
+    }
+
+    const handleGeneratePDF = () => {
+        try {
+            const doc = new jsPDF()
+            doc.setFontSize(18)
+            doc.text('Key Employment Terms (KET)', 14, 20)
+
+            doc.setFontSize(11)
+            doc.text(`Employer: ${ket._employer || 'Company Name'}`, 14, 30)
+            doc.text(`Employee: ${employee?.full_name || ''} (${employee?.employee_id || ''})`, 14, 36)
+            doc.text(`Issue Date: ${ket.issued_date ? formatDate(ket.issued_date) : 'Draft'}`, 14, 42)
+
+            const body = [
+                ['Job Title', ket.job_title || ''],
+                ['Start Date', ket.employment_start_date ? formatDate(ket.employment_start_date) : ''],
+                ['Employment Type', ket.employment_type || ''],
+                ['Working Hours/Day', ket.working_hours_per_day?.toString() || ''],
+                ['Working Days/Week', ket.working_days_per_week?.toString() || ''],
+                ['Rest Day', ket.rest_day || ''],
+                ['Basic Salary', formatCurrency(ket.basic_salary)],
+                ['Salary Period', ket.salary_period || ''],
+                ['Fixed Allowances', `Transport: ${formatCurrency(ket.fixed_allowances?.transport)} | Meal: ${formatCurrency(ket.fixed_allowances?.meal)}`]
+            ];
+
+            let cAllowances = "";
+            let cDeductions = "";
+            try {
+                if (ket.custom_allowances) {
+                    const ca = JSON.parse(ket.custom_allowances);
+                    Object.keys(ca).forEach(k => cAllowances += `${k}: ${formatCurrency(ca[k])}\n`);
+                }
+                if (ket.custom_deductions) {
+                    const cd = JSON.parse(ket.custom_deductions);
+                    Object.keys(cd).forEach(k => cDeductions += `${k}: ${formatCurrency(cd[k])}\n`);
+                }
+            } catch (e) { }
+
+            if (cAllowances) body.push(['Custom Allowances', cAllowances.trim()]);
+            if (cDeductions) body.push(['Custom Deductions', cDeductions.trim()]);
+
+            doc.autoTable({
+                startY: 50,
+                head: [['Term Details', 'Value']],
+                body: body,
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42] }
+            })
+
+            doc.save(`KET_${employee?.employee_id || 'Draft'}.pdf`)
+            toast.success('KET PDF Generated!')
+        } catch (err) {
+            console.error(err)
+            toast.error('Failed to generate PDF')
         }
     }
 
@@ -91,6 +196,7 @@ export default function EmployeeKETs() {
                 <div className="flex gap-3">
                     {!editing ? (
                         <>
+                            <button onClick={handleGeneratePDF} className="px-4 py-2 rounded-xl border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-sm transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)]">📄 Generate PDF</button>
                             <button onClick={() => setEditing(true)} className="px-4 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 text-sm transition-all">✏️ Edit</button>
                             {!ket.issued_date && (
                                 <button onClick={handleIssue} className="gradient-btn text-sm">📋 Issue KET</button>
@@ -98,7 +204,7 @@ export default function EmployeeKETs() {
                         </>
                     ) : (
                         <>
-                            <button onClick={() => { setEditing(false); setForm(ket) }} className="px-4 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 text-sm transition-all">Cancel</button>
+                            <button onClick={() => { setEditing(false); setForm({ ...ket, _parsedCustomAllowances: form._parsedCustomAllowances, _parsedCustomDeductions: form._parsedCustomDeductions }) }} className="px-4 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 text-sm transition-all">Cancel</button>
                             <button onClick={handleSave} className="gradient-btn text-sm">💾 Save Changes</button>
                         </>
                     )}
@@ -136,7 +242,8 @@ export default function EmployeeKETs() {
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
 
             {/* KET Sections */}
             <div className="grid gap-6">
@@ -213,6 +320,6 @@ export default function EmployeeKETs() {
                 <p className="text-xs text-cyan-300 font-medium mb-1">📋 MOM Compliance Note</p>
                 <p className="text-xs text-slate-400">This document contains all 17 mandatory fields as required by the Ministry of Manpower (MOM) for Key Employment Terms under the Employment Act. KETs must be issued within 14 days of the employee's start date.</p>
             </div>
-        </div>
+        </div >
     )
 }

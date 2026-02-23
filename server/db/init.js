@@ -89,6 +89,18 @@ function createSchema(database) {
   `);
 
   database.run(`
+    CREATE TABLE IF NOT EXISTS employee_grades (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id),
+      UNIQUE(entity_id, name)
+    )
+  `);
+
+  database.run(`
     CREATE TABLE IF NOT EXISTS holidays (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entity_id INTEGER NOT NULL,
@@ -125,11 +137,15 @@ function createSchema(database) {
       designation TEXT,
       department TEXT,
       employee_group TEXT,
+      employee_grade TEXT DEFAULT '',
       date_joined DATE,
       basic_salary REAL,
       transport_allowance REAL,
       meal_allowance REAL,
       other_allowance REAL,
+      custom_allowances TEXT DEFAULT '{}',
+      custom_deductions TEXT DEFAULT '{}',
+      payment_mode TEXT DEFAULT 'Bank Transfer',
       bank_name TEXT,
       bank_account TEXT,
       cpf_applicable BOOLEAN DEFAULT 1,
@@ -169,6 +185,9 @@ function createSchema(database) {
       basic_salary REAL DEFAULT 0,
       fixed_allowances TEXT DEFAULT '{}',
       fixed_deductions TEXT DEFAULT '{}',
+      custom_allowances TEXT DEFAULT '{}',
+      custom_deductions TEXT DEFAULT '{}',
+      employee_grade TEXT DEFAULT '',
       overtime_rate REAL DEFAULT 0,
       overtime_payment_period TEXT,
       bonus_structure TEXT,
@@ -193,6 +212,22 @@ function createSchema(database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       default_days REAL NOT NULL
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS leave_policies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      employee_grade TEXT NOT NULL,
+      leave_type_id INTEGER NOT NULL,
+      base_days REAL DEFAULT 0,
+      increment_per_year REAL DEFAULT 0,
+      max_days REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id),
+      FOREIGN KEY (leave_type_id) REFERENCES leave_types(id),
+      UNIQUE(entity_id, employee_grade, leave_type_id)
     )
   `);
 
@@ -229,10 +264,12 @@ function createSchema(database) {
   database.run(`
     CREATE TABLE IF NOT EXISTS payroll_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
       employee_group TEXT NOT NULL,
       period_year INTEGER NOT NULL,
       period_month INTEGER NOT NULL,
       run_date DATE NOT NULL,
+      payment_date DATE,
       total_gross REAL DEFAULT 0,
       total_cpf_employee REAL DEFAULT 0,
       total_cpf_employer REAL DEFAULT 0,
@@ -240,7 +277,8 @@ function createSchema(database) {
       total_shg REAL DEFAULT 0,
       total_net REAL DEFAULT 0,
       status TEXT DEFAULT 'Draft',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id)
     )
   `);
 
@@ -258,7 +296,14 @@ function createSchema(database) {
       total_allowances REAL DEFAULT 0,
       overtime_hours REAL DEFAULT 0,
       overtime_pay REAL DEFAULT 0,
+      ot_1_5_hours REAL DEFAULT 0,
+      ot_2_0_hours REAL DEFAULT 0,
+      ot_1_5_pay REAL DEFAULT 0,
+      ot_2_0_pay REAL DEFAULT 0,
       bonus REAL DEFAULT 0,
+      custom_allowances TEXT DEFAULT '{}',
+      custom_deductions TEXT DEFAULT '{}',
+      payment_mode TEXT DEFAULT 'Bank Transfer',
       gross_pay REAL DEFAULT 0,
       cpf_employee REAL DEFAULT 0,
       cpf_employer REAL DEFAULT 0,
@@ -293,11 +338,67 @@ function createSchema(database) {
       entity_id INTEGER NOT NULL,
       employee_id INTEGER NOT NULL,
       date DATE NOT NULL,
+      in_time TEXT,
+      out_time TEXT,
+      shift TEXT,
       ot_hours REAL DEFAULT 0,
+      ot_1_5_hours REAL DEFAULT 0,
+      ot_2_0_hours REAL DEFAULT 0,
+      remarks TEXT,
+      source_file TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(entity_id) REFERENCES entities(id),
       FOREIGN KEY(employee_id) REFERENCES employees(id),
       UNIQUE(entity_id, employee_id, date)
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS attendance_remarks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      employee_id INTEGER NOT NULL,
+      date DATE NOT NULL,
+      remark_type TEXT NOT NULL,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(entity_id) REFERENCES entities(id),
+      FOREIGN KEY(employee_id) REFERENCES employees(id),
+      UNIQUE(entity_id, employee_id, date)
+    )
+  `);
+
+  // IRAS Compliance Tables
+  database.run(`
+    CREATE TABLE IF NOT EXISTS submission_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      username TEXT,
+      submission_type TEXT NOT NULL,
+      file_type TEXT,
+      acknowledgment_no TEXT,
+      records_count INTEGER DEFAULT 0,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS iras_forms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      employee_id INTEGER NOT NULL,
+      year_of_assessment INTEGER NOT NULL,
+      form_type TEXT NOT NULL,
+      is_amendment BOOLEAN DEFAULT 0,
+      amendment_reason TEXT,
+      form_data TEXT NOT NULL,
+      generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_locked BOOLEAN DEFAULT 1,
+      FOREIGN KEY (entity_id) REFERENCES entities(id),
+      FOREIGN KEY (employee_id) REFERENCES employees(id)
     )
   `);
 }
@@ -431,6 +532,14 @@ function seedConfigData(database) {
   // Seed Employee Groups for Entity 2
   ['Executive', 'General'].forEach(group => {
     database.run(`INSERT INTO employee_groups (entity_id, name, description) VALUES (?, ?, ?)`, [2, group, `${group} Group`]);
+  });
+
+  // Seed Employee Grades
+  ['A1', 'B2', 'Executive', 'Staff'].forEach(grade => {
+    database.run(`INSERT INTO employee_grades (entity_id, name, description) VALUES (?, ?, ?)`, [1, grade, `${grade} Grade`]);
+  });
+  ['Executive', 'Staff'].forEach(grade => {
+    database.run(`INSERT INTO employee_grades (entity_id, name, description) VALUES (?, ?, ?)`, [2, grade, `${grade} Grade`]);
   });
 
   // Seed Public Holidays for Singapore (Entity 1 & 2)

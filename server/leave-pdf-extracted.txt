@@ -1,0 +1,64 @@
+Everyemployeewillbesegmented/groupedaccordingtothefollowinglist
+● Designation
+● Department
+● EmployeeGroup
+● EmployeeGrade
+● EmployeeClass
+● FunctionalGroup
+● Permit(Local/Foreigner)
+AdminwillbeabletocreateandmanageLeaveTypes.
+ForEveryLeaveType,followingbasicinfoandadditionalsettingswillbeavailable
+BasicInfo
+● Name
+● Type(Paid/Unpaid)
+● Description
+● Validity
+AdditionalSettings
+Effective:‘n’days/months/yearsfrom JoiningDate/ConfirmationDate
+Accrual:
+FollowingParameterswillbeused
+● AccrualPeriod:Monthly/OneTime/Yearly/HalfYearly/Triannually/Quarterly
+/BiMonthly/SemiMonthly/Weekly
+● AccrualDate/Day
+● EntitlementDays
+● IncrementScheme
+AccrualSettings(foreveryEmployeeGrade)willbelike:
+‘AccrualPeriod’on‘AccrualDay’,‘EntitlementDays’
+Eg.,
+● Monthlyon5th,2Days
+● Yearlyon1st,January,18Days
+● HalfYearlyon7thJan&Jul,10Days
+For‘Yearly’AccrualPeriod,IncrementSchemecanbelinked.
+Reset:
+‘Period’on‘Day’
+Eg.,
+● Yearlyon31st,Dec
+● MonthlyonLastDay
+CarryForward:
+----------------Page (0) Break----------------
+‘Mode’:No.ofUnits/Percentage:MaxLimit
+‘Expiry’:No.ofDays/Months
+Eg.,
+● CarryForward:5units:4
+● CarryForward:50% :3
+● Expiresin3Months
+Encashment:
+‘N’units/percentage:MaxLimit
+Applicable:
+● Gender
+● MaritalStatus
+● Department
+● Designation
+● Permit
+Configuration:
+● WeekendsbetweenLeavePeriod:Countasleaveafter‘n’days
+● HolidaysbetweenLeavePeriod:Countasleaveafter‘n’days
+● Minimum leavethatcanbeavailedperapplication
+● Maximum leavethatcanbeavailedperapplication
+● Maximum numberofconsecutivedaysofLeaveallowed
+● Minimum gap(indays)betweentwoapplications
+● DocumentMandatoryifleaveperiodexceeds‘n’days
+● Maximum no.ofapplicationsinaperiod
+● LeaveApplication:ExceedLeavebalance(Allow/Don’tAllow)
+○ If‘Allow’,Limit:WithoutLimit,UntilyearendLimit,WithoutLimit-LOP
+----------------Page (1) Break----------------

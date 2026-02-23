@@ -20,7 +20,7 @@ router.get('/', authMiddleware, async (req, res) => {
         const db = await getDb();
         const entityId = req.user.entityId;
 
-        const result = db.exec('SELECT * FROM employee_groups WHERE entity_id = ? ORDER BY name ASC', [entityId]);
+        const result = db.exec(`SELECT * FROM employee_groups WHERE entity_id = ${entityId} ORDER BY name ASC`);
         res.json(toObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });

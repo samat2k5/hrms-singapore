@@ -26,11 +26,16 @@ async function authMiddleware(req, res, next) {
     // Some routes like /api/entities don't strictly need an entity context, 
     // so we only enforce it if they provided one, OR if they are hitting employee data
     if (entityId) {
+        const parsedEntityId = parseInt(entityId, 10);
+        if (isNaN(parsedEntityId)) {
+            return res.status(400).json({ error: 'Invalid entity ID format' });
+        }
+
         try {
             const db = await getDb();
             const roleResult = db.exec(
                 `SELECT role, managed_groups FROM user_entity_roles WHERE user_id = ? AND entity_id = ?`,
-                [req.user.id, entityId]
+                [req.user.id, parsedEntityId]
             );
 
             if (!roleResult.length) {
@@ -42,10 +47,9 @@ async function authMiddleware(req, res, next) {
             let managedGroups = values[0][columns.indexOf('managed_groups')];
             try { managedGroups = JSON.parse(managedGroups); } catch (e) { managedGroups = []; }
 
-            req.user.entityId = parseInt(entityId, 10);
+            req.user.entityId = parsedEntityId;
             req.user.role = entityRole;
             req.user.managedGroups = managedGroups;
-
         } catch (err) {
             return res.status(500).json({ error: 'Failed to verify entity access: ' + err.message });
         }

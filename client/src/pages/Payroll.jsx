@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 import { formatCurrency, formatMonth } from '../utils/formatters'
+import { useAuth } from '../context/AuthContext'
 
 export default function Payroll() {
+    const { activeEntity } = useAuth()
     const [runs, setRuns] = useState([])
+    const [groups, setGroups] = useState([])
     const [loading, setLoading] = useState(true)
     const [processing, setProcessing] = useState(false)
     const [year, setYear] = useState(new Date().getFullYear())
@@ -21,10 +24,26 @@ export default function Payroll() {
 
     const navigate = useNavigate()
 
-    const load = () => {
-        api.getPayrollRuns().then(setRuns).catch(e => toast.error(e.message)).finally(() => setLoading(false))
+    const load = async () => {
+        if (!activeEntity) return;
+        setLoading(true);
+        try {
+            const [fetchedRuns, fetchedGroups] = await Promise.all([
+                api.getPayrollRuns(),
+                api.getEmployeeGroups()
+            ]);
+            setRuns(fetchedRuns);
+            setGroups(fetchedGroups);
+            if (fetchedGroups.length > 0 && !fetchedGroups.find(g => g.name === employeeGroup)) {
+                setEmployeeGroup(fetchedGroups[0].name);
+            }
+        } catch (e) {
+            toast.error(e.message)
+        } finally {
+            setLoading(false)
+        }
     }
-    useEffect(load, [])
+    useEffect(() => { load() }, [activeEntity?.id])
 
     const handleRun = async () => {
         if (!confirm(`Process payroll for ${employeeGroup} in ${formatMonth(year, month)}?`)) return
@@ -123,7 +142,7 @@ export default function Payroll() {
                     <div>
                         <label className="block text-sm text-slate-300 mb-1.5">Group</label>
                         <select value={employeeGroup} onChange={e => setEmployeeGroup(e.target.value)} className="select-glass w-40">
-                            {['General', 'Executive', 'Operations', 'Contractors'].map(g => <option key={g} value={g}>{g}</option>)}
+                            {groups.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                         </select>
                     </div>
                     <div>

@@ -72,9 +72,18 @@ const api = {
     approveLeave: (id) => request(`/leave/request/${id}/approve`, { method: 'PUT' }),
     rejectLeave: (id) => request(`/leave/request/${id}/reject`, { method: 'PUT' }),
 
+    // Leave Policies
+    getLeavePolicies: () => request('/leave-policies'),
+    saveLeavePolicy: (data) => request('/leave-policies', { method: 'POST', body: JSON.stringify(data) }),
+    deleteLeavePolicy: (id) => request(`/leave-policies/${id}`, { method: 'DELETE' }),
+
     // Timesheets
     uploadTimesheet: (formData) => request('/timesheets/upload', { method: 'POST', body: formData }),
     getTimesheets: (month) => request(`/timesheets${month ? `?month=${month}` : ''}`),
+
+    // Attendance Import
+    importAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
+    getAttendanceHistory: () => request('/attendance/history'),
 
     // Payroll
     getPayrollRuns: () => request('/payroll/runs'),
@@ -99,6 +108,14 @@ const api = {
     getSDLReport: (year, month) => request(`/reports/sdl/${year}/${month}`),
     getSHGReport: (year, month) => request(`/reports/shg/${year}/${month}`),
 
+    // IRAS Compliance
+    getIRASForms: (year) => request(`/iras/forms/${year}`),
+    generateIR8A: (year) => request(`/iras/generate/${year}`, { method: 'POST' }),
+    amendIR8A: (year, empId) => request(`/iras/amend/${year}/${empId}`, { method: 'POST' }),
+    getIRASCessation: () => request('/iras/cessation-check'),
+    getIRASCpfExcess: () => request('/iras/cpf-excess'),
+    getIRASLogs: () => request('/iras/audit-logs'),
+
     // Entities
     getEntities: () => request('/entities'),
 
@@ -122,6 +139,10 @@ const api = {
     createEmployeeGroup: (data) => request('/employee-groups', { method: 'POST', body: JSON.stringify(data) }),
     updateEmployeeGroup: (id, data) => request(`/employee-groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteEmployeeGroup: (id) => request(`/employee-groups/${id}`, { method: 'DELETE' }),
+
+    getEmployeeGrades: () => request('/employee-grades'),
+    createEmployeeGrade: (data) => request('/employee-grades', { method: 'POST', body: JSON.stringify(data) }),
+    deleteEmployeeGrade: (id) => request(`/employee-grades/${id}`, { method: 'DELETE' }),
 
     getHolidays: () => request('/holidays'),
     createHoliday: (data) => request('/holidays', { method: 'POST', body: JSON.stringify(data) }),

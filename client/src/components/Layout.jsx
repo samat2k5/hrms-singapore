@@ -6,6 +6,7 @@ const navItems = [
     { to: '/', icon: '📊', label: 'Dashboard' },
     { to: '/employees', icon: '👥', label: 'Employees' },
     { to: '/leave', icon: '🌴', label: 'Leave' },
+    { to: '/attendance', icon: '📅', label: 'Attendance' },
     { to: '/payroll', icon: '💰', label: 'Payroll' },
     { to: '/reports', icon: '📋', label: 'Reports' },
 ]
@@ -103,6 +104,32 @@ export default function Layout() {
                                     >
                                         <span className="text-base text-center w-5">🧩</span>
                                         <span>Groups</span>
+                                    </NavLink>
+
+                                    <NavLink
+                                        to="/employee-grades"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                            }`
+                                        }
+                                    >
+                                        <span className="text-base text-center w-5">⭐</span>
+                                        <span>Grades</span>
+                                    </NavLink>
+
+                                    <NavLink
+                                        to="/leave-policies"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                            }`
+                                        }
+                                    >
+                                        <span className="text-base text-center w-5">📜</span>
+                                        <span>Leave Policies</span>
                                     </NavLink>
 
                                     <NavLink

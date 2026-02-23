@@ -96,9 +96,18 @@ export default function Leave() {
                                     return (
                                         <div key={l.id} className="p-3 rounded-xl bg-white/3 border border-white/5">
                                             <p className="text-xs text-slate-400 mb-1 truncate">{l.leave_type_name}</p>
-                                            <div className="flex items-end justify-between mb-2">
-                                                <span className="text-lg font-bold text-white">{l.balance}</span>
-                                                <span className="text-xs text-slate-500">/ {l.entitled}</span>
+                                            <div className="flex flex-col gap-1 mb-2">
+                                                <div className="flex items-end justify-between">
+                                                    <span className="text-sm text-slate-400">Earned (Actual)</span>
+                                                    <div className="text-right">
+                                                        <span className="text-lg font-bold text-white">{l.balance}</span>
+                                                        <span className="text-xs text-slate-500"> / {l.earned}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-end justify-between border-t border-white/5 pt-1">
+                                                    <span className="text-xs text-slate-500">MOM/Grade Entitled</span>
+                                                    <span className="text-xs text-slate-500">{l.entitled} days/yr</span>
+                                                </div>
                                             </div>
                                             <div className="w-full h-1.5 rounded-full bg-white/5">
                                                 <div className={`h-full rounded-full transition-all ${pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}

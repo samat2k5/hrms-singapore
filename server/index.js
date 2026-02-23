@@ -11,6 +11,7 @@ const payrollRoutes = require('./routes/payroll');
 const reportRoutes = require('./routes/reports');
 const documentRoutes = require('./routes/documents');
 const entityRoutes = require('./routes/entities');
+const attendanceRoutes = require('./routes/attendance');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,8 +43,12 @@ app.use('/api/user-roles', require('./routes/user_roles'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/departments', require('./routes/departments'));
 app.use('/api/employee-groups', require('./routes/employee_groups'));
+app.use('/api/employee-grades', require('./routes/employee_grades'));
+app.use('/api/leave-policies', require('./routes/leave_policies'));
 app.use('/api/holidays', require('./routes/holidays'));
 app.use('/api/timesheets', require('./routes/timesheets'));
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/iras', require('./routes/iras'));
 
 // Health check
 app.get('/api/health', (req, res) => {

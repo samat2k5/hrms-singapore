@@ -6,9 +6,11 @@ import { formatCurrency, formatDate } from '../utils/formatters'
 
 const emptyEmployee = {
     employee_id: '', full_name: '', date_of_birth: '', national_id: '', nationality: 'Citizen',
-    tax_residency: 'Resident', race: 'Chinese', designation: '', department: '', employee_group: 'General',
-    date_joined: '', basic_salary: 0, transport_allowance: 0, meal_allowance: 0,
-    other_allowance: 0, bank_name: '', bank_account: '', cpf_applicable: 1, status: 'Active',
+    tax_residency: 'Resident', race: 'Chinese', designation: '', department: '', employee_group: 'General', employee_grade: '',
+    date_joined: '', cessation_date: '', basic_salary: 0, transport_allowance: 0, meal_allowance: 0,
+    other_allowance: 0, payment_mode: 'Bank Transfer', custom_allowances: '{}', custom_deductions: '{}',
+    bank_name: '', bank_account: '', cpf_applicable: 1, status: 'Active',
+    _parsedCustomAllowances: [], _parsedCustomDeductions: []
 }
 
 const Field = ({ label, name, type = 'text', options, required, span2, form, setForm, min, max }) => (
@@ -35,6 +37,7 @@ export default function Employees() {
     const [employees, setEmployees] = useState([])
     const [configDepartments, setConfigDepartments] = useState([])
     const [configGroups, setConfigGroups] = useState([])
+    const [configGrades, setConfigGrades] = useState([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [editing, setEditing] = useState(null)
@@ -56,12 +59,14 @@ export default function Employees() {
             api.getEmployees(),
             api.getDepartments(),
             api.getEmployeeGroups(),
+            api.getEmployeeGrades(),
             api.getEntities()
         ])
-            .then(([emps, depts, grps, ents]) => {
+            .then(([emps, depts, grps, grads, ents]) => {
                 setEmployees(emps)
                 setConfigDepartments(depts)
                 setConfigGroups(grps)
+                setConfigGrades(grads)
                 setEntities(ents)
             })
             .catch(e => toast.error(e.message))
@@ -72,12 +77,23 @@ export default function Employees() {
     const handleSubmit = async (e) => {
         e.preventDefault()
         try {
+            const payload = { ...form };
+            const cAllowances = {};
+            payload._parsedCustomAllowances?.forEach(item => { if (item.key) cAllowances[item.key] = Number(item.value) || 0; });
+            const cDeductions = {};
+            payload._parsedCustomDeductions?.forEach(item => { if (item.key) cDeductions[item.key] = Number(item.value) || 0; });
+
+            payload.custom_allowances = JSON.stringify(cAllowances);
+            payload.custom_deductions = JSON.stringify(cDeductions);
+            delete payload._parsedCustomAllowances;
+            delete payload._parsedCustomDeductions;
+
             let savedEmployee = null;
             if (editing) {
-                savedEmployee = await api.updateEmployee(editing.id, form)
+                savedEmployee = await api.updateEmployee(editing.id, payload)
                 toast.success('Employee updated')
             } else {
-                savedEmployee = await api.createEmployee(form)
+                savedEmployee = await api.createEmployee(payload)
                 toast.success('Employee added')
             }
             if (savedEmployee.warning) {
@@ -117,7 +133,18 @@ export default function Employees() {
 
     const handleEdit = (emp) => {
         setEditing(emp)
-        setForm({ ...emp })
+        let parsedAllowances = [], parsedDeductions = [];
+        try {
+            if (emp.custom_allowances) {
+                const obj = JSON.parse(emp.custom_allowances);
+                parsedAllowances = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+            }
+            if (emp.custom_deductions) {
+                const obj = JSON.parse(emp.custom_deductions);
+                parsedDeductions = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
+            }
+        } catch (e) { }
+        setForm({ ...emp, _parsedCustomAllowances: parsedAllowances, _parsedCustomDeductions: parsedDeductions })
         setShowModal(true)
     }
 
@@ -210,7 +237,10 @@ export default function Employees() {
                                         <td className="font-medium text-cyan-400">{emp.employee_id}</td>
                                         <td className="font-medium text-white">{emp.full_name}</td>
                                         <td>{emp.department}</td>
-                                        <td><span className="badge-neutral border border-white/10">{emp.employee_group || 'General'}</span></td>
+                                        <td>
+                                            <span className="badge-neutral border border-white/10">{emp.employee_group || 'General'}</span>
+                                            {emp.employee_grade && <span className="ml-1 badge-info border border-white/10">{emp.employee_grade}</span>}
+                                        </td>
                                         <td>{emp.designation}</td>
                                         <td>{formatCurrency(emp.basic_salary)}</td>
                                         <td><span className={emp.nationality === 'Citizen' ? 'badge-success' : emp.nationality === 'PR' ? 'badge-info' : 'badge-neutral'}>{emp.nationality}</span></td>
@@ -250,6 +280,7 @@ export default function Employees() {
                             <Field form={form} setForm={setForm} label="Full Name" name="full_name" required />
                             <Field form={form} setForm={setForm} label="Date of Birth" name="date_of_birth" type="date" required />
                             <Field form={form} setForm={setForm} label="Date Joined" name="date_joined" type="date" required />
+                            <Field form={form} setForm={setForm} label="Cessation Date" name="cessation_date" type="date" />
                             <Field form={form} setForm={setForm} label="Nationality" name="nationality" options={['Citizen', 'PR', 'Foreigner']} />
                             <Field form={form} setForm={setForm} label="National ID (NRIC/FIN)" name="national_id" required={['Citizen', 'PR'].includes(form.nationality)} />
                             <Field form={form} setForm={setForm} label="Tax Residency" name="tax_residency" options={['Resident', 'Non-Resident']} />
@@ -277,14 +308,73 @@ export default function Employees() {
                                 </select>
                             </div>
 
+                            {/* Dynamic Grades Dropdown */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Employee Grade</label>
+                                <select value={form.employee_grade} onChange={e => setForm({ ...form, employee_grade: e.target.value })} className="select-glass">
+                                    <option value="">No Grade</option>
+                                    {configGrades.map(g => (
+                                        <option key={g.id} value={g.name}>{g.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <Field form={form} setForm={setForm} label="Designation" name="designation" />
                             <Field form={form} setForm={setForm} label="Basic Salary (S$)" name="basic_salary" type="number" />
                             <Field form={form} setForm={setForm} label="Transport Allowance" name="transport_allowance" type="number" />
                             <Field form={form} setForm={setForm} label="Meal Allowance" name="meal_allowance" type="number" />
                             <Field form={form} setForm={setForm} label="Other Allowance" name="other_allowance" type="number" />
+                            <Field form={form} setForm={setForm} label="Payment Mode" name="payment_mode" options={['Bank Transfer', 'GIRO', 'Cash', 'Cheque']} />
                             <Field form={form} setForm={setForm} label="Bank Name" name="bank_name" />
                             <Field form={form} setForm={setForm} label="Bank Account" name="bank_account" />
-                            <div className="md:col-span-2 flex items-center gap-3">
+
+                            <div className="md:col-span-2 pt-6 border-t border-white/5 space-y-4">
+                                <h3 className="text-lg font-medium text-white">Custom Allowances</h3>
+                                {form._parsedCustomAllowances.map((item, index) => (
+                                    <div key={index} className="flex gap-3 items-center">
+                                        <input type="text" placeholder="Allowance Name (e.g. Handphone)" value={item.key} onChange={e => {
+                                            const newArr = [...form._parsedCustomAllowances];
+                                            newArr[index].key = e.target.value;
+                                            setForm({ ...form, _parsedCustomAllowances: newArr });
+                                        }} className="input-glass flex-1" />
+                                        <input type="number" placeholder="Amount" value={item.value} onChange={e => {
+                                            const newArr = [...form._parsedCustomAllowances];
+                                            newArr[index].value = e.target.value;
+                                            setForm({ ...form, _parsedCustomAllowances: newArr });
+                                        }} className="input-glass w-32" />
+                                        <button type="button" onClick={() => {
+                                            const newArr = form._parsedCustomAllowances.filter((_, i) => i !== index);
+                                            setForm({ ...form, _parsedCustomAllowances: newArr });
+                                        }} className="text-red-400 hover:text-red-300 px-2">×</button>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => setForm({ ...form, _parsedCustomAllowances: [...form._parsedCustomAllowances, { key: '', value: 0 }] })} className="text-sm px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">+ Add Custom Allowance</button>
+                            </div>
+
+                            <div className="md:col-span-2 pt-6 border-t border-white/5 space-y-4">
+                                <h3 className="text-lg font-medium text-white">Custom Deductions</h3>
+                                {form._parsedCustomDeductions.map((item, index) => (
+                                    <div key={index} className="flex gap-3 items-center">
+                                        <input type="text" placeholder="Deduction Name (e.g. Loan Repayment)" value={item.key} onChange={e => {
+                                            const newArr = [...form._parsedCustomDeductions];
+                                            newArr[index].key = e.target.value;
+                                            setForm({ ...form, _parsedCustomDeductions: newArr });
+                                        }} className="input-glass flex-1" />
+                                        <input type="number" placeholder="Amount" value={item.value} onChange={e => {
+                                            const newArr = [...form._parsedCustomDeductions];
+                                            newArr[index].value = e.target.value;
+                                            setForm({ ...form, _parsedCustomDeductions: newArr });
+                                        }} className="input-glass w-32" />
+                                        <button type="button" onClick={() => {
+                                            const newArr = form._parsedCustomDeductions.filter((_, i) => i !== index);
+                                            setForm({ ...form, _parsedCustomDeductions: newArr });
+                                        }} className="text-red-400 hover:text-red-300 px-2">×</button>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => setForm({ ...form, _parsedCustomDeductions: [...form._parsedCustomDeductions, { key: '', value: 0 }] })} className="text-sm px-3 py-1 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors">+ Add Custom Deduction</button>
+                            </div>
+
+                            <div className="md:col-span-2 flex items-center gap-3 mt-4">
                                 <input type="checkbox" checked={form.cpf_applicable === 1} onChange={e => setForm({ ...form, cpf_applicable: e.target.checked ? 1 : 0 })} className="w-4 h-4 rounded accent-cyan-500" />
                                 <label className="text-sm text-slate-300">CPF Applicable (Singapore Citizens & PR only)</label>
                             </div>

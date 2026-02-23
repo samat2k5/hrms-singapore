@@ -23,7 +23,9 @@ const { estimateMonthlyTax } = require('./tax-engine');
 function processEmployeePayroll(employee, options = {}) {
     const {
         overtimeHours = 0,
-        overtimeRate = 0,
+        ot15Hours = 0,
+        ot20Hours = 0,
+        overtimeRate = 0, // 1.5x rate essentially
         bonus = 0,
         otherDeductions = 0,
         unpaidLeaveDays = 0,
@@ -31,19 +33,47 @@ function processEmployeePayroll(employee, options = {}) {
         ytdAdditionalWages = 0,
     } = options;
 
+    // Parse custom allowances and deductions
+    let customAllowances = {};
+    let customDeductions = {};
+    let customAllowancesTotal = 0;
+    let customDeductionsTotal = 0;
+
+    try {
+        if (employee.custom_allowances) {
+            customAllowances = JSON.parse(employee.custom_allowances);
+            Object.values(customAllowances).forEach(v => customAllowancesTotal += Number(v) || 0);
+        }
+        if (employee.custom_deductions) {
+            customDeductions = JSON.parse(employee.custom_deductions);
+            Object.values(customDeductions).forEach(v => customDeductionsTotal += Number(v) || 0);
+        }
+    } catch (e) {
+        console.error("Error parsing custom modifiers:", e);
+    }
+
     // 1. Calculate gross pay
     const basicSalary = employee.basic_salary || 0;
     const transportAllowance = employee.transport_allowance || 0;
     const mealAllowance = employee.meal_allowance || 0;
     const otherAllowance = employee.other_allowance || 0;
-    const totalAllowances = transportAllowance + mealAllowance + otherAllowance;
+    const totalAllowances = transportAllowance + mealAllowance + otherAllowance + customAllowancesTotal;
 
     // Unpaid leave deduction (daily rate = basic / working days)
     const workingDaysPerMonth = 22; // Average
     const dailyRate = basicSalary / workingDaysPerMonth;
     const unpaidLeaveDeduction = Math.round(dailyRate * unpaidLeaveDays * 100) / 100;
 
-    const overtimePay = Math.round(overtimeHours * overtimeRate * 100) / 100;
+    // overtimeRate is already calculated logic as basic / ... * 1.5 by the route
+    // So 1.5x pay = ot15Hours * overtimeRate
+    // And 2.0x pay = ot20Hours * (overtimeRate * (2.0/1.5))
+    const ot15Pay = Math.round(ot15Hours * overtimeRate * 100) / 100;
+    const baseHourly = overtimeRate / 1.5;
+    const ot20Pay = Math.round(ot20Hours * (baseHourly * 2.0) * 100) / 100;
+    // Backward compatibility for standard OT
+    const standardOtPay = Math.round(overtimeHours * overtimeRate * 100) / 100;
+
+    const overtimePay = ot15Pay + ot20Pay + standardOtPay;
     const grossPay = basicSalary + totalAllowances + overtimePay + bonus - unpaidLeaveDeduction;
 
     // 2. Calculate CPF (if applicable — Citizens and PR only)
@@ -80,7 +110,7 @@ function processEmployeePayroll(employee, options = {}) {
     });
 
     // 6. Calculate net pay
-    const totalDeductions = cpfResult.employeeContrib + shgResult.amount + otherDeductions;
+    const totalDeductions = cpfResult.employeeContrib + shgResult.amount + otherDeductions + customDeductionsTotal;
     const netPay = Math.round((grossPay - totalDeductions) * 100) / 100;
 
     return {
@@ -91,9 +121,15 @@ function processEmployeePayroll(employee, options = {}) {
         transport_allowance: transportAllowance,
         meal_allowance: mealAllowance,
         other_allowance: otherAllowance,
+        custom_allowances: JSON.stringify(customAllowances),
+        custom_deductions: JSON.stringify(customDeductions),
         total_allowances: totalAllowances,
         overtime_hours: overtimeHours,
+        ot_1_5_hours: ot15Hours,
+        ot_2_0_hours: ot20Hours,
         overtime_pay: overtimePay,
+        ot_1_5_pay: ot15Pay,
+        ot_2_0_pay: ot20Pay,
         bonus,
         unpaid_leave_days: unpaidLeaveDays,
         unpaid_leave_deduction: unpaidLeaveDeduction,
@@ -106,9 +142,10 @@ function processEmployeePayroll(employee, options = {}) {
         sdl: sdlResult.sdl,
         shg_deduction: shgResult.amount,
         shg_fund: shgResult.fund,
-        other_deductions: otherDeductions,
+        other_deductions: otherDeductions + customDeductionsTotal,
         tax_monthly_estimate: taxResult.monthlyTax,
         net_pay: netPay,
+        payment_mode: employee.payment_mode || 'Bank Transfer'
     };
 }
 
