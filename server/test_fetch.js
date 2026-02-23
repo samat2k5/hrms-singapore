@@ -1,0 +1,1 @@
+fetch('http://localhost:5000/api/employee-groups', { headers: { 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6IkFkbWluIiwiZW50aXR5SWQiOjEsImlhdCI6MTc3MTc5MzU0NH0.ZlWfw056nfutVf_TIwt_6n8xfgbUZ3ADCCdd3yMwgKs', 'Entity-Id': '1' } }).then(r => r.json()).then(console.log).catch(console.error);
