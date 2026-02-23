@@ -75,10 +75,8 @@ export default function Login() {
                     </button>
                 </form>
 
-                {/* Default credentials */}
-                <div className="mt-6 p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/10">
-                    <p className="text-xs text-cyan-400 font-medium mb-1">Demo Credentials</p>
-                    <p className="text-xs text-slate-400">Username: <span className="text-slate-300">admin</span> · Password: <span className="text-slate-300">admin123</span></p>
+                <div className="mt-6 text-center">
+                    <p className="text-sm text-slate-400 font-medium">Designed & Developed by Mathi & Team</p>
                 </div>
             </div>
         </div>

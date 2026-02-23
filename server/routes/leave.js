@@ -44,16 +44,53 @@ async function computeDynamicBalances(db, employeeId, year) {
     const emp = balances[0]; // grab common employee data
     const dateJoined = new Date(emp.date_joined || new Date());
     const currentDate = new Date();
+
+    // Determine the reference dates for the queried year
+    const queryYearStart = new Date(year, 0, 1);
     const queryYearEnd = new Date(year, 11, 31);
 
-    // Calculate total completed months of service as of query year end (or current date if query year is future)
-    const referenceDate = currentDate.getFullYear() > year ? queryYearEnd : currentDate;
-    let completedMonths = (referenceDate.getFullYear() - dateJoined.getFullYear()) * 12 + (referenceDate.getMonth() - dateJoined.getMonth());
-    if (referenceDate.getDate() < dateJoined.getDate()) completedMonths--;
-    completedMonths = Math.max(0, completedMonths);
+    // For calculating completed years/months by the end of the queried year
+    const queryYearEndPlusOne = new Date(year + 1, 0, 1);
+    let totalCompletedMonthsAtYearEnd = (queryYearEndPlusOne.getFullYear() - dateJoined.getFullYear()) * 12 + (queryYearEndPlusOne.getMonth() - dateJoined.getMonth());
+    if (queryYearEndPlusOne.getDate() < dateJoined.getDate()) totalCompletedMonthsAtYearEnd--;
+    totalCompletedMonthsAtYearEnd = Math.max(0, totalCompletedMonthsAtYearEnd);
+    const completedYearsAtYearEnd = Math.floor(totalCompletedMonthsAtYearEnd / 12);
 
-    const completedYears = Math.floor(completedMonths / 12);
-    const monthsInCurrentYear = Math.min(12, Math.max(0, (referenceDate.getFullYear() === dateJoined.getFullYear()) ? (12 - dateJoined.getMonth()) : 12));
+    // Calculate maximum possible completed months IN THIS SPECIFIC QUERIED YEAR
+    let totalPossibleMonthsThisYear = 12;
+    if (dateJoined.getFullYear() === year) {
+        // e.g. Joined Mar 1 -> 10 months possible this year
+        totalPossibleMonthsThisYear = (queryYearEndPlusOne.getFullYear() - dateJoined.getFullYear()) * 12 + (queryYearEndPlusOne.getMonth() - dateJoined.getMonth());
+        if (queryYearEndPlusOne.getDate() < dateJoined.getDate()) totalPossibleMonthsThisYear--;
+        totalPossibleMonthsThisYear = Math.max(0, Math.min(12, totalPossibleMonthsThisYear));
+    } else if (dateJoined.getFullYear() > year) {
+        totalPossibleMonthsThisYear = 0;
+    }
+
+    // Calculate completed months IN THIS SPECIFIC YEAR up to the current date (if querying current year)
+    let yearRefDate = currentDate;
+    if (year < currentDate.getFullYear()) {
+        yearRefDate = queryYearEndPlusOne; // completed full possible
+    } else if (year > currentDate.getFullYear()) {
+        yearRefDate = queryYearStart;
+    }
+
+    let workStartThisYear = dateJoined;
+    if (dateJoined.getFullYear() < year) {
+        workStartThisYear = queryYearStart;
+    }
+
+    let monthsCompletedThisYear = 0;
+    if (yearRefDate > workStartThisYear && yearRefDate.getTime() !== queryYearStart.getTime()) {
+        monthsCompletedThisYear = (yearRefDate.getFullYear() - workStartThisYear.getFullYear()) * 12 + (yearRefDate.getMonth() - workStartThisYear.getMonth());
+        if (yearRefDate.getDate() < workStartThisYear.getDate()) monthsCompletedThisYear--;
+        monthsCompletedThisYear = Math.max(0, Math.min(totalPossibleMonthsThisYear, monthsCompletedThisYear));
+    }
+
+    // Total months completed since dateJoined up to yearRefDate (for overall probation checking)
+    let totalCompletedMonthsTillDate = (yearRefDate.getFullYear() - dateJoined.getFullYear()) * 12 + (yearRefDate.getMonth() - dateJoined.getMonth());
+    if (yearRefDate.getDate() < dateJoined.getDate()) totalCompletedMonthsTillDate--;
+    totalCompletedMonthsTillDate = Math.max(0, totalCompletedMonthsTillDate);
 
     // Fetch Grade Policies
     const polResult = db.exec(`SELECT * FROM leave_policies WHERE employee_grade = '${emp.employee_grade}'`);
@@ -67,42 +104,41 @@ async function computeDynamicBalances(db, employeeId, year) {
             let policyEntitlement = 0;
             const policy = policies.find(p => p.leave_type_id === lb.leave_type_id);
 
-            // 1. Grade-wise Policy Entitlement
+            // 1. Grade-wise Policy Full Year Entitlement
             if (policy) {
-                policyEntitlement = policy.base_days + (completedYears * policy.increment_per_year);
+                policyEntitlement = policy.base_days + (completedYearsAtYearEnd * policy.increment_per_year);
                 if (policy.max_days > 0) policyEntitlement = Math.min(policyEntitlement, policy.max_days);
             }
 
-            // 2. MOM Statutory Minimum
-            let momMinimum = Math.min(14, 7 + completedYears);
+            // 2. MOM Statutory Minimum Full Year Entitlement
+            let momMinimum = Math.min(14, 7 + completedYearsAtYearEnd);
 
-            // 3. Final Explicit Entitlement is the Highest of both
-            finalEntitled = Math.max(momMinimum, policyEntitlement);
+            // 3. Absolute Full Year Entitlement is the Highest of both
+            let absoluteFullYearEntitlement = Math.max(momMinimum, policyEntitlement);
 
-            // 4. MOM 3-month probation rule
-            if (completedMonths < 3) {
+            // 4. Prorate Entitlement for incomplete years
+            finalEntitled = Math.round((totalPossibleMonthsThisYear / 12) * absoluteFullYearEntitlement * 2) / 2;
+
+            // 5. Earned Leave pro-rata till date
+            earned = Math.round((monthsCompletedThisYear / 12) * absoluteFullYearEntitlement * 2) / 2;
+
+            // 6. MOM 3-month probation rule
+            if (totalCompletedMonthsTillDate < 3) {
                 earned = 0; // Strictly 0 earned before probation completes
-            } else {
-                // 5. Incomplete Year Proration
-                if (completedYears < 1) { // First year of employment
-                    earned = Math.round((completedMonths / 12) * finalEntitled);
-                } else {
-                    earned = finalEntitled;
-                }
             }
         } else if (lb.leave_type_name === 'Sick Leave') {
             // Sick leave Proration logic based on MOM
-            if (completedMonths < 3) earned = 0;
-            else if (completedMonths === 3) earned = 5;
-            else if (completedMonths === 4) earned = 8;
-            else if (completedMonths === 5) earned = 11;
+            if (totalCompletedMonthsTillDate < 3) earned = 0;
+            else if (totalCompletedMonthsTillDate === 3) earned = 5;
+            else if (totalCompletedMonthsTillDate === 4) earned = 8;
+            else if (totalCompletedMonthsTillDate === 5) earned = 11;
             else earned = 14;
             finalEntitled = 14;
         } else if (lb.leave_type_name === 'Hospitalization Leave') {
-            if (completedMonths < 3) earned = 0;
-            else if (completedMonths === 3) earned = 15;
-            else if (completedMonths === 4) earned = 30;
-            else if (completedMonths === 5) earned = 45;
+            if (totalCompletedMonthsTillDate < 3) earned = 0;
+            else if (totalCompletedMonthsTillDate === 3) earned = 15;
+            else if (totalCompletedMonthsTillDate === 4) earned = 30;
+            else if (totalCompletedMonthsTillDate === 5) earned = 45;
             else earned = 60;
             finalEntitled = 60;
         }
@@ -111,7 +147,7 @@ async function computeDynamicBalances(db, employeeId, year) {
             ...lb,
             entitled: finalEntitled,
             earned: earned,
-            balance: earned - lb.taken // recompute fluid balance based on earned
+            balance: Math.max(0, earned - lb.taken) // recompute fluid balance based on earned
         };
     });
 

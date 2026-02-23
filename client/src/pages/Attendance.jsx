@@ -7,21 +7,79 @@ export default function Attendance() {
     const { activeEntity } = useAuth()
     const [file, setFile] = useState(null)
     const [uploading, setUploading] = useState(false)
-    const [history, setHistory] = useState([])
     const [stats, setStats] = useState(null)
 
-    const loadHistory = async () => {
+    // Selectors state
+    const [employees, setEmployees] = useState([])
+    const [selectedEmployee, setSelectedEmployee] = useState('')
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+
+    // Matrix state
+    const [matrixData, setMatrixData] = useState([])
+    const [loadingMatrix, setLoadingMatrix] = useState(false)
+    const [savingMatrix, setSavingMatrix] = useState(false)
+
+    useEffect(() => {
+        if (activeEntity) {
+            fetchEmployees()
+        }
+    }, [activeEntity])
+
+    const fetchEmployees = async () => {
         try {
-            const data = await api.getAttendanceHistory()
-            setHistory(data)
+            const data = await api.getEmployees()
+            setEmployees(data)
         } catch (err) {
-            toast.error('Failed to load history')
+            toast.error("Failed to load employees for dropdown")
         }
     }
 
+    const loadMatrix = async () => {
+        if (!selectedEmployee) return
+        setLoadingMatrix(true)
+        try {
+            // Get exact days in selected month
+            const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate()
+
+            // Fetch any existing records targeting this month
+            const existingRecords = await api.getMonthlyTimesheets(selectedEmployee, selectedYear, selectedMonth)
+
+            // Build the 31-day array
+            const newMatrix = []
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+
+                // See if db has this date already
+                const existing = existingRecords.find(r => r.date === dateStr)
+
+                newMatrix.push({
+                    date: dateStr,
+                    dayOfWeek: new Date(dateStr).getDay(),
+                    in_time: existing?.in_time || '',
+                    out_time: existing?.out_time || '',
+                    shift: existing?.shift || 'Day',
+                    ot_hours: existing?.ot_hours || 0,
+                    remarks: existing?.remarks || ''
+                })
+            }
+
+            setMatrixData(newMatrix)
+        } catch (err) {
+            toast.error("Failed to load monthly matrix")
+        } finally {
+            setLoadingMatrix(false)
+        }
+    }
+
+    // Auto-fetch matrix when selectors change (if an employee is chosen)
     useEffect(() => {
-        if (activeEntity) loadHistory()
-    }, [activeEntity])
+        if (selectedEmployee) {
+            loadMatrix()
+        } else {
+            setMatrixData([])
+        }
+    }, [selectedEmployee, selectedYear, selectedMonth])
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0]
@@ -42,12 +100,15 @@ export default function Attendance() {
         const formData = new FormData()
         formData.append('file', file)
 
+        // Pass month parameter to import if necessary (optional depending on backend parser)
+        formData.append('month', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`)
+
         try {
-            const res = await api.importAttendance(formData)
+            const res = await api.uploadAttendance(formData)
             toast.success('Attendance imported successfully')
             setStats(res.results)
             setFile(null)
-            loadHistory()
+            if (selectedEmployee) loadMatrix() // Refresh matrix if viewing an employee bounds
         } catch (err) {
             toast.error(err.message || 'Import failed')
         } finally {
@@ -55,12 +116,59 @@ export default function Attendance() {
         }
     }
 
+    const applyBasicPattern = () => {
+        const updated = matrixData.map(row => {
+            // 1 to 5 means Monday to Friday
+            if (row.dayOfWeek >= 1 && row.dayOfWeek <= 5) {
+                return {
+                    ...row,
+                    in_time: row.in_time || '0800', // Only fill if empty to avoid wiping out genuine OT
+                    out_time: row.out_time || '1730',
+                    shift: 'Day'
+                }
+            }
+            return row
+        })
+        setMatrixData(updated)
+        toast.success("Applied basic weekday hours to empty blocks")
+    }
+
+    const handleMatrixChange = (index, field, value) => {
+        const updated = [...matrixData]
+        updated[index][field] = value
+        setMatrixData(updated)
+    }
+
+    const saveMatrix = async () => {
+        if (!selectedEmployee) return
+
+        // Filter out completely empty rows to avoid saving junk, unless they had data before and HR explicitly wiped them
+        // Actually, for simplicity and strict overrides, UPSERT the whole array so HR can explicitly blank out days
+
+        setSavingMatrix(true)
+        try {
+            await api.saveMonthlyTimesheets(selectedEmployee, matrixData)
+            toast.success('Monthly overrides saved successfully!')
+            loadMatrix()
+        } catch (err) {
+            toast.error('Failed to save monthly records: ' + err.message)
+        } finally {
+            setSavingMatrix(false)
+        }
+    }
+
+    const formatDay = (dateStr) => {
+        const d = new Date(dateStr)
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        return days[d.getDay()]
+    }
+
     return (
         <div className="space-y-6">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/5 backdrop-blur-md p-6 rounded-xl border border-white/10 shadow-xl">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Time Attendance Import</h1>
-                    <p className="text-gray-400">Upload daily site reports to sync OT and leaves</p>
+                    <h1 className="text-2xl font-bold text-white">Time Attendance & Overrides</h1>
+                    <p className="text-gray-400">Import excel files or manually override monthly timesheets</p>
                 </div>
                 <a
                     href="/Attendance_Template.xlsx"
@@ -72,12 +180,12 @@ export default function Attendance() {
                 </a>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Upload Zone */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Upload Zone (1 Column) */}
                 <div className="lg:col-span-1 bg-white/5 backdrop-blur-md p-6 rounded-xl border border-white/10 shadow-xl space-y-4 h-fit">
                     <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                         <span className="text-xl">☁️</span>
-                        Import Excel
+                        Batch Import
                     </h2>
 
                     <div className="border-2 border-dashed border-white/10 rounded-lg p-8 text-center hover:border-indigo-500/50 transition-colors cursor-pointer relative">
@@ -90,9 +198,9 @@ export default function Attendance() {
                         <div className="space-y-2">
                             <span className="text-4xl block">📤</span>
                             <p className="text-sm text-gray-300">
-                                {file ? file.name : 'Click to select or drag and drop'}
+                                {file ? file.name : 'Click or drop .xlsx file'}
                             </p>
-                            <p className="text-xs text-gray-500">Site Attendance Excel (.xlsx)</p>
+                            <p className="text-xs text-gray-400">Timesheet Array Upload</p>
                         </div>
                     </div>
 
@@ -108,7 +216,7 @@ export default function Attendance() {
 
                     {stats && (
                         <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/5 text-sm">
-                            <h3 className="text-indigo-400 font-semibold mb-2">Last Import Results:</h3>
+                            <h3 className="text-indigo-400 font-semibold mb-2">Import Results:</h3>
                             <ul className="space-y-1 text-gray-300">
                                 <li>✅ Processed: {stats.processed}</li>
                                 <li>⏭️ Skipped: {stats.skipped}</li>
@@ -120,50 +228,147 @@ export default function Attendance() {
                     )}
                 </div>
 
-                {/* History Table */}
-                <div className="lg:col-span-2 bg-white/5 backdrop-blur-md p-6 rounded-xl border border-white/10 shadow-xl overflow-hidden">
-                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <span className="text-xl">📊</span>
-                        Recent Attendance Data
-                    </h2>
+                {/* Monthly Matrix Zone (3 Columns) */}
+                <div className="lg:col-span-3 bg-white/5 backdrop-blur-md p-6 rounded-xl border border-white/10 shadow-xl overflow-hidden flex flex-col">
 
-                    <div className="overflow-x-auto h-[500px] overflow-y-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-white/5 text-gray-400 text-xs uppercase sticky top-0">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <h2 className="text-lg font-semibold text-white flex items-center gap-2 whitespace-nowrap">
+                            <span className="text-xl">📅</span>
+                            Monthly Grid Override
+                        </h2>
+
+                        {/* Filters */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <select
+                                value={selectedYear}
+                                onChange={e => setSelectedYear(parseInt(e.target.value))}
+                                className="select-glass w-24 py-1.5 border-indigo-500/30 text-sm"
+                            >
+                                {[...Array(5)].map((_, i) => {
+                                    const y = new Date().getFullYear() - i;
+                                    return <option key={y} value={y}>{y}</option>
+                                })}
+                            </select>
+
+                            <select
+                                value={selectedMonth}
+                                onChange={e => setSelectedMonth(parseInt(e.target.value))}
+                                className="select-glass w-32 py-1.5 border-indigo-500/30 text-sm"
+                            >
+                                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                    <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('default', { month: 'long' })}</option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={selectedEmployee}
+                                onChange={e => setSelectedEmployee(e.target.value)}
+                                className="select-glass w-48 py-1.5 border-indigo-500/30 text-sm"
+                            >
+                                <option value="">-- Select Employee --</option>
+                                {employees.map(emp => (
+                                    <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.employee_id})</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Matrix Actions */}
+                    <div className="flex justify-between items-center bg-black/20 p-3 rounded-lg border border-white/5 mb-4">
+                        <button
+                            onClick={applyBasicPattern}
+                            disabled={!selectedEmployee}
+                            className="px-3 py-1.5 bg-sky-600/30 hover:bg-sky-500/50 text-sky-300 rounded border border-sky-500/30 transition-colors text-sm font-medium disabled:opacity-50"
+                        >
+                            ⚡ Apply Standard Hours (M-F)
+                        </button>
+
+                        <button
+                            onClick={saveMatrix}
+                            disabled={!selectedEmployee || savingMatrix}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded shadow-lg transition-colors text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {savingMatrix ? 'Saving...' : '💾 Save Changes'}
+                        </button>
+                    </div>
+
+                    {/* Data Grid */}
+                    <div className="overflow-x-auto overflow-y-auto max-h-[600px] border border-white/10 rounded-lg">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-white/10 text-gray-300 text-xs uppercase sticky top-0 z-10 backdrop-blur-md">
                                 <tr>
-                                    <th className="px-4 py-3">Date</th>
-                                    <th className="px-4 py-3">Employee</th>
-                                    <th className="px-4 py-3 text-center">In/Out</th>
-                                    <th className="px-4 py-3 text-center">OT</th>
-                                    <th className="px-4 py-3">Remarks</th>
+                                    <th className="px-3 py-3 w-28 whitespace-nowrap">Date</th>
+                                    <th className="px-3 py-3 w-20">Day</th>
+                                    <th className="px-2 py-3 w-28 text-center">In Time</th>
+                                    <th className="px-2 py-3 w-28 text-center">Out Time</th>
+                                    <th className="px-2 py-3 w-28 text-center">Shift</th>
+                                    <th className="px-2 py-3 w-24 text-center">OT Hrs</th>
+                                    <th className="px-3 py-3">Remarks</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {history.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-white/5 text-gray-300 text-sm">
-                                        <td className="px-4 py-3 whitespace-nowrap">{row.date}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium text-white">{row.employee_name}</div>
-                                            <div className="text-xs text-gray-500">{row.employee_code}</div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            {row.in_time} - {row.out_time}
-                                            <span className="ml-2 px-1.5 py-0.5 bg-gray-800 rounded text-[10px] text-gray-400">{row.shift}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center font-bold text-indigo-400">
-                                            {row.ot_hours > 0 ? `${row.ot_hours}h` : '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-xs text-gray-500 italic max-w-xs truncate">
-                                            {row.remarks}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {history.length === 0 && (
-                                    <tr>
-                                        <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                                            No attendance data found.
-                                        </td>
-                                    </tr>
+                            <tbody className="divide-y divide-white/5 bg-black/10">
+                                {loadingMatrix ? (
+                                    <tr><td colSpan="7" className="text-center py-8 text-gray-400">Loading Matrix...</td></tr>
+                                ) : matrixData.length === 0 ? (
+                                    <tr><td colSpan="7" className="text-center py-12 text-gray-500 italic">Select an employee to expand their monthly tracking matrix.</td></tr>
+                                ) : (
+                                    matrixData.map((row, idx) => (
+                                        <tr key={idx} className={`hover:bg-white/5 text-sm transition-colors ${row.dayOfWeek === 0 || row.dayOfWeek === 6 ? 'bg-red-500/5' : ''}`}>
+                                            <td className="px-3 py-1.5 text-gray-300 font-mono text-xs">{row.date}</td>
+                                            <td className={`px-3 py-1.5 font-medium ${row.dayOfWeek === 0 ? 'text-rose-400' : row.dayOfWeek === 6 ? 'text-amber-400' : 'text-gray-400'}`}>
+                                                {formatDay(row.date)}
+                                            </td>
+                                            <td className="px-2 py-1.5 text-center">
+                                                <input
+                                                    type="text"
+                                                    maxLength={4}
+                                                    placeholder="0800"
+                                                    value={row.in_time}
+                                                    onChange={e => handleMatrixChange(idx, 'in_time', e.target.value)}
+                                                    className="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-center text-white focus:border-indigo-500 focus:bg-indigo-500/10 placeholder-gray-600 outline-none font-mono"
+                                                />
+                                            </td>
+                                            <td className="px-2 py-1.5 text-center">
+                                                <input
+                                                    type="text"
+                                                    maxLength={4}
+                                                    placeholder="1730"
+                                                    value={row.out_time}
+                                                    onChange={e => handleMatrixChange(idx, 'out_time', e.target.value)}
+                                                    className="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-center text-white focus:border-indigo-500 focus:bg-indigo-500/10 placeholder-gray-600 outline-none font-mono"
+                                                />
+                                            </td>
+                                            <td className="px-2 py-1.5 text-center">
+                                                <select
+                                                    value={row.shift}
+                                                    onChange={e => handleMatrixChange(idx, 'shift', e.target.value)}
+                                                    className="w-20 bg-white/5 border border-white/10 rounded px-1 py-1 text-center text-gray-300 focus:border-indigo-500 outline-none text-xs"
+                                                >
+                                                    <option value="Day">Day</option>
+                                                    <option value="Night">Night</option>
+                                                </select>
+                                            </td>
+                                            <td className="px-2 py-1.5 text-center">
+                                                <input
+                                                    type="number"
+                                                    step="0.25"
+                                                    min="0"
+                                                    value={row.ot_hours}
+                                                    onChange={e => handleMatrixChange(idx, 'ot_hours', parseFloat(e.target.value) || 0)}
+                                                    className="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-center text-amber-300 font-bold focus:border-amber-500 focus:bg-amber-500/10 outline-none"
+                                                />
+                                            </td>
+                                            <td className="px-3 py-1.5">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Optional remarks..."
+                                                    value={row.remarks}
+                                                    onChange={e => handleMatrixChange(idx, 'remarks', e.target.value)}
+                                                    className="w-full bg-transparent border-b border-transparent hover:border-white/10 focus:border-indigo-500 rounded-none px-1 py-1 text-gray-300 outline-none text-xs"
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))
                                 )}
                             </tbody>
                         </table>

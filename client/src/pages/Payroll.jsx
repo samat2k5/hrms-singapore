@@ -17,6 +17,12 @@ export default function Payroll() {
     const [selectedRun, setSelectedRun] = useState(null)
     const [payslips, setPayslips] = useState([])
 
+    // Pre-Processing State
+    const [isPreProcessing, setIsPreProcessing] = useState(false)
+    const [preProcessEmployees, setPreProcessEmployees] = useState([])
+    const [modifiers, setModifiers] = useState({})
+    // Format: { [empId]: { allowanceLabel: '', allowanceValue: 0, deductionLabel: '', deductionValue: 0 } }
+
     // Timesheet Upload State
     const [showTimesheetModal, setShowTimesheetModal] = useState(false)
     const [timesheetFile, setTimesheetFile] = useState(null)
@@ -45,14 +51,85 @@ export default function Payroll() {
     }
     useEffect(() => { load() }, [activeEntity?.id])
 
+    const handleInitializeRun = async () => {
+        try {
+            setProcessing(true)
+            const allEmps = await api.getEmployees()
+            // Filter active by group
+            const groupEmps = allEmps.filter(e => e.status === 'Active' && e.employee_group === employeeGroup)
+
+            if (groupEmps.length === 0) {
+                toast.error(`No active employees found in group: ${employeeGroup}`)
+                setProcessing(false)
+                return
+            }
+
+            // Hydrate the matrix inputs map
+            const initialMap = {}
+            groupEmps.forEach(e => {
+                let aKey = '', aVal = '', dKey = '', dVal = ''
+                try {
+                    const existingA = JSON.parse(e.custom_allowances || '{}')
+                    const existingD = JSON.parse(e.custom_deductions || '{}')
+
+                    const aKeys = Object.keys(existingA)
+                    if (aKeys.length > 0) {
+                        aKey = aKeys[0]
+                        aVal = existingA[aKey]
+                    }
+
+                    const dKeys = Object.keys(existingD)
+                    if (dKeys.length > 0) {
+                        dKey = dKeys[0]
+                        dVal = existingD[dKey]
+                    }
+                } catch (err) { /* ignore parse errors */ }
+
+                initialMap[e.id] = {
+                    allowanceLabel: aKey, allowanceValue: aVal,
+                    deductionLabel: dKey, deductionValue: dVal
+                }
+            })
+
+            setPreProcessEmployees(groupEmps)
+            setModifiers(initialMap)
+            setIsPreProcessing(true)
+        } catch (err) {
+            toast.error(err.message)
+        } finally {
+            setProcessing(false)
+        }
+    }
+
+    const handleModifierChange = (empId, field, value) => {
+        setModifiers(prev => ({
+            ...prev,
+            [empId]: {
+                ...(prev[empId] || {}), // safe hydration fallback
+                [field]: value
+            }
+        }))
+    }
+
     const handleRun = async () => {
-        if (!confirm(`Process payroll for ${employeeGroup} in ${formatMonth(year, month)}?`)) return
+        if (!window.confirm(`Process payroll for ${employeeGroup} in ${formatMonth(year, month)}?`)) return
         setProcessing(true)
         try {
+            // 1. Bulk Update Custom Allowances & Deductions
+            const records = preProcessEmployees.map(e => {
+                const mod = modifiers[e.id] || {}
+                const customA = mod.allowanceLabel ? { [mod.allowanceLabel]: Number(mod.allowanceValue) || 0 } : {}
+                const customD = mod.deductionLabel ? { [mod.deductionLabel]: Number(mod.deductionValue) || 0 } : {}
+                return { id: e.id, custom_allowances: customA, custom_deductions: customD }
+            })
+            await api.updateBulkCustomModifiers(records)
+
+            // 2. Process Final Payroll Hook
             const result = await api.runGroupPayroll(year, month, employeeGroup)
             toast.success(`Payroll processed for ${result.payslips.length} employees`)
             setSelectedRun(result.run)
             setPayslips(result.payslips)
+            setIsPreProcessing(false)
             load()
         } catch (err) {
             toast.error(err.message)
@@ -72,7 +149,7 @@ export default function Payroll() {
     }
 
     const handleDelete = async (id) => {
-        if (!confirm('Delete this payroll run and all associated payslips?')) return
+        if (!window.confirm('Delete this payroll run and all associated payslips?')) return
         try {
             await api.deletePayrollRun(id)
             toast.success('Payroll run deleted')
@@ -157,12 +234,96 @@ export default function Payroll() {
                             {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                     </div>
-                    <button onClick={handleRun} disabled={processing} className="gradient-btn flex items-center gap-2">
-                        {processing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '⚡'}
-                        {processing ? 'Processing...' : 'Run Payroll'}
-                    </button>
+                    {!isPreProcessing ? (
+                        <button onClick={handleInitializeRun} disabled={processing} className="gradient-btn flex items-center gap-2">
+                            {processing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '⚙️'}
+                            {processing ? 'Loading...' : 'Initialize Run'}
+                        </button>
+                    ) : (
+                        <button onClick={() => setIsPreProcessing(false)} className="px-4 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-all text-sm">
+                            Cancel
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {/* Pre-Processing Matrix Panel */}
+            {isPreProcessing && !selectedRun && (
+                <div className="glass-card p-6 animate-slide-up border border-cyan-500/30">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-lg font-semibold text-white">Pre-Processing Modifier Matrix</h3>
+                            <p className="text-sm text-slate-400">Bulk apply specific 1-off allowances and deductions before hitting the Run Engine.</p>
+                        </div>
+                        <button onClick={handleRun} disabled={processing} className="gradient-btn flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/20">
+                            {processing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '🚀'}
+                            Finalize & Run Payroll
+                        </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="table-glass">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Basic Salary</th>
+                                    <th>Custom Allowance Label</th>
+                                    <th>Allowance ($)</th>
+                                    <th>Custom Deduction Label</th>
+                                    <th>Deduction ($)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {preProcessEmployees.map(emp => (
+                                    <tr key={emp.id} className="hover:bg-white/5 transition-colors">
+                                        <td>
+                                            <p className="font-medium text-white">{emp.full_name}</p>
+                                            <p className="text-xs text-slate-500">{emp.employee_id}</p>
+                                        </td>
+                                        <td className="text-slate-300 font-medium">{formatCurrency(emp.basic_salary)}</td>
+                                        <td>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Perf Bonus"
+                                                value={modifiers[emp.id]?.allowanceLabel || ''}
+                                                onChange={(e) => handleModifierChange(emp.id, 'allowanceLabel', e.target.value)}
+                                                className="input-glass !py-1.5 !text-sm w-36"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={modifiers[emp.id]?.allowanceValue || ''}
+                                                onChange={(e) => handleModifierChange(emp.id, 'allowanceValue', e.target.value)}
+                                                className="input-glass !py-1.5 !text-sm w-24 text-emerald-400"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Uniform Fee"
+                                                value={modifiers[emp.id]?.deductionLabel || ''}
+                                                onChange={(e) => handleModifierChange(emp.id, 'deductionLabel', e.target.value)}
+                                                className="input-glass !py-1.5 !text-sm w-36"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={modifiers[emp.id]?.deductionValue || ''}
+                                                onChange={(e) => handleModifierChange(emp.id, 'deductionValue', e.target.value)}
+                                                className="input-glass !py-1.5 !text-sm w-24 text-red-400"
+                                            />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Payslip Results */}
             {selectedRun && (

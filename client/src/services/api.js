@@ -57,6 +57,13 @@ const api = {
     updateEmployee: (id, data) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
     transferEmployee: (id, targetEntityId) => request(`/employees/${id}/transfer`, { method: 'POST', body: JSON.stringify({ targetEntityId }) }),
+    updateBulkCustomModifiers: (records) => request('/employees/bulk-custom', { method: 'POST', body: JSON.stringify({ records }) }),
+
+    // Attendance
+    uploadAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
+    getAttendanceHistory: () => request('/attendance/history'),
+    getMonthlyTimesheets: (employeeId, year, month) => request(`/attendance/monthly?employeeId=${employeeId}&year=${year}&month=${month}`),
+    saveMonthlyTimesheets: (employeeId, records) => request('/attendance/monthly', { method: 'POST', body: JSON.stringify({ employeeId, records }) }),
 
     // KETs
     getKETs: (employeeId) => request(`/kets/${employeeId}`),
@@ -131,6 +138,18 @@ const api = {
     deleteEntity: (id) => request(`/entities/${id}`, { method: 'DELETE' }),
 
     getDepartments: () => request('/departments'),
+    getSites: () => request('/sites'),
+    createSite: (data) => request('/sites', { method: 'POST', body: JSON.stringify(data) }),
+    updateSite: (id, data) => request(`/sites/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteSite: (id) => request(`/sites/${id}`, { method: 'DELETE' }),
+    getSiteHours: (id) => request(`/sites/${id}/hours`),
+    updateSiteHours: (id, data) => request(`/sites/${id}/hours`, { method: 'POST', body: JSON.stringify(data) }),
+
+    getCustomers: () => request('/customers'),
+    createCustomer: (data) => request('/customers', { method: 'POST', body: JSON.stringify(data) }),
+    updateCustomer: (id, data) => request(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteCustomer: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
+
     createDepartment: (data) => request('/departments', { method: 'POST', body: JSON.stringify(data) }),
     updateDepartment: (id, data) => request(`/departments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteDepartment: (id) => request(`/departments/${id}`, { method: 'DELETE' }),

@@ -138,6 +138,8 @@ function createSchema(database) {
       department TEXT,
       employee_group TEXT,
       employee_grade TEXT DEFAULT '',
+      gender TEXT,
+      language TEXT,
       date_joined DATE,
       basic_salary REAL,
       transport_allowance REAL,

@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from '../utils/formatters'
 
 const emptyEmployee = {
     employee_id: '', full_name: '', date_of_birth: '', national_id: '', nationality: 'Citizen',
-    tax_residency: 'Resident', race: 'Chinese', designation: '', department: '', employee_group: 'General', employee_grade: '',
+    tax_residency: 'Resident', race: 'Chinese', gender: 'Male', language: 'English', designation: '', department: '', employee_group: 'General', employee_grade: '', site_id: '',
     date_joined: '', cessation_date: '', basic_salary: 0, transport_allowance: 0, meal_allowance: 0,
     other_allowance: 0, payment_mode: 'Bank Transfer', custom_allowances: '{}', custom_deductions: '{}',
     bank_name: '', bank_account: '', cpf_applicable: 1, status: 'Active',
@@ -38,6 +38,7 @@ export default function Employees() {
     const [configDepartments, setConfigDepartments] = useState([])
     const [configGroups, setConfigGroups] = useState([])
     const [configGrades, setConfigGrades] = useState([])
+    const [configSites, setConfigSites] = useState([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [editing, setEditing] = useState(null)
@@ -60,14 +61,16 @@ export default function Employees() {
             api.getDepartments(),
             api.getEmployeeGroups(),
             api.getEmployeeGrades(),
-            api.getEntities()
+            api.getEntities(),
+            api.getSites()
         ])
-            .then(([emps, depts, grps, grads, ents]) => {
+            .then(([emps, depts, grps, grads, ents, sites]) => {
                 setEmployees(emps)
                 setConfigDepartments(depts)
                 setConfigGroups(grps)
                 setConfigGrades(grads)
                 setEntities(ents)
+                setConfigSites(sites)
             })
             .catch(e => toast.error(e.message))
             .finally(() => setLoading(false))
@@ -285,6 +288,8 @@ export default function Employees() {
                             <Field form={form} setForm={setForm} label="National ID (NRIC/FIN)" name="national_id" required={['Citizen', 'PR'].includes(form.nationality)} />
                             <Field form={form} setForm={setForm} label="Tax Residency" name="tax_residency" options={['Resident', 'Non-Resident']} />
                             <Field form={form} setForm={setForm} label="Race" name="race" options={['Chinese', 'Indian', 'Malay', 'Eurasian', 'Other']} />
+                            <Field form={form} setForm={setForm} label="Gender" name="gender" options={['Male', 'Female']} />
+                            <Field form={form} setForm={setForm} label="Language" name="language" options={['English', 'Mandarin', 'Malay', 'Tamil', 'Others']} />
                             <Field form={form} setForm={setForm} label="Status" name="status" options={['Active', 'Inactive']} />
 
                             {/* Dynamic Departments Dropdown */}
@@ -315,6 +320,17 @@ export default function Employees() {
                                     <option value="">No Grade</option>
                                     {configGrades.map(g => (
                                         <option key={g.id} value={g.name}>{g.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Dynamic Sites Dropdown */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Site Assignment</label>
+                                <select value={form.site_id || ''} onChange={e => setForm({ ...form, site_id: e.target.value ? parseInt(e.target.value) : '' })} className="select-glass border-amber-500/30 focus:border-amber-500">
+                                    <option value="">Headquarters / No Fixed Site</option>
+                                    {configSites.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name} ({s.customer_name})</option>
                                     ))}
                                 </select>
                             </div>

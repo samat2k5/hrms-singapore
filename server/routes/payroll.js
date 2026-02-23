@@ -323,3 +323,33 @@ router.get('/export-cpf/:runId', async (req, res) => {
     }
 });
 
+// DELETE /api/payroll/run/:id
+router.delete('/run/:id', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { id } = req.params;
+        const entityId = req.user.entityId;
+        if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
+
+        // Ensure the run belongs to the active entity
+        const runRes = await db.exec(`SELECT id FROM payroll_runs WHERE id = ${id} AND entity_id = ${entityId}`);
+        if (!runRes.length || !runRes[0].values.length) {
+            return res.status(404).json({ error: 'Payroll run not found for this entity' });
+        }
+
+        db.exec('BEGIN TRANSACTION');
+        try {
+            db.run(`DELETE FROM payslips WHERE payroll_run_id = ?`, [id]);
+            db.run(`DELETE FROM payroll_runs WHERE id = ?`, [id]);
+            db.exec('COMMIT');
+            saveDb();
+            res.json({ message: 'Payroll run deleted successfully' });
+        } catch (err) {
+            db.exec('ROLLBACK');
+            res.status(500).json({ error: 'Failed to delete payroll run: ' + err.message });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+

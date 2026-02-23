@@ -45,6 +45,8 @@ app.use('/api/departments', require('./routes/departments'));
 app.use('/api/employee-groups', require('./routes/employee_groups'));
 app.use('/api/employee-grades', require('./routes/employee_grades'));
 app.use('/api/leave-policies', require('./routes/leave_policies'));
+app.use('/api/customers', require('./routes/customers'));
+app.use('/api/sites', require('./routes/sites'));
 app.use('/api/holidays', require('./routes/holidays'));
 app.use('/api/timesheets', require('./routes/timesheets'));
 app.use('/api/attendance', attendanceRoutes);

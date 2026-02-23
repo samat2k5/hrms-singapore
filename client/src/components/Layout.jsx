@@ -81,6 +81,32 @@ export default function Layout() {
                                     )}
 
                                     <NavLink
+                                        to="/customers"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                            }`
+                                        }
+                                    >
+                                        <span className="text-base text-center w-5">🤝</span>
+                                        <span>Customers</span>
+                                    </NavLink>
+
+                                    <NavLink
+                                        to="/sites"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                            }`
+                                        }
+                                    >
+                                        <span className="text-base text-center w-5">📍</span>
+                                        <span>Physical Sites</span>
+                                    </NavLink>
+
+                                    <NavLink
                                         to="/departments"
                                         className={({ isActive }) =>
                                             `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive

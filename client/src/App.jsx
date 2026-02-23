@@ -19,6 +19,8 @@ import Payslip from './pages/Payslip'
 import Reports from './pages/Reports'
 import Users from './pages/Users'
 import UserRoles from './pages/UserRoles'
+import Customers from './pages/Customers'
+import Sites from './pages/Sites'
 
 import { useEffect, useState } from 'react'
 
@@ -81,6 +83,8 @@ export default function App() {
         <Route path="reports" element={<Reports />} />
         <Route path="users" element={<Users />} />
         <Route path="user-roles" element={<UserRoles />} />
+        <Route path="customers" element={<Customers />} />
+        <Route path="sites" element={<Sites />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
