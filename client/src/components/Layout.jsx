@@ -61,7 +61,7 @@ export default function Layout() {
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between p-4 border-b border-[var(--border-main)] bg-[var(--bg-card)] shrink-0 absolute top-0 left-0 right-0 z-40">
                 <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold italic tracking-tight"><span className="text-[var(--brand-primary)]">ezy</span><span className="text-emerald-500">HR</span></h1>
+                    <img src="/ezyhr-logo.png" alt="ezyHR Logo" className="h-16 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👥</text></svg>" }} />
                 </div>
                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-[var(--text-muted)]">
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,9 +79,12 @@ export default function Layout() {
                 transform transition-transform duration-300 ease-in-out
                 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             `}>
-                {/* Logo */}
-                <div className="h-20 flex items-center px-6 border-b border-[var(--border-main)] md:border-none md:mt-4">
-                    <h1 className="text-3xl font-bold italic tracking-tight"><span className="text-[var(--brand-primary)]">ezy</span><span className="text-emerald-500">HR</span></h1>
+                {/* Logo Area */}
+                <div className="h-32 flex flex-col items-center justify-center px-4 border-b border-[var(--border-main)] md:border-none md:mt-4">
+                    <img src="/ezyhr-logo.png" alt="ezyHR Logo" className="h-24 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👥</text></svg>" }} />
+                    <span className="text-[10px] font-black tracking-wider uppercase bg-gradient-to-r from-cyan-400 via-emerald-400 to-blue-500 bg-clip-text text-transparent text-center px-2">
+                        MOM · CPF · IRAS · Compliant HRMS
+                    </span>
                 </div>
 
                 {/* Main Menu nav */}

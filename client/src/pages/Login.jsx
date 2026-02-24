@@ -31,11 +31,13 @@ export default function Login() {
             <div className="card-base p-8 w-full max-w-md animate-slide-up">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                        <span className="text-3xl">👥</span>
+                    <img src="/ezyhr-logo.png" alt="ezyHR Logo" className="h-48 mx-auto object-contain hover:scale-105 transition-transform" onError={(e) => { e.target.onerror = null; e.target.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👥</text></svg>" }} />
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs font-black tracking-[0.2em] uppercase bg-gradient-to-r from-cyan-400 via-emerald-400 to-blue-500 bg-clip-text text-transparent animate-pulse">
+                            MOM · CPF · IRAS · Compliant HRMS
+                        </span>
+                        <div className="h-0.5 w-48 bg-gradient-to-r from-transparent via-[var(--brand-primary)] to-transparent opacity-50"></div>
                     </div>
-                    <h1 className="text-2xl font-bold hover:scale-105 transition-transform"><span className="text-[var(--brand-primary)]">ezy</span><span className="text-emerald-500">HR</span></h1>
-                    <p className="text-[var(--text-muted)] text-sm mt-2">MOM · IRAS · CPF Compliant</p>
                 </div>
 
                 {/* Form */}

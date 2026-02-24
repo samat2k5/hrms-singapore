@@ -23,6 +23,14 @@ export default function Payslip() {
             const ps = payslip
 
             // Header
+            try {
+                const img = new Image();
+                img.src = '/ezyhr-logo.png';
+                doc.addImage(img, 'PNG', 14, 10, 40, 20);
+            } catch (e) {
+                console.error('Logo failed to load for PDF', e);
+            }
+
             doc.setFontSize(18)
             doc.setTextColor(6, 182, 212)
             doc.text('ITEMIZED PAYSLIP', 105, 20, { align: 'center' })
@@ -228,6 +236,7 @@ export default function Payslip() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <button onClick={() => navigate('/payroll')} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">← Back</button>
+                    <img src="/ezyhr-logo.png" alt="ezyHR" className="h-14 object-contain" />
                     <div>
                         <h1 className="text-2xl font-bold text-[var(--text-main)]">Itemized Payslip</h1>
                         <p className="text-[var(--text-muted)]">{formatMonth(ps.period_year, ps.period_month)}</p>

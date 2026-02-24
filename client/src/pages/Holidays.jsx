@@ -12,7 +12,7 @@ export default function Holidays() {
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [itemToDelete, setItemToDelete] = useState(null)
     const [editing, setEditing] = useState(null)
-    const [form, setForm] = useState({ name: '', date: '', description: '' })
+    const [form, setForm] = useState({ name: '', date: '' })
 
     const loadData = async () => {
         setLoading(true)
@@ -38,7 +38,7 @@ export default function Holidays() {
 
     const handleAdd = () => {
         setEditing(null)
-        setForm({ name: '', date: '', description: '' })
+        setForm({ name: '', date: '' })
         setShowModal(true)
     }
 
@@ -95,26 +95,31 @@ export default function Holidays() {
                             <tr>
                                 <th>Holiday Title</th>
                                 <th>Date</th>
-                                <th>Description</th>
+                                <th>Day</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {holidays.map(item => (
-                                <tr key={item.id}>
-                                    <td className="font-medium text-[var(--text-main)]">{item.name}</td>
-                                    <td className="text-[var(--brand-primary)]">{item.date}</td>
-                                    <td className="text-[var(--text-muted)] truncate max-w-xs">{item.description || '-'}</td>
-                                    <td>
-                                        {canEditConfigs && (
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleEdit(item)} className="text-xs text-[var(--brand-primary)] hover:text-cyan-300 transition-colors">✏️ Edit</button>
-                                                <button onClick={() => confirmDelete(item)} className="text-xs text-red-400 hover:text-red-300 transition-colors" id={`delete-btn-${item.id}`}>🗑️ Delete</button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                            {holidays.map(item => {
+                                const [y, m, d] = (item.date || '').split('-');
+                                const formattedDate = y && m && d ? `${d}-${m}-${y}` : item.date;
+                                const dayName = item.date ? new Date(item.date).toLocaleDateString('en-US', { weekday: 'long' }) : '-';
+                                return (
+                                    <tr key={item.id}>
+                                        <td className="font-medium text-[var(--text-main)]">{item.name}</td>
+                                        <td className="text-[var(--brand-primary)]">{formattedDate}</td>
+                                        <td className="text-[var(--text-muted)] truncate max-w-xs">{dayName}</td>
+                                        <td>
+                                            {canEditConfigs && (
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleEdit(item)} className="text-xs text-[var(--brand-primary)] hover:text-cyan-300 transition-colors">✏️ Edit</button>
+                                                    <button onClick={() => confirmDelete(item)} className="text-xs text-red-400 hover:text-red-300 transition-colors" id={`delete-btn-${item.id}`}>🗑️ Delete</button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                )
+                            })}
                             {holidays.length === 0 && (
                                 <tr>
                                     <td colSpan="4" className="text-center py-8 text-[var(--text-muted)]">No holidays found.</td>
@@ -149,15 +154,6 @@ export default function Holidays() {
                                     value={form.date || ''}
                                     onChange={e => setForm({ ...form, date: e.target.value })}
                                     className="input-base w-full"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Description (Optional)</label>
-                                <textarea
-                                    value={form.description || ''}
-                                    onChange={e => setForm({ ...form, description: e.target.value })}
-                                    className="input-base w-full min-h-[80px]"
                                 />
                             </div>
 
