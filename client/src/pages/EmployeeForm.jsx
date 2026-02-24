@@ -5,11 +5,15 @@ import toast from 'react-hot-toast'
 import api from '../services/api'
 
 const emptyEmployee = {
-    employee_id: '', full_name: '', date_of_birth: '', national_id: '', nationality: 'Citizen',
+    employee_id: '', full_name: '', date_of_birth: '', national_id: '', nationality: 'Singapore Citizen',
     tax_residency: 'Resident', race: 'Chinese', gender: 'Male', language: 'English', mobile_number: '', whatsapp_number: '', email: '', highest_education: '', designation: '', department: '', employee_group: 'General', employee_grade: '', site_id: '',
     date_joined: '', cessation_date: '', basic_salary: 0, transport_allowance: 0, meal_allowance: 0,
     other_allowance: 0, payment_mode: 'Bank Transfer', custom_allowances: '{}', custom_deductions: '{}',
-    bank_name: '', bank_account: '', cpf_applicable: 1, status: 'Active',
+    bank_name: '', bank_account: '', cpf_applicable: 1,
+    pr_status_start_date: '', cpf_full_rate_agreed: 0,
+    working_days_per_week: 5.5, rest_day: 'Sunday',
+    working_hours_per_day: 8, working_hours_per_week: 44,
+    status: 'Active',
     _parsedCustomAllowances: [], _parsedCustomDeductions: []
 }
 
@@ -210,11 +214,30 @@ export default function EmployeeForm() {
                     <Field form={form} setForm={setForm} label="Gender" name="gender" options={['Male', 'Female']} />
                     <Field form={form} setForm={setForm} label="Race" name="race" options={['Chinese', 'Indian', 'Malay', 'Eurasian', 'Other']} />
 
-                    <Field form={form} setForm={setForm} label="Nationality" name="nationality" options={['Citizen', 'PR', 'Foreigner']} />
-                    <Field form={form} setForm={setForm} label="National ID (NRIC/FIN)" name="national_id" required={['Citizen', 'PR'].includes(form.nationality)} />
-                    <Field form={form} setForm={setForm} label="Language" name="language" options={['English', 'Mandarin', 'Malay', 'Tamil', 'Others']} />
+                    <Field form={form} setForm={setForm} label="Nationality" name="nationality" options={['Singapore Citizen', 'SPR', 'Foreigner']} />
+                    <Field form={form} setForm={setForm} label="National ID (NRIC/FIN)" name="national_id" required={['Singapore Citizen', 'SPR'].includes(form.nationality)} />
+                    <Field form={form} setForm={setForm} label="Language" name="language" options={['English', 'Mandarin', 'Malay', 'Tamil', 'Bengali', 'Telugu', 'Hindi', 'Others']} />
 
                     <Field form={form} setForm={setForm} label="Highest Education Attained" name="highest_education" options={['Primary', 'Secondary', 'O Level', 'A Level', 'Diploma', 'Bachelor Degree', 'Master Degree', 'Doctorate', 'Others']} />
+
+                    {form.nationality === 'SPR' && (
+                        <>
+                            <Field form={form} setForm={setForm} label="PR Status Start Date" name="pr_status_start_date" type="date" required />
+                            <div className="flex items-end mb-2">
+                                <div className="flex items-center gap-3 w-full p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.cpf_full_rate_agreed === 1}
+                                        onChange={e => setForm({ ...form, cpf_full_rate_agreed: e.target.checked ? 1 : 0 })}
+                                        className="w-5 h-5 rounded accent-cyan-500"
+                                    />
+                                    <label className="text-sm font-medium text-cyan-200 cursor-pointer" onClick={() => setForm({ ...form, cpf_full_rate_agreed: form.cpf_full_rate_agreed === 1 ? 0 : 1 })}>
+                                        Full CPF Rate Agreed (Employer & Employee)
+                                    </label>
+                                </div>
+                            </div>
+                        </>
+                    )}
 
                     <div className="md:col-span-2 lg:col-span-3 border-b border-[var(--border-main)] pb-2 mt-4 mb-2">
                         <h3 className="text-lg font-semibold text-[var(--brand-primary)]">Contact Information</h3>
@@ -268,6 +291,10 @@ export default function EmployeeForm() {
 
                     <Field form={form} setForm={setForm} label="Date Joined" name="date_joined" type="date" required />
                     <Field form={form} setForm={setForm} label="Cessation Date" name="cessation_date" type="date" />
+                    <Field form={form} setForm={setForm} label="Working Days Per Week" name="working_days_per_week" options={['3', '3.5', '4', '4.5', '5', '5.25 (Alternate Saturday Off)', '5.5', '6']} />
+                    <Field form={form} setForm={setForm} label="Rest Day" name="rest_day" options={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']} />
+                    <Field form={form} setForm={setForm} label="Work Hours Per Day" name="working_hours_per_day" type="number" step="0.5" />
+                    <Field form={form} setForm={setForm} label="Normal Work Hours Per Week" name="working_hours_per_week" type="number" step="0.5" />
 
                     {/* Dynamic Departments Dropdown */}
                     <div>
@@ -328,11 +355,41 @@ export default function EmployeeForm() {
                     <div className="flex items-end mb-2">
                         <div className="flex items-center gap-3 w-full p-4 rounded-xl bg-slate-800/50 border border-[var(--border-main)]">
                             <input type="checkbox" checked={form.cpf_applicable === 1} onChange={e => setForm({ ...form, cpf_applicable: e.target.checked ? 1 : 0 })} className="w-5 h-5 rounded accent-[var(--brand-primary)]" />
-                            <label className="text-sm font-medium text-[var(--text-muted)] cursor-pointer" onClick={() => setForm({ ...form, cpf_applicable: form.cpf_applicable === 1 ? 0 : 1 })}>CPF Applicable (Singapore Citizens & PR only)</label>
+                            <label className="text-sm font-medium text-[var(--text-muted)] cursor-pointer" onClick={() => setForm({ ...form, cpf_applicable: form.cpf_applicable === 1 ? 0 : 1 })}>CPF Applicable (Singapore Citizens & SPR only)</label>
                         </div>
                     </div>
 
-                    <Field form={form} setForm={setForm} label="Transport Allowance" name="transport_allowance" type="number" />
+                    <Field form={form} setForm={setForm} label="Basic Salary ($)" name="basic_salary" type="number" required />
+
+                    {/* MOM Rate Displays */}
+                    <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-blue-50/30 rounded-lg border border-blue-100">
+                        <div>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Daily Basic Rate</p>
+                            <p className="text-lg font-semibold text-blue-700">
+                                ${((12 * (form.basic_salary || 0)) / (52 * (parseFloat(form.working_days_per_week) || 5.5))).toFixed(2)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Hourly Basic Rate</p>
+                            <p className="text-lg font-semibold text-blue-700">
+                                ${((12 * (form.basic_salary || 0)) / (52 * (form.working_hours_per_week || 44))).toFixed(2)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">1.5x OT Rate</p>
+                            <p className="text-lg font-semibold text-green-700">
+                                ${(((12 * (form.basic_salary || 0)) / (52 * (form.working_hours_per_week || 44))) * 1.5).toFixed(2)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">2.0x OT Rate</p>
+                            <p className="text-lg font-semibold text-orange-700">
+                                ${(((12 * (form.basic_salary || 0)) / (52 * (form.working_hours_per_week || 44))) * 2.0).toFixed(2)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <Field form={form} setForm={setForm} label="Fixed Transport Allowance ($)" name="transport_allowance" type="number" />
                     <Field form={form} setForm={setForm} label="Meal Allowance" name="meal_allowance" type="number" />
                     <Field form={form} setForm={setForm} label="Other Allowance" name="other_allowance" type="number" />
 

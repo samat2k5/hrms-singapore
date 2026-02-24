@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb, saveDb } = require('../db/init');
 const { authMiddleware } = require('../middleware/auth');
+const { calculateIR8A, generateAISPayload } = require('../engine/iras-engine');
 const router = express.Router();
 
 function toObjects(result) {
@@ -39,18 +40,12 @@ router.get('/forms/:year', authMiddleware, async (req, res) => {
     }
 });
 
-// GENERATE IR8A (Original)
+// GENERATE IR8A (Enhanced for 2026)
 router.post('/generate/:year', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const year = parseInt(req.params.year);
         const entityId = req.user.entityId;
-
-        // Check if already generated Original
-        const check = db.exec('SELECT id FROM iras_forms WHERE entity_id = ? AND year = ? AND form_type = \'IR8A\' AND version = 1', [entityId, year]);
-        if (toObjects(check).length > 0) {
-            return res.status(400).json({ error: 'Original IR8A for this year already generated. Use Amendments instead.' });
-        }
 
         // Fetch aggregation from payslips
         const aggregations = db.exec(`
@@ -58,7 +53,9 @@ router.post('/generate/:year', authMiddleware, async (req, res) => {
                    SUM(p.gross_pay) as total_gross,
                    SUM(p.bonus) as total_bonus,
                    SUM(p.cpf_employee) as total_cpf,
-                   SUM(p.cpf_employer) as total_employer_cpf
+                   SUM(p.cpf_employer) as total_employer_cpf,
+                   SUM(p.transport_allowance) as total_transport,
+                   SUM(p.other_allowance) as total_other_allowance
             FROM payslips p
             JOIN payroll_runs r ON p.payroll_run_id = r.id
             JOIN employees e ON p.employee_id = e.id
@@ -73,20 +70,23 @@ router.post('/generate/:year', authMiddleware, async (req, res) => {
         for (const row of rows) {
             // Exclude Foreign Cessation (Requires IR21)
             if (row.nationality && row.nationality !== 'Citizen' && row.nationality !== 'Permanent Resident' && row.cessation_date) {
-                // Skips IR8A for those requiring IR21
                 continue;
             }
 
-            const dataJson = JSON.stringify({
-                gross_salary: row.total_gross || 0,
-                bonus: row.total_bonus || 0,
-                cpf: row.total_cpf || 0,
-                employer_cpf: row.total_employer_cpf || 0
-            });
+            // Fetch BIKs
+            const biks = toObjects(db.exec('SELECT * FROM iras_benefits_in_kind WHERE employee_id = ? AND year = ?', [row.employee_id_db, year]));
+
+            // Fetch Share Options
+            const shares = toObjects(db.exec('SELECT * FROM iras_share_options WHERE employee_id = ? AND year = ?', [row.employee_id_db, year]));
+
+            // Fetch full employee for details
+            const employee = toObjects(db.exec('SELECT * FROM employees WHERE id = ?', [row.employee_id_db]))[0];
+
+            const ir8aData = calculateIR8A(employee, row, biks, shares);
 
             db.run(
                 `INSERT INTO iras_forms (entity_id, employee_id, year, form_type, data_json, status, version) VALUES (?, ?, ?, 'IR8A', ?, 'Generated', 1)`,
-                [entityId, row.employee_id_db, year, dataJson]
+                [entityId, row.employee_id_db, year, JSON.stringify(ir8aData)]
             );
             recordsCount++;
         }
@@ -94,11 +94,11 @@ router.post('/generate/:year', authMiddleware, async (req, res) => {
         // Audit Log
         db.run(
             `INSERT INTO submission_logs (entity_id, user_id, username, submission_type, file_type, records_count) VALUES (?, ?, ?, 'IR8A Original', 'IR8A', ?)`,
-            [entityId, req.user.id, req.user.username, recordsCount] // records count fixes
+            [entityId, req.user.id, req.user.username, recordsCount]
         );
 
         saveDb();
-        res.status(201).json({ message: `Generated original IR8A forms for ${recordsCount} employees.` });
+        res.status(201).json({ message: `Generated enhanced IR8A forms for ${recordsCount} employees.` });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -122,24 +122,30 @@ router.post('/amend/:year/:empId', authMiddleware, async (req, res) => {
 
         if (maxV === 0) return res.status(400).json({ error: "No original form found to amend." });
 
-        // Recalculate
+        // Recalculate Aggregations
         const aggregations = db.exec(`
-            SELECT SUM(p.gross_pay) as total_gross, SUM(p.bonus) as total_bonus, SUM(p.cpf_employee) as total_cpf, SUM(p.cpf_employer) as total_employer_cpf
+            SELECT p.employee_id as employee_id_db, 
+                   SUM(p.gross_pay) as total_gross, 
+                   SUM(p.bonus) as total_bonus, 
+                   SUM(p.cpf_employee) as total_cpf, 
+                   SUM(p.cpf_employer) as total_employer_cpf,
+                   SUM(p.transport_allowance) as total_transport,
+                   SUM(p.other_allowance) as total_other_allowance
             FROM payslips p JOIN payroll_runs r ON p.payroll_run_id = r.id
             WHERE p.employee_id = ? AND r.period_year = ?
         `, [empId, year]);
         const aRow = toObjects(aggregations)[0];
 
-        const dataJson = JSON.stringify({
-            gross_salary: aRow.total_gross || 0,
-            bonus: aRow.total_bonus || 0,
-            cpf: aRow.total_cpf || 0,
-            employer_cpf: aRow.total_employer_cpf || 0
-        });
+        // Fetch BIKs & Shares
+        const biks = toObjects(db.exec('SELECT * FROM iras_benefits_in_kind WHERE employee_id = ? AND year = ?', [empId, year]));
+        const shares = toObjects(db.exec('SELECT * FROM iras_share_options WHERE employee_id = ? AND year = ?', [empId, year]));
+        const employee = toObjects(db.exec('SELECT * FROM employees WHERE id = ?', [empId]))[0];
+
+        const ir8aData = calculateIR8A(employee, aRow, biks, shares);
 
         db.run(
             `INSERT INTO iras_forms (entity_id, employee_id, year, form_type, data_json, status, version) VALUES (?, ?, ?, 'IR8A', ?, 'Amended', ?)`,
-            [entityId, empId, year, dataJson, maxV + 1]
+            [entityId, empId, year, JSON.stringify(ir8aData), maxV + 1]
         );
 
         // Audit Log
@@ -174,23 +180,93 @@ router.get('/cessation-check', authMiddleware, async (req, res) => {
     }
 });
 
-// CPF EXCESS VALIDATION (Simple heuristic)
-router.get('/cpf-excess', authMiddleware, async (req, res) => {
+// AIS JSON EXPORT
+router.get('/export-ais-json/:year', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const aggregations = db.exec(`
-            SELECT p.employee_id, e.full_name, e.employee_id as emp_code, SUM(p.cpf_employee + p.cpf_employer) as total_cpf
-            FROM payslips p
-            JOIN employees e ON p.employee_id = e.id
-            JOIN payroll_runs r ON p.payroll_run_id = r.id
-            WHERE e.entity_id = ?
-            GROUP BY p.employee_id
-            HAVING total_cpf > 37740
-        `, [req.user.entityId]);
-        res.json(toObjects(aggregations));
+        const year = parseInt(req.params.year);
+        const entityId = req.user.entityId;
+
+        const formsResult = db.exec(`
+            SELECT f.data_json 
+            FROM iras_forms f 
+            WHERE f.entity_id = ? AND f.year = ? AND f.status != 'Void'
+            AND f.version = (SELECT MAX(version) FROM iras_forms WHERE employee_id = f.employee_id AND year = f.year)
+        `, [entityId, year]);
+
+        const forms = toObjects(formsResult);
+        if (forms.length === 0) return res.status(404).json({ error: 'No generated forms found for this year.' });
+
+        const ir8aRecords = forms.map(f => JSON.parse(f.data_json));
+        const entity = toObjects(db.exec('SELECT * FROM entities WHERE id = ?', [entityId]))[0];
+
+        const payload = generateAISPayload(entity, year, ir8aRecords);
+        res.json(payload);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// BIK MANAGEMENT
+router.get('/benefits/:empId/:year', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const result = db.exec('SELECT * FROM iras_benefits_in_kind WHERE employee_id = ? AND year = ?', [req.params.empId, req.params.year]);
+        res.json(toObjects(result));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/benefits', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { employee_id, year, category, description, value, period_from, period_to } = req.body;
+        db.run(
+            `INSERT INTO iras_benefits_in_kind (employee_id, year, category, description, value, period_from, period_to) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [employee_id, year, category, description, value, period_from, period_to]
+        );
+        saveDb();
+        res.status(201).json({ message: 'Benefit added' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/benefits/:id', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        db.run('DELETE FROM iras_benefits_in_kind WHERE id = ?', [req.params.id]);
+        saveDb();
+        res.json({ message: 'Deleted' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// SHARE OPTIONS MANAGEMENT
+router.get('/shares/:empId/:year', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const result = db.exec('SELECT * FROM iras_share_options WHERE employee_id = ? AND year = ?', [req.params.empId, req.params.year]);
+        res.json(toObjects(result));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/shares', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { employee_id, year, plan_type, grant_date, exercise_date, exercise_price, market_value, shares_count, taxable_profit } = req.body;
+        db.run(
+            `INSERT INTO iras_share_options (employee_id, year, plan_type, grant_date, exercise_date, exercise_price, market_value, shares_count, taxable_profit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [employee_id, year, plan_type, grant_date, exercise_date, exercise_price, market_value, shares_count, taxable_profit]
+        );
+        saveDb();
+        res.status(201).json({ message: 'Share record added' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/shares/:id', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        db.run('DELETE FROM iras_share_options WHERE id = ?', [req.params.id]);
+        saveDb();
+        res.json({ message: 'Deleted' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;

@@ -120,9 +120,18 @@ router.post('/:id/hours', authMiddleware, async (req, res) => {
         for (const s of schedules) {
             db.run(
                 `INSERT INTO site_working_hours 
-                (site_id, shift_type, day_of_week, start_time, end_time, meal_start_time, meal_end_time, ot_start_time, compulsory_ot_hours) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [id, s.shift_type, s.day_of_week, s.start_time || null, s.end_time || null, s.meal_start_time || null, s.meal_end_time || null, s.ot_start_time || null, s.compulsory_ot_hours || 0]
+                (site_id, shift_type, day_of_week, start_time, end_time, meal_start_time, meal_end_time, 
+                 ot_start_time, compulsory_ot_hours, ot_meal_start_time, ot_meal_end_time, 
+                 late_arrival_threshold_mins, early_departure_threshold_mins,
+                 late_arrival_penalty_block_mins, early_departure_penalty_block_mins) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    id, s.shift_type, s.day_of_week, s.start_time || null, s.end_time || null,
+                    s.meal_start_time || null, s.meal_end_time || null, s.ot_start_time || null,
+                    s.compulsory_ot_hours || 0, s.ot_meal_start_time || null, s.ot_meal_end_time || null,
+                    s.late_arrival_threshold_mins || 0, s.early_departure_threshold_mins || 0,
+                    s.late_arrival_penalty_block_mins || 0, s.early_departure_penalty_block_mins || 0
+                ]
             );
         }
 

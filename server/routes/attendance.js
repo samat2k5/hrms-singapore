@@ -98,6 +98,7 @@ router.post('/import', authMiddleware, upload.single('file'), async (req, res) =
             const outIdx = header.indexOf('Out');
             const shiftIdx = header.indexOf('Shift (D/N)');
             const remarksIdx = header.indexOf('Remarks (Piping)');
+            const perfCreditIdx = header.findIndex(h => h && (h.includes('Performance Credit') || h.includes('Perf Credit')));
 
             // 3. Process each employee row
             for (let i = headerRowIdx + 1; i < data.length; i++) {
@@ -118,14 +119,24 @@ router.post('/import', authMiddleware, upload.single('file'), async (req, res) =
                 const outTime = row[outIdx]; // e.g. 1830
                 const shift = row[shiftIdx] === 'N' ? 'Night' : 'Day';
                 const remarks = String(row[remarksIdx] || '');
+                const perfCredit = perfCreditIdx !== -1 ? parseFloat(row[perfCreditIdx]) || 0 : 0;
 
                 let otHours = 0;
                 let ot15Hours = 0;
                 let ot20Hours = 0;
 
-                // Grab site configuration
+                // Logic for Penalty calculation
+                let inTimeInt = parseInt(inTime);
+                let outTimeInt = parseInt(outTime);
+                let lateMins = 0;
+                let earlyOutMins = 0;
+
                 let otStartBoundary = 1730; // fallback default
+                let shiftStartBoundary = 800;
+                let shiftEndBoundary = 1700;
                 let compulsoryOT = 0;
+                let lateThreshold = 0;
+                let earlyThreshold = 0;
 
                 if (empSiteId) {
                     const config = hoursMap[`${empSiteId}_${dayOfWeek}_${shift}`];
@@ -133,53 +144,95 @@ router.post('/import', authMiddleware, upload.single('file'), async (req, res) =
                         if (config.ot_start_time) {
                             otStartBoundary = parseInt(config.ot_start_time.replace(':', ''));
                         }
+                        if (config.start_time) {
+                            shiftStartBoundary = parseInt(config.start_time.replace(':', ''));
+                        }
+                        if (config.end_time) {
+                            shiftEndBoundary = parseInt(config.end_time.replace(':', ''));
+                        }
                         if (config.compulsory_ot_hours) {
                             compulsoryOT = parseFloat(config.compulsory_ot_hours);
+                        }
+                        lateThreshold = parseInt(config.late_arrival_threshold_mins || 0);
+                        earlyThreshold = parseInt(config.early_departure_threshold_mins || 0);
+                        const lateBlock = parseInt(config.late_arrival_penalty_block_mins || 0);
+                        const earlyBlock = parseInt(config.early_departure_penalty_block_mins || 0);
+
+                        // Logic for Penalty calculation
+                        if (inTimeInt && shiftStartBoundary) {
+                            const inH = Math.floor(inTimeInt / 100);
+                            const inM = inTimeInt % 100;
+                            const totalInMins = inH * 60 + inM;
+
+                            const startH = Math.floor(shiftStartBoundary / 100);
+                            const startM = shiftStartBoundary % 100;
+                            const totalStartMins = startH * 60 + startM;
+
+                            const diff = totalInMins - totalStartMins;
+                            if (diff > lateThreshold) {
+                                lateMins = diff;
+                                if (lateBlock > 0) {
+                                    lateMins = Math.ceil(lateMins / lateBlock) * lateBlock;
+                                }
+                            }
+                        }
+
+                        if (outTimeInt && shiftEndBoundary) {
+                            const outH = Math.floor(outTimeInt / 100);
+                            const outM = outTimeInt % 100;
+                            const totalOutMins = outH * 60 + outM;
+
+                            const endH = Math.floor(shiftEndBoundary / 100);
+                            const endM = shiftEndBoundary % 100;
+                            const totalEndMins = endH * 60 + endM;
+
+                            const diff = totalEndMins - totalOutMins;
+                            if (diff > earlyThreshold) {
+                                earlyOutMins = diff;
+                                if (earlyBlock > 0) {
+                                    earlyOutMins = Math.ceil(earlyOutMins / earlyBlock) * earlyBlock;
+                                }
+                            }
+                        }
+
+                        // Logic for OT calculation
+                        let otStartBoundaryInt = parseInt(otStartBoundary);
+
+                        if (outTimeInt && outTimeInt > otStartBoundaryInt) {
+                            const outH = Math.floor(outTimeInt / 100);
+                            const outM = outTimeInt % 100;
+                            const roundedOutM = Math.floor(outM / 15) * 15;
+                            const totalOutMins = outH * 60 + roundedOutM;
+
+                            const boundH = Math.floor(otStartBoundaryInt / 100);
+                            const boundM = otStartBoundaryInt % 100;
+                            const totalBoundMins = boundH * 60 + boundM;
+
+                            const diffMins = totalOutMins - totalBoundMins;
+
+                            if (diffMins > 0) {
+                                otHours = diffMins / 60;
+                            }
+
+                            otHours += compulsoryOT;
+
+                            if (dayOfWeek === 0) { // Sunday
+                                ot20Hours = otHours;
+                            } else {
+                                ot15Hours = otHours;
+                            }
+                        } else if (compulsoryOT > 0) {
+                            otHours = compulsoryOT;
+                            if (dayOfWeek === 0) ot20Hours = otHours;
+                            else ot15Hours = otHours;
                         }
                     }
                 }
 
-                // Logic for OT calculation
-                let otStartBoundaryInt = parseInt(otStartBoundary);
-                let outTimeInt = parseInt(outTime);
-
-                if (outTimeInt && outTimeInt > otStartBoundaryInt) {
-                    const outH = Math.floor(outTimeInt / 100);
-                    const outM = outTimeInt % 100;
-                    // Lower 15 mins block
-                    const roundedOutM = Math.floor(outM / 15) * 15;
-                    const totalOutMins = outH * 60 + roundedOutM;
-
-                    const boundH = Math.floor(otStartBoundaryInt / 100);
-                    const boundM = otStartBoundaryInt % 100;
-                    const totalBoundMins = boundH * 60 + boundM;
-
-                    const diffMins = totalOutMins - totalBoundMins;
-
-                    if (diffMins > 0) {
-                        otHours = diffMins / 60;
-                    }
-
-                    // Add compulsory Night Shift OT if applicable
-                    otHours += compulsoryOT;
-
-                    // Standard MoM rate logic: 2.0x for Sundays, 1.5x for normal days
-                    if (dayOfWeek === 0) { // Sunday
-                        ot20Hours = otHours;
-                    } else {
-                        ot15Hours = otHours;
-                    }
-                } else if (compulsoryOT > 0) {
-                    // Even if outTime isn't past OT boundary, Night shift receives compulsory OT
-                    otHours = compulsoryOT;
-                    if (dayOfWeek === 0) ot20Hours = otHours;
-                    else ot15Hours = otHours;
-                }
-
                 try {
                     db.run(`
-                        INSERT INTO timesheets (entity_id, employee_id, date, in_time, out_time, shift, ot_hours, ot_1_5_hours, ot_2_0_hours, remarks, source_file)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO timesheets (entity_id, employee_id, date, in_time, out_time, shift, ot_hours, ot_1_5_hours, ot_2_0_hours, late_mins, early_out_mins, performance_credit, remarks, source_file)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(entity_id, employee_id, date) DO UPDATE SET
                         in_time = excluded.in_time,
                         out_time = excluded.out_time,
@@ -187,8 +240,11 @@ router.post('/import', authMiddleware, upload.single('file'), async (req, res) =
                         ot_hours = excluded.ot_hours,
                         ot_1_5_hours = excluded.ot_1_5_hours,
                         ot_2_0_hours = excluded.ot_2_0_hours,
+                        late_mins = excluded.late_mins,
+                        early_out_mins = excluded.early_out_mins,
+                        performance_credit = excluded.performance_credit,
                         remarks = excluded.remarks
-                    `, [entityId, internalEmpId, reportDate, String(inTime || ''), String(outTime || ''), shift, otHours, ot15Hours, ot20Hours, remarks, req.file.originalname]);
+                    `, [entityId, internalEmpId, reportDate, String(inTime || ''), String(outTime || ''), shift, otHours, ot15Hours, ot20Hours, lateMins, earlyOutMins, perfCredit, remarks, req.file.originalname]);
 
                     // If remarks indicate leave, log it to remarks table
                     if (remarks.toUpperCase().includes('LEAVE') || remarks.toUpperCase().includes('M/C')) {
@@ -283,8 +339,8 @@ router.post('/monthly', authMiddleware, async (req, res) => {
         db.exec("BEGIN TRANSACTION");
         records.forEach(rc => {
             db.run(`
-                INSERT INTO timesheets (entity_id, employee_id, date, in_time, out_time, shift, ot_hours, ot_1_5_hours, ot_2_0_hours, remarks, source_file)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Manual Override')
+                INSERT INTO timesheets (entity_id, employee_id, date, in_time, out_time, shift, ot_hours, ot_1_5_hours, ot_2_0_hours, late_mins, early_out_mins, remarks, source_file)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Manual Override')
                 ON CONFLICT(entity_id, employee_id, date) DO UPDATE SET
                 in_time = excluded.in_time,
                 out_time = excluded.out_time,
@@ -292,6 +348,8 @@ router.post('/monthly', authMiddleware, async (req, res) => {
                 ot_hours = excluded.ot_hours,
                 ot_1_5_hours = excluded.ot_1_5_hours,
                 ot_2_0_hours = excluded.ot_2_0_hours,
+                late_mins = excluded.late_mins,
+                early_out_mins = excluded.early_out_mins,
                 remarks = excluded.remarks
             `, [
                 entityId,
@@ -303,6 +361,8 @@ router.post('/monthly', authMiddleware, async (req, res) => {
                 rc.ot_hours || 0,
                 rc.ot_1_5_hours || 0,
                 rc.ot_2_0_hours || 0,
+                rc.late_mins || 0,
+                rc.early_out_mins || 0,
                 rc.remarks || ''
             ]);
         });

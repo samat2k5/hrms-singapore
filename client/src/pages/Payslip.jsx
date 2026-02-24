@@ -92,8 +92,13 @@ export default function Payslip() {
             if (ps.ot_2_0_hours > 0) earningsRows.push([`Overtime 2.0x (${ps.ot_2_0_hours} hrs)`, formatCurrency(ps.ot_2_0_pay)]);
             if (ps.overtime_hours > 0 && ps.ot_1_5_hours === 0 && ps.ot_2_0_hours === 0) earningsRows.push([`Overtime (${ps.overtime_hours} hrs)`, formatCurrency(ps.overtime_pay)]);
 
+            if (ps.ph_worked_pay > 0) earningsRows.push(['Worked on Public Holiday', formatCurrency(ps.ph_worked_pay)]);
+            if (ps.ph_off_day_pay > 0) earningsRows.push(['PH Off-Day Pay in Lieu', formatCurrency(ps.ph_off_day_pay)]);
+            if (ps.performance_allowance > 0) earningsRows.push(['Performance Allowance', formatCurrency(ps.performance_allowance)]);
+
             if (ps.bonus > 0) earningsRows.push(['Bonus', formatCurrency(ps.bonus)]);
             if (ps.unpaid_leave_days > 0) earningsRows.push(['Unpaid Leave Deduction', `(${formatCurrency(ps.unpaid_leave_deduction)})`]);
+            if (ps.attendance_deduction > 0) earningsRows.push(['Attendance Penalty', `(${formatCurrency(ps.attendance_deduction)})`]);
             earningsRows.push([{ content: 'Gross Pay', styles: { fontStyle: 'bold' } }, { content: formatCurrency(ps.gross_pay), styles: { fontStyle: 'bold' } }]);
 
             // Earnings Table
@@ -294,8 +299,20 @@ export default function Payslip() {
                         {ps.ot_2_0_hours > 0 && <Row label={`Overtime 2.0x (${ps.ot_2_0_hours} hrs)`} value={ps.ot_2_0_pay} />}
                         {ps.overtime_hours > 0 && ps.ot_1_5_hours === 0 && ps.ot_2_0_hours === 0 && <Row label={`Overtime (${ps.overtime_hours} hrs)`} value={ps.overtime_pay} />}
 
+                        {ps.ph_worked_pay > 0 && <Row label="Worked on Public Holiday" value={ps.ph_worked_pay} />}
+                        {ps.ph_off_day_pay > 0 && <Row label="PH Off-Day Pay in Lieu" value={ps.ph_off_day_pay} />}
+                        {ps.performance_allowance > 0 && <Row label="Performance Allowance" value={ps.performance_allowance} />}
+
                         {ps.bonus > 0 && <Row label="Bonus" value={ps.bonus} />}
                         {ps.unpaid_leave_days > 0 && <Row label={`Unpaid Leave (${ps.unpaid_leave_days} days)`} value={-ps.unpaid_leave_deduction} isNegative />}
+                        {ps.attendance_deduction > 0 && (
+                            <Row
+                                label="Attendance Penalty"
+                                value={-ps.attendance_deduction}
+                                isNegative
+                                subtitle={`${ps.late_mins || 0}L / ${ps.early_out_mins || 0}E mins`}
+                            />
+                        )}
                         <Row label="Gross Pay" value={ps.gross_pay} isBold isHighlight />
                     </div>
                 </div>
@@ -391,10 +408,13 @@ export default function Payslip() {
     )
 }
 
-function Row({ label, value, isBold, isHighlight, isNegative }) {
+function Row({ label, value, isBold, isHighlight, isNegative, subtitle }) {
     return (
         <div className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-[var(--bg-input)] transition-colors">
-            <span className={`text-sm ${isBold ? 'font-semibold text-[var(--text-main)]' : 'text-[var(--text-muted)]'}`}>{label}</span>
+            <div className="flex flex-col">
+                <span className={`text-sm ${isBold ? 'font-semibold text-[var(--text-main)]' : 'text-[var(--text-muted)]'}`}>{label}</span>
+                {subtitle && <span className="text-[10px] text-rose-400 font-medium">{subtitle}</span>}
+            </div>
             <span className={`text-sm ${isBold ? 'font-semibold' : ''} ${isHighlight ? 'text-[var(--brand-primary)]' : isNegative ? 'text-red-400' : 'text-[var(--text-main)]'}`}>
                 {isNegative ? `(${formatCurrency(Math.abs(value))})` : formatCurrency(value)}
             </span>

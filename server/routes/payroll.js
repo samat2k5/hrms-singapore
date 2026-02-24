@@ -15,6 +15,29 @@ function toObjects(result) {
     });
 }
 
+function getWorkingDaysInMonth(year, month, restDayName, holidays) {
+    const lastDay = new Date(year, month, 0).getDate();
+    let workingDays = 0;
+
+    // Map rest day name to day index (0=Sunday, 1=Monday, ...)
+    const dayMap = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
+    const restDayIdx = dayMap[restDayName] !== undefined ? dayMap[restDayName] : 0;
+
+    const holidayStrings = holidays.map(h => h.date);
+
+    for (let d = 1; d <= lastDay; d++) {
+        const date = new Date(year, month - 1, d);
+        const dayOfWeek = date.getDay();
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+        if (dayOfWeek === restDayIdx) continue;
+        if (holidayStrings.includes(dateStr)) continue;
+
+        workingDays++;
+    }
+    return workingDays;
+}
+
 // GET /api/payroll/runs — List all payroll runs
 router.get('/runs', authMiddleware, async (req, res) => {
     try {
@@ -60,6 +83,13 @@ router.post('/run', authMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'No active employees found' });
         }
 
+        // Fetch Public Holidays for this month
+        const holidayResult = db.exec(
+            'SELECT date FROM holidays WHERE entity_id = ? AND strftime(\'%Y\', date) = ? AND strftime(\'%m\', date) = ?',
+            [entityId, String(year), String(month).padStart(2, '0')]
+        );
+        const holidays = toObjects(holidayResult);
+
         // Create payroll run
         const runDate = new Date().toISOString().split('T')[0];
         db.run(
@@ -90,24 +120,97 @@ router.post('/run', authMiddleware, async (req, res) => {
             const siteReportedAbsenceDays = toObjects(attendanceAbsenceResult)[0]?.absence_days || 0;
             const unpaidDays = approvedUnpaidDays + siteReportedAbsenceDays;
 
-            // Get OT hours for this month from timesheets
+            // Get OT hours and Penalties for this month from timesheets
             const otResult = db.exec(
-                'SELECT COALESCE(SUM(ot_hours), 0) as total_ot, COALESCE(SUM(ot_1_5_hours), 0) as total_ot_1_5, COALESCE(SUM(ot_2_0_hours), 0) as total_ot_2_0 FROM timesheets WHERE employee_id = ? AND strftime(\'%Y\', date) = ? AND strftime(\'%m\', date) = ?',
+                `SELECT 
+                    COALESCE(SUM(ot_hours), 0) as total_ot, 
+                    COALESCE(SUM(ot_1_5_hours), 0) as total_ot_1_5, 
+                    COALESCE(SUM(ot_2_0_hours), 0) as total_ot_2_0,
+                    COALESCE(SUM(late_mins), 0) as total_late,
+                    COALESCE(SUM(early_out_mins), 0) as total_early_out,
+                    COALESCE(SUM(performance_credit), 0) as total_perf_credit
+                FROM timesheets 
+                WHERE employee_id = ? 
+                AND strftime('%Y', date) = ? 
+                AND strftime('%m', date) = ?`,
                 [emp.id, String(year), String(month).padStart(2, '0')]
             );
-            const otHours = toObjects(otResult)[0]?.total_ot || 0;
-            const ot15Hours = toObjects(otResult)[0]?.total_ot_1_5 || 0;
-            const ot20Hours = toObjects(otResult)[0]?.total_ot_2_0 || 0;
+            const otData = toObjects(otResult)[0];
+            const otHours = otData.total_ot || 0;
+            const ot15Hours = otData.total_ot_1_5 || 0;
+            const ot20Hours = otData.total_ot_2_0 || 0;
+            const lateMins = otData.total_late || 0;
+            const earlyOutMins = otData.total_early_out || 0;
+            const perfCredits = otData.total_perf_credit || 0;
+
+            // Get Site Performance Multiplier
+            let perfMultiplier = 1.0;
+            if (emp.site_id) {
+                const siteConfigResult = db.exec(`SELECT performance_multiplier FROM site_working_hours WHERE site_id = ? LIMIT 1`, [emp.site_id]);
+                const siteConfig = toObjects(siteConfigResult)[0];
+                if (siteConfig && siteConfig.performance_multiplier !== undefined) {
+                    perfMultiplier = parseFloat(siteConfig.performance_multiplier);
+                }
+            }
 
             // MOM standard overtime rate formula: 1.5 * Hourly Rate
             // Hourly Rate = (12 * Basic Salary) / (52 * Working Hours Per Week)
             // Fetch working hours from KETs if available, fallback to MOM standard 44 hours
-            let workingHoursPerWeek = 44;
-            const ketResult = db.exec('SELECT working_hours_per_day, working_days_per_week FROM employee_kets WHERE employee_id = ?', [emp.id]);
-            if (ketResult.length && ketResult[0].values[0][0]) {
-                const hoursPerDay = ketResult[0].values[0][0] || 8;
-                const daysPerWeek = ketResult[0].values[0][1] || 5.5;
-                workingHoursPerWeek = hoursPerDay * daysPerWeek;
+            let workingHoursPerWeek = emp.working_hours_per_week || 44;
+            const hoursPerDay = emp.working_hours_per_day || 8; // Default
+
+            // Handle string values for working days (e.g. from the dropdown)
+            let daysPerWeek = 5.5;
+            const rawDays = emp.working_days_per_week;
+            if (typeof rawDays === 'string') {
+                daysPerWeek = parseFloat(rawDays.split(' ')[0]) || 5.5;
+            } else if (typeof rawDays === 'number') {
+                daysPerWeek = rawDays;
+            }
+
+            workingHoursPerWeek = hoursPerDay * daysPerWeek;
+            const restDay = emp.rest_day || 'Sunday';
+            const dayMap = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
+            const restDayIdx = dayMap[restDay] !== undefined ? dayMap[restDay] : 0;
+
+            const totalWorkingDaysInMonth = getWorkingDaysInMonth(year, month, restDay, holidays);
+
+            // Audit: Check for 72-hour OT Limit
+            const totalOtHoursInLimits = ot15Hours + ot20Hours + otHours;
+            const otLimitWarning = totalOtHoursInLimits > 72 ? `WARNING: ${emp.full_name} exceed 72h OT limit (${totalOtHoursInLimits.toFixed(1)}h)` : null;
+            if (otLimitWarning) console.warn(otLimitWarning);
+
+            // 1. Detect Public Holidays in this month
+            const holidayDates = holidays.map(h => h.date);
+            let phWorkedDays = 0;
+            let phOffDaysToCredit = 0;
+
+            for (const hDate of holidayDates) {
+                const dateObj = new Date(hDate);
+                const dayOfWeek = dateObj.getDay();
+
+                // Check if employee worked on this PH (any timesheet entry on this date)
+                const workedOnPHResult = db.exec(
+                    'SELECT id FROM timesheets WHERE employee_id = ? AND date = ?',
+                    [emp.id, hDate]
+                );
+                if (toObjects(workedOnPHResult).length > 0) {
+                    phWorkedDays++;
+                }
+
+                // Check if PH falls on rest day
+                if (dayOfWeek === restDayIdx) {
+                    phOffDaysToCredit++;
+                }
+            }
+
+            // 2. Implement "Leave Credit" for PH on Off-Day (MOM Section 42(3))
+            if (phOffDaysToCredit > 0) {
+                // Increment Annual Leave balance (Leave Type ID for Annual Leave usually is 1 or name 'Annual Leave')
+                db.run(
+                    'UPDATE leave_balances SET entitled = entitled + ? WHERE employee_id = ? AND leave_type_id = (SELECT id FROM leave_types WHERE name = \'Annual Leave\' LIMIT 1)',
+                    [phOffDaysToCredit, emp.id]
+                );
             }
 
             let overtimeRate = 0;
@@ -118,16 +221,46 @@ router.post('/run', authMiddleware, async (req, res) => {
 
             const payslip = processEmployeePayroll(emp, {
                 unpaidLeaveDays: unpaidDays,
+                totalWorkingDaysInMonth: totalWorkingDaysInMonth,
+                phWorkedDays: phWorkedDays,
+                phOffDaysPaid: 0,
+                lateMins: lateMins,
+                earlyOutMins: earlyOutMins,
                 overtimeHours: otHours,
                 ot15Hours: ot15Hours,
                 ot20Hours: ot20Hours,
-                overtimeRate: overtimeRate
+                overtimeRate: overtimeRate,
+                performanceCredits: perfCredits,
+                performanceMultiplier: perfMultiplier,
+                year: year
             });
 
-            // Insert payslip
+            // Insert payslip (including the new PH and Penalty fields)
             db.run(
-                `INSERT INTO payslips (payroll_run_id, employee_id, employee_name, employee_code, basic_salary, transport_allowance, meal_allowance, other_allowance, custom_allowances, custom_deductions, payment_mode, total_allowances, overtime_hours, ot_1_5_hours, ot_2_0_hours, overtime_pay, ot_1_5_pay, ot_2_0_pay, bonus, gross_pay, cpf_employee, cpf_employer, cpf_oa, cpf_sa, cpf_ma, sdl, shg_deduction, shg_fund, other_deductions, unpaid_leave_days, unpaid_leave_deduction, net_pay) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [runId, payslip.employee_id, payslip.employee_name, payslip.employee_code, payslip.basic_salary, payslip.transport_allowance, payslip.meal_allowance, payslip.other_allowance, payslip.custom_allowances, payslip.custom_deductions, payslip.payment_mode, payslip.total_allowances, payslip.overtime_hours, payslip.ot_1_5_hours, payslip.ot_2_0_hours, payslip.overtime_pay, payslip.ot_1_5_pay, payslip.ot_2_0_pay, payslip.bonus, payslip.gross_pay, payslip.cpf_employee, payslip.cpf_employer, payslip.cpf_oa, payslip.cpf_sa, payslip.cpf_ma, payslip.sdl, payslip.shg_deduction, payslip.shg_fund, payslip.other_deductions, payslip.unpaid_leave_days, payslip.unpaid_leave_deduction, payslip.net_pay]
+                `INSERT INTO payslips (
+                    payroll_run_id, employee_id, employee_name, employee_code, basic_salary, 
+                    transport_allowance, meal_allowance, other_allowance, custom_allowances, 
+                    custom_deductions, payment_mode, total_allowances, overtime_hours, 
+                    ot_1_5_hours, ot_2_0_hours, overtime_pay, ot_1_5_pay, ot_2_0_pay, 
+                    ph_worked_pay, ph_off_day_pay, bonus, gross_pay, cpf_employee, 
+                    cpf_employer, cpf_oa, cpf_sa, cpf_ma, sdl, shg_deduction, shg_fund, 
+                    other_deductions, unpaid_leave_days, unpaid_leave_deduction, 
+                    late_mins, early_out_mins, attendance_deduction, performance_allowance, net_pay, compliance_notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    runId, payslip.employee_id, payslip.employee_name, payslip.employee_code,
+                    payslip.basic_salary, payslip.transport_allowance, payslip.meal_allowance,
+                    payslip.other_allowance, payslip.custom_allowances, payslip.custom_deductions,
+                    payslip.payment_mode, payslip.total_allowances, payslip.overtime_hours,
+                    payslip.ot_1_5_hours, payslip.ot_2_0_hours, payslip.overtime_pay,
+                    payslip.ot_1_5_pay, payslip.ot_2_0_pay, payslip.ph_worked_extra_pay,
+                    payslip.ph_off_day_extra_pay, payslip.bonus, payslip.gross_pay,
+                    payslip.cpf_employee, payslip.cpf_employer, payslip.cpf_oa, payslip.cpf_sa,
+                    payslip.cpf_ma, payslip.sdl, payslip.shg_deduction, payslip.shg_fund,
+                    payslip.other_deductions, payslip.unpaid_leave_days, payslip.unpaid_leave_deduction,
+                    payslip.late_mins, payslip.early_out_mins, payslip.attendance_deduction,
+                    payslip.performance_allowance, payslip.net_pay, payslip.compliance_notes
+                ]
             );
 
             totalGross += payslip.gross_pay;
@@ -227,12 +360,14 @@ router.delete('/run/:id', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+const { generateGIROFile } = require('../engine/giro-engine');
 
 // GET /api/payroll/export-giro/:runId
 router.get('/export-giro/:runId', async (req, res) => {
     try {
         const db = await getDb();
         const runId = req.params.runId;
+        const format = req.query.format || 'DBS';
 
         const runResult = db.exec(`SELECT * FROM payroll_runs WHERE id = ${runId}`);
         if (!runResult.length) return res.status(404).json({ error: 'Run not found' });
@@ -246,17 +381,11 @@ router.get('/export-giro/:runId', async (req, res) => {
         `, [runId]);
         const slips = toObjects(slipsResult);
 
-        // DBS IDEAL GIRO FORMAT (Simplified CSV for example)
-        let csv = 'Record Type,Bank Name,Account No,Name,Amount,Reference\n';
+        const { content, extension, type } = generateGIROFile(format, run, slips);
 
-        slips.forEach(s => {
-            const amount = parseFloat(s.net_pay).toFixed(2);
-            csv += `Payment,${s.bank_name || 'DBS Bank'},${s.bank_account || ''},${s.employee_name},${amount},Salary ${run.period_month}/${run.period_year}\n`;
-        });
-
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="GIRO_Export_${run.employee_group}_${run.period_year}_${run.period_month}.csv"`);
-        res.status(200).end(csv);
+        res.setHeader('Content-Type', type);
+        res.setHeader('Content-Disposition', `attachment; filename="GIRO_${format}_${run.employee_group}_${run.period_year}_${run.period_month}.${extension}"`);
+        res.status(200).end(content);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

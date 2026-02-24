@@ -123,6 +123,15 @@ const api = {
     getIRASCessation: () => request('/iras/cessation-check'),
     getIRASCpfExcess: () => request('/iras/cpf-excess'),
     getIRASLogs: () => request('/iras/audit-logs'),
+    exportAISJson: (year) => request(`/iras/export-ais-json/${year}`),
+
+    getBenefits: (empId, year) => request(`/iras/benefits/${empId}/${year}`),
+    addBenefit: (data) => request('/iras/benefits', { method: 'POST', body: JSON.stringify(data) }),
+    deleteBenefit: (id) => request(`/iras/benefits/${id}`, { method: 'DELETE' }),
+
+    getShares: (empId, year) => request(`/iras/shares/${empId}/${year}`),
+    addShare: (data) => request('/iras/shares', { method: 'POST', body: JSON.stringify(data) }),
+    deleteShare: (id) => request(`/iras/shares/${id}`, { method: 'DELETE' }),
 
     // Entities
     getEntities: () => request('/entities'),

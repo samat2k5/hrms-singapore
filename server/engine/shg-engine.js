@@ -13,15 +13,16 @@ const CDAC_RATES = [
     { minWage: 7500, maxWage: Infinity, amount: 3.00 },
 ];
 
-// SINDA — Singapore Indian Development Association
+// SINDA — Singapore Indian Development Association (2026 Rates)
 const SINDA_RATES = [
     { minWage: 0, maxWage: 1000, amount: 1.00 },
     { minWage: 1000, maxWage: 1500, amount: 3.00 },
     { minWage: 1500, maxWage: 2500, amount: 5.00 },
-    { minWage: 2500, maxWage: 4500, amount: 7.00 },
-    { minWage: 4500, maxWage: 7500, amount: 9.00 },
-    { minWage: 7500, maxWage: 10000, amount: 13.00 },
-    { minWage: 10000, maxWage: Infinity, amount: 16.00 },
+    { minWage: 2500, maxWage: 4000, amount: 7.00 },
+    { minWage: 4000, maxWage: 6000, amount: 9.00 },
+    { minWage: 6000, maxWage: 8000, amount: 12.00 },
+    { minWage: 8000, maxWage: 10000, amount: 18.00 },
+    { minWage: 10000, maxWage: Infinity, amount: 30.00 },
 ];
 
 // MBMF — Mosque Building and Mendaki Fund (Malay/Muslim)
@@ -59,11 +60,11 @@ const FUND_MAP = {
  * @param {Object} params
  * @param {string} params.race - Employee race
  * @param {number} params.monthlyWages - Monthly total wages
- * @param {string} params.nationality - Citizen / PR / Foreigner
+ * @param {string} params.nationality - Singapore Citizen / SPR / Foreigner
  * @returns {Object} SHG breakdown
  */
 function calculateSHG({ race, monthlyWages, nationality }) {
-    // Only Citizens and PR contribute
+    // Only Singapore Citizens and SPR contribute
     if (nationality === 'Foreigner' || !FUND_MAP[race]) {
         return { fund: 'N/A', amount: 0, applicable: false };
     }

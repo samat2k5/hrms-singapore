@@ -111,7 +111,12 @@ function Sites() {
                         meal_start_time: found?.meal_start_time || '',
                         meal_end_time: found?.meal_end_time || '',
                         ot_start_time: found?.ot_start_time || '',
-                        compulsory_ot_hours: found?.compulsory_ot_hours || 0
+                        compulsory_ot_hours: found?.compulsory_ot_hours || 0,
+                        ot_meal_start_time: found?.ot_meal_start_time || '',
+                        ot_meal_end_time: found?.ot_meal_end_time || '',
+                        late_arrival_threshold_mins: found?.late_arrival_threshold_mins || 0,
+                        early_departure_threshold_mins: found?.early_departure_threshold_mins || 0,
+                        performance_multiplier: found?.performance_multiplier || 1.0
                     });
                 });
             });
@@ -160,49 +165,79 @@ function Sites() {
                 </div>
 
                 {SHIFTS.map(shift => (
-                    <div key={shift} className="mb-8 glass-panel rounded-xl border border-[var(--border-main)] overflow-x-auto">
-                        <h2 className="text-xl font-semibold p-4 border-b border-[var(--border-main)] bg-[var(--bg-input)]">{shift} Shift Schedule</h2>
-                        <table className="w-full text-left border-collapse min-w-[800px]">
-                            <thead>
-                                <tr className="border-b border-[var(--border-main)] text-gray-400 text-sm">
-                                    <th className="p-4 w-32">Day</th>
-                                    <th className="p-4">Start Time</th>
-                                    <th className="p-4">End Time</th>
-                                    <th className="p-4">Meal Start</th>
-                                    <th className="p-4">Meal End</th>
-                                    <th className="p-4 text-orange-400 font-semibold">OT Gateway</th>
-                                    <th className="p-4 text-orange-400 font-semibold" title="Overtime granted unconditionally upon completion of shift">Auto OT</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {DAYS.map(day => {
-                                    const cell = scheduleMatrix.find(c => c.shift_type === shift && c.day_of_week === day.value) || {};
-                                    return (
-                                        <tr key={`${shift}-${day.value}`} className="border-b border-[var(--border-main)] hover:bg-[var(--bg-input)]">
-                                            <td className="p-4 font-medium text-gray-300">{day.label}</td>
-                                            <td className="p-4 border-r border-[var(--border-main)]">
-                                                <input type="time" value={cell.start_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'start_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
-                                            </td>
-                                            <td className="p-4 border-r border-[var(--border-main)]">
-                                                <input type="time" value={cell.end_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'end_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
-                                            </td>
-                                            <td className="p-4 border-r border-[var(--border-main)]">
-                                                <input type="time" value={cell.meal_start_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'meal_start_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
-                                            </td>
-                                            <td className="p-4 border-r border-[var(--border-main)]">
-                                                <input type="time" value={cell.meal_end_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'meal_end_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
-                                            </td>
-                                            <td className="p-4 border-r border-[var(--border-main)] bg-orange-900/10">
-                                                <input type="time" value={cell.ot_start_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'ot_start_time', e.target.value)} className="bg-slate-800 border border-orange-500/30 rounded px-2 py-1 text-sm text-orange-100 font-mono w-full" title="Time after which OT calculation begins" />
-                                            </td>
-                                            <td className="p-4 bg-orange-900/10">
-                                                <input type="number" step="0.5" value={cell.compulsory_ot_hours || 0} onChange={e => updateMatrixCell(shift, day.value, 'compulsory_ot_hours', e.target.value)} className="bg-slate-800 border border-orange-500/30 rounded px-2 py-1 text-sm text-orange-100 font-mono w-full" title="E.g., 2.5 hours of guaranteed OT for night shift" />
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                    <div key={shift} className="mb-8 overflow-x-auto">
+                        <div className="inline-block min-w-full glass-panel rounded-xl border border-[var(--border-main)]">
+                            <h2 className="text-xl font-semibold p-4 border-b border-[var(--border-main)] bg-[var(--bg-input)]">{shift} Shift Schedule</h2>
+                            <table className="text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-[var(--border-main)] text-gray-400 text-sm">
+                                        <th className="p-4 w-32">Day</th>
+                                        <th className="p-4">Start Time</th>
+                                        <th className="p-4">End Time</th>
+                                        <th className="p-4">Meal Start</th>
+                                        <th className="p-4">Meal End</th>
+                                        <th className="p-4 text-orange-400 font-semibold">OT Gateway</th>
+                                        <th className="p-4 text-orange-400 font-semibold" title="Overtime granted unconditionally upon completion of shift">Auto OT</th>
+                                        <th className="p-4 text-orange-300">OT Meal Start</th>
+                                        <th className="p-4 text-orange-300">OT Meal End</th>
+                                        <th className="p-4 text-rose-400">Late (mins)</th>
+                                        <th className="p-4 text-rose-300">Late Block</th>
+                                        <th className="p-4 text-rose-400">Early Out (mins)</th>
+                                        <th className="p-4 text-rose-300">Early Block</th>
+                                        <th className="p-4 text-emerald-400">Perf. Mult</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {DAYS.map(day => {
+                                        const cell = scheduleMatrix.find(c => c.shift_type === shift && c.day_of_week === day.value) || {};
+                                        return (
+                                            <tr key={`${shift}-${day.value}`} className="border-b border-[var(--border-main)] hover:bg-[var(--bg-input)]">
+                                                <td className="p-4 font-medium text-gray-300">{day.label}</td>
+                                                <td className="p-4 border-r border-[var(--border-main)]">
+                                                    <input type="time" value={cell.start_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'start_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)]">
+                                                    <input type="time" value={cell.end_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'end_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)]">
+                                                    <input type="time" value={cell.meal_start_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'meal_start_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)]">
+                                                    <input type="time" value={cell.meal_end_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'meal_end_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)] bg-orange-900/10">
+                                                    <input type="time" value={cell.ot_start_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'ot_start_time', e.target.value)} className="bg-slate-800 border border-orange-500/30 rounded px-2 py-1 text-sm text-orange-100 font-mono w-full" title="Time after which OT calculation begins" />
+                                                </td>
+                                                <td className="p-4 bg-orange-900/10">
+                                                    <input type="number" step="0.5" value={cell.compulsory_ot_hours || 0} onChange={e => updateMatrixCell(shift, day.value, 'compulsory_ot_hours', e.target.value)} className="bg-slate-800 border border-orange-500/30 rounded px-2 py-1 text-sm text-orange-100 font-mono w-full" title="E.g., 2.5 hours of guaranteed OT for night shift" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)]">
+                                                    <input type="time" value={cell.ot_meal_start_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'ot_meal_start_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)]">
+                                                    <input type="time" value={cell.ot_meal_end_time || ''} onChange={e => updateMatrixCell(shift, day.value, 'ot_meal_end_time', e.target.value)} className="bg-slate-800 border border-[var(--border-main)] rounded px-2 py-1 text-sm text-[var(--text-main)] w-full" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)] bg-rose-900/10">
+                                                    <input type="number" value={cell.late_arrival_threshold_mins || 0} onChange={e => updateMatrixCell(shift, day.value, 'late_arrival_threshold_mins', e.target.value)} className="bg-slate-800 border border-rose-500/30 rounded px-2 py-1 text-sm text-rose-100 font-mono w-full" title="Grace period in minutes before lateness penalty" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)] bg-rose-950/20">
+                                                    <input type="number" value={cell.late_arrival_penalty_block_mins || 0} onChange={e => updateMatrixCell(shift, day.value, 'late_arrival_penalty_block_mins', e.target.value)} className="bg-slate-800 border border-rose-400/20 rounded px-2 py-1 text-sm text-rose-200 font-mono w-full" title="Round up penalty to this block (e.g. 15 mins)" />
+                                                </td>
+                                                <td className="p-4 border-r border-[var(--border-main)] bg-rose-900/10">
+                                                    <input type="number" value={cell.early_departure_threshold_mins || 0} onChange={e => updateMatrixCell(shift, day.value, 'early_departure_threshold_mins', e.target.value)} className="bg-slate-800 border border-rose-500/30 rounded px-2 py-1 text-sm text-rose-100 font-mono w-full" title="Grace period in minutes before early checkout penalty" />
+                                                </td>
+                                                <td className="p-4 bg-rose-950/20">
+                                                    <input type="number" value={cell.early_departure_penalty_block_mins || 0} onChange={e => updateMatrixCell(shift, day.value, 'early_departure_penalty_block_mins', e.target.value)} className="bg-slate-800 border border-rose-400/20 rounded px-2 py-1 text-sm text-rose-200 font-mono w-full" title="Round up penalty to this block (e.g. 15 mins)" />
+                                                </td>
+                                                <td className="p-4 bg-emerald-900/10">
+                                                    <input type="number" step="0.1" value={cell.performance_multiplier || 1.0} onChange={e => updateMatrixCell(shift, day.value, 'performance_multiplier', e.target.value)} className="bg-slate-800 border border-emerald-500/30 rounded px-2 py-1 text-sm text-emerald-100 font-mono w-full" title="Multiplier for performance hour credits (e.g. 1.0, 1.5, 2.0)" />
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 ))}
             </div>

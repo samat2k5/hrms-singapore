@@ -43,6 +43,71 @@ async function getDb() {
       }
     } catch (e) { console.error('[DB] Migration check failed:', e.message); }
 
+    // SELF-HEALING MIGRATION: Site Working Hours advanced fields
+    try {
+      const check = db.exec("PRAGMA table_info(site_working_hours)");
+      if (check.length > 0) {
+        const columns = check[0].values.map(v => v[1]);
+        const migrations = [
+          { name: 'ot_meal_start_time', type: 'TEXT' },
+          { name: 'ot_meal_end_time', type: 'TEXT' },
+          { name: 'late_arrival_threshold_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'early_departure_threshold_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'late_arrival_penalty_block_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'early_departure_penalty_block_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'performance_multiplier', type: 'REAL DEFAULT 1.0' }
+        ];
+        for (const col of migrations) {
+          if (!columns.includes(col.name)) {
+            console.log(`[DB] Migrating site_working_hours: Adding ${col.name}...`);
+            db.run(`ALTER TABLE site_working_hours ADD COLUMN ${col.name} ${col.type}`);
+          }
+        }
+        saveDb();
+      }
+    } catch (e) { console.error('[DB] Site matrix migration failed:', e.message); }
+
+    // SELF-HEALING MIGRATION: Timesheets attendance tracking
+    try {
+      const check = db.exec("PRAGMA table_info(timesheets)");
+      if (check.length > 0) {
+        const columns = check[0].values.map(v => v[1]);
+        const migrations = [
+          { name: 'late_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'early_out_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'performance_credit', type: 'REAL DEFAULT 0' }
+        ];
+        for (const col of migrations) {
+          if (!columns.includes(col.name)) {
+            console.log(`[DB] Migrating timesheets: Adding ${col.name}...`);
+            db.run(`ALTER TABLE timesheets ADD COLUMN ${col.name} ${col.type}`);
+          }
+        }
+        saveDb();
+      }
+    } catch (e) { console.error('[DB] Timesheets migration failed:', e.message); }
+
+    // SELF-HEALING MIGRATION: Payslips attendance tracking
+    try {
+      const check = db.exec("PRAGMA table_info(payslips)");
+      if (check.length > 0) {
+        const columns = check[0].values.map(v => v[1]);
+        const migrations = [
+          { name: 'late_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'early_out_mins', type: 'INTEGER DEFAULT 0' },
+          { name: 'attendance_deduction', type: 'REAL DEFAULT 0' },
+          { name: 'performance_allowance', type: 'REAL DEFAULT 0' }
+        ];
+        for (const col of migrations) {
+          if (!columns.includes(col.name)) {
+            console.log(`[DB] Migrating payslips: Adding ${col.name}...`);
+            db.run(`ALTER TABLE payslips ADD COLUMN ${col.name} ${col.type}`);
+          }
+        }
+        saveDb();
+      }
+    } catch (e) { console.error('[DB] Payslips migration failed:', e.message); }
+
   } else {
     db = new SQL.Database();
     createSchema(db);
@@ -184,7 +249,7 @@ function createSchema(database) {
       full_name TEXT NOT NULL,
       date_of_birth DATE,
       national_id TEXT,
-      nationality TEXT DEFAULT 'Citizen',
+      nationality TEXT DEFAULT 'Singapore Citizen',
       tax_residency TEXT DEFAULT 'Resident',
       race TEXT,
       designation TEXT,
@@ -208,6 +273,10 @@ function createSchema(database) {
       bank_name TEXT,
       bank_account TEXT,
       cpf_applicable BOOLEAN DEFAULT 1,
+      pr_status_start_date DATE,
+      cpf_full_rate_agreed BOOLEAN DEFAULT 0,
+      working_days_per_week REAL DEFAULT 5.5,
+      rest_day TEXT DEFAULT 'Sunday',
       status TEXT DEFAULT 'Active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(entity_id) REFERENCES entities(id),
@@ -370,6 +439,8 @@ function createSchema(database) {
       ot_2_0_hours REAL DEFAULT 0,
       ot_1_5_pay REAL DEFAULT 0,
       ot_2_0_pay REAL DEFAULT 0,
+      ph_worked_pay REAL DEFAULT 0,
+      ph_off_day_pay REAL DEFAULT 0,
       bonus REAL DEFAULT 0,
       custom_allowances TEXT DEFAULT '{}',
       custom_deductions TEXT DEFAULT '{}',
@@ -386,7 +457,12 @@ function createSchema(database) {
       other_deductions REAL DEFAULT 0,
       unpaid_leave_days REAL DEFAULT 0,
       unpaid_leave_deduction REAL DEFAULT 0,
+      late_mins INTEGER DEFAULT 0,
+      early_out_mins INTEGER DEFAULT 0,
+      attendance_deduction REAL DEFAULT 0,
+      performance_allowance REAL DEFAULT 0,
       net_pay REAL DEFAULT 0,
+      compliance_notes TEXT DEFAULT '',
       FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id),
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     )
@@ -460,14 +536,45 @@ function createSchema(database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entity_id INTEGER NOT NULL,
       employee_id INTEGER NOT NULL,
-      year_of_assessment INTEGER NOT NULL,
+      year INTEGER NOT NULL,
       form_type TEXT NOT NULL,
-      is_amendment BOOLEAN DEFAULT 0,
-      amendment_reason TEXT,
-      form_data TEXT NOT NULL,
+      data_json TEXT NOT NULL,
+      status TEXT DEFAULT 'Generated',
+      version INTEGER DEFAULT 1,
       generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       is_locked BOOLEAN DEFAULT 1,
       FOREIGN KEY (entity_id) REFERENCES entities(id),
+      FOREIGN KEY (employee_id) REFERENCES employees(id)
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS iras_benefits_in_kind (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      year INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      description TEXT,
+      value REAL DEFAULT 0,
+      period_from DATE,
+      period_to DATE,
+      is_taxable BOOLEAN DEFAULT 1,
+      FOREIGN KEY (employee_id) REFERENCES employees(id)
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS iras_share_options (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      year INTEGER NOT NULL,
+      plan_type TEXT,
+      grant_date DATE,
+      exercise_date DATE,
+      exercise_price REAL,
+      market_value REAL,
+      shares_count INTEGER,
+      taxable_profit REAL,
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     )
   `);
@@ -510,12 +617,13 @@ function seedData(database) {
 
   // MOM-compliant leave types
   const leaveTypes = [
-    ['Annual Leave', 7],
+    ['Annual Leave', 7], // Base annual leave, typically increases by 1 day per year of service
     ['Medical Leave', 14],
     ['Hospitalization Leave', 60],
     ['Childcare Leave', 6],
     ['Maternity Leave', 112],   // 16 weeks = 112 days
-    ['Paternity Leave', 14],    // 2 weeks = 14 days
+    ['Paternity Leave', 24],    // 4 weeks = 24 days
+    ['Shared Parental Leave', 60], // 10 weeks = 60 days
     ['Compassionate Leave', 3],
     ['Unpaid Leave', 0]
   ];
@@ -528,24 +636,22 @@ function seedData(database) {
   });
 
   // Seed sample employees with groups
-  const employees = [
-    [1, 'EMP001', 'Tan Wei Ming', '1990-05-15', 'S1234567A', 'Citizen', 'Resident', 'Chinese', 'Software Engineer', 'Technology', 'Executive', '2023-01-15', 5500, 200, 150, 0, 'DBS Bank', '1234567890', 1],
-    [1, 'EMP002', 'Priya Sharma', '1988-11-22', 'S7654321B', 'PR', 'Resident', 'Indian', 'Senior Analyst', 'Finance', 'Executive', '2022-06-01', 7200, 300, 150, 100, 'OCBC Bank', '2345678901', 1],
-    [1, 'EMP003', 'Ahmad bin Hassan', '1985-03-10', 'S1112223C', 'Citizen', 'Resident', 'Malay', 'Operations Manager', 'Operations', 'Operations', '2021-03-20', 8500, 400, 200, 0, 'UOB Bank', '3456789012', 1],
-    [1, 'EMP004', 'Sarah Pereira', '1992-08-30', 'S4445556D', 'Citizen', 'Resident', 'Eurasian', 'HR Executive', 'Human Resources', 'Executive', '2023-09-01', 4800, 200, 100, 0, 'DBS Bank', '4567890123', 1],
-    [2, 'EMP005', 'Lim Jia Hui', '1965-01-20', 'S8889990E', 'Citizen', 'Resident', 'Chinese', 'Senior Consultant', 'Advisory', 'Executive', '2018-04-10', 9500, 500, 200, 200, 'OCBC Bank', '5678901234', 1],
+  const sampleEmployees = [
+    [1, 'EMP001', 'John Doe', '1985-06-15', 'S1234567A', 'Singapore Citizen', 'Resident', 'Chinese', 'Software Engineer', 'Technology', 'Executive', '2020-01-01', 5000, 200, 150, 0, 'DBS Bank', '1234567890', 1],
+    [1, 'EMP002', 'Jane Smith', '1990-09-20', 'S1234567B', 'SPR', 'Resident', 'Malay', 'UI Designer', 'Technology', 'Executive', '2021-03-15', 4500, 150, 100, 0, 'OCBC Bank', '2345678901', 1],
+    [1, 'EMP003', 'Ahmad bin Hassan', '1985-03-10', 'S1112223C', 'Singapore Citizen', 'Resident', 'Malay', 'Operations Manager', 'Operations', 'Operations', '2021-03-20', 8500, 400, 200, 0, 'UOB Bank', '3456789012', 1],
   ];
 
-  employees.forEach(emp => {
+  sampleEmployees.forEach(emp => {
     database.run(
-      `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, designation, department, employee_group, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      emp
+      `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, designation, department, employee_group, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, working_days_per_week, rest_day) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [...emp, 5.5, 'Sunday']
     );
   });
 
   // Seed KETs for sample employees
   const currentYear = new Date().getFullYear();
-  employees.forEach((emp, idx) => {
+  sampleEmployees.forEach((emp, idx) => {
     database.run(
       `INSERT INTO employee_kets (employee_id, job_title, employment_start_date, employment_type, working_hours_per_day, working_days_per_week, rest_day, salary_period, basic_salary, fixed_allowances, overtime_rate, annual_leave_days, sick_leave_days, hospitalization_days, probation_months, notice_period, issued_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [idx + 1, emp[8], emp[11], 'Permanent', 8, 5, 'Sunday', 'Monthly', emp[12],
@@ -555,7 +661,7 @@ function seedData(database) {
 
   // Seed leave balances for current year
   const leaveTypeCount = leaveTypes.length;
-  for (let empId = 1; empId <= employees.length; empId++) {
+  for (let empId = 1; empId <= sampleEmployees.length; empId++) {
     for (let ltId = 1; ltId <= leaveTypeCount; ltId++) {
       const entitled = leaveTypes[ltId - 1][1];
       database.run(

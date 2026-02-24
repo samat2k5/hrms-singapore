@@ -138,7 +138,7 @@ export default function Employees() {
                                         </td>
                                         <td>{emp.designation}</td>
                                         <td>{formatCurrency(emp.basic_salary)}</td>
-                                        <td><span className={emp.nationality === 'Citizen' ? 'badge-success' : emp.nationality === 'PR' ? 'badge-info' : 'badge-neutral'}>{emp.nationality}</span></td>
+                                        <td><span className={emp.nationality === 'Singapore Citizen' ? 'badge-success' : emp.nationality === 'SPR' ? 'badge-info' : 'badge-neutral'}>{emp.nationality}</span></td>
                                         <td><span className={emp.status === 'Active' ? 'badge-success' : 'badge-danger'}>{emp.status}</span></td>
                                         <td>
                                             <div className="flex gap-2">

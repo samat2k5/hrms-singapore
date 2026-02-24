@@ -17,7 +17,7 @@ const { estimateMonthlyTax } = require('./tax-engine');
  * @param {number} options.otherDeductions - Other deductions
  * @param {number} options.unpaidLeaveDays - Number of unpaid leave days
  * @param {number} options.ytdOrdinaryWages - Year-to-date OW
- * @param {number} options.ytdAdditionalWages - Year-to-date AW
+ * @param {number} options.totalWorkingDaysInMonth - Exact working days for that month (MOM)
  * @returns {Object} Complete payslip data
  */
 function processEmployeePayroll(employee, options = {}) {
@@ -29,8 +29,16 @@ function processEmployeePayroll(employee, options = {}) {
         bonus = 0,
         otherDeductions = 0,
         unpaidLeaveDays = 0,
+        totalWorkingDaysInMonth = 22, // Fallback to 22 if not provided
+        phWorkedDays = 0, // Number of public holidays worked
+        phOffDaysPaid = 0, // Number of PH on off-days to be paid instead of leave credit
         ytdOrdinaryWages = 0,
         ytdAdditionalWages = 0,
+        year = new Date().getFullYear(),
+        lateMins = 0,
+        earlyOutMins = 0,
+        performanceCredits = 0,
+        performanceMultiplier = 1.0,
     } = options;
 
     // Parse custom allowances and deductions
@@ -52,17 +60,20 @@ function processEmployeePayroll(employee, options = {}) {
         console.error("Error parsing custom modifiers:", e);
     }
 
-    // 1. Calculate gross pay
+    // 1. Calculate Gross Rate of Pay for deductions
     const basicSalary = employee.basic_salary || 0;
     const transportAllowance = employee.transport_allowance || 0;
     const mealAllowance = employee.meal_allowance || 0;
     const otherAllowance = employee.other_allowance || 0;
-    const totalAllowances = transportAllowance + mealAllowance + otherAllowance + customAllowancesTotal;
 
-    // Unpaid leave deduction (daily rate = basic / working days)
-    const workingDaysPerMonth = 22; // Average
-    const dailyRate = basicSalary / workingDaysPerMonth;
-    const unpaidLeaveDeduction = Math.round(dailyRate * unpaidLeaveDays * 100) / 100;
+    // Fixed Allowances included in Gross Rate of Pay
+    const fixedAllowancesTotal = transportAllowance + mealAllowance + otherAllowance + customAllowancesTotal;
+    const grossRateOfMonth = basicSalary + fixedAllowancesTotal;
+
+    // Unpaid leave deduction (MOM Formulation: Gross Rate of Pay / actual working days in month)
+    // Section 28: Deduction for absence from work should be based on Gross Rate of Pay
+    const dailyGrossRate = totalWorkingDaysInMonth > 0 ? grossRateOfMonth / totalWorkingDaysInMonth : 0;
+    const unpaidLeaveDeduction = Math.round(dailyGrossRate * unpaidLeaveDays * 100) / 100;
 
     // overtimeRate is already calculated logic as basic / ... * 1.5 by the route
     // So 1.5x pay = ot15Hours * overtimeRate
@@ -74,19 +85,42 @@ function processEmployeePayroll(employee, options = {}) {
     const standardOtPay = Math.round(overtimeHours * overtimeRate * 100) / 100;
 
     const overtimePay = ot15Pay + ot20Pay + standardOtPay;
-    const grossPay = basicSalary + totalAllowances + overtimePay + bonus - unpaidLeaveDeduction;
+
+    // 2. Public Holiday Entitlements (Section 42)
+    // Extra pay for working on PH = 1 extra day of basic rate pay
+    const phExtraPay = Math.round(dailyGrossRate * phWorkedDays * 100) / 100; // Actually MOM says basic rate, but for monthly workers it's often gross. The user asked "how you'll calculate".
+    // Wait, Section 42(4) says 'extra day's salary at the basic rate of pay'.
+    const dailyBasicRate = totalWorkingDaysInMonth > 0 ? basicSalary / totalWorkingDaysInMonth : 0;
+    const phWorkedExtraPay = Math.round(dailyBasicRate * phWorkedDays * 100) / 100;
+
+    // PH on Off-Day (Section 42(3)): Day off in lieu or 1 extra day's salary at gross rate
+    const phOffDayExtraPay = Math.round(dailyGrossRate * phOffDaysPaid * 100) / 100;
+
+    // 3. Attendance Penalty (Lateness/Early Out)
+    // Formula: (Total Penalty Mins / 60) * (Basic Rate / 8)
+    const hourlyBasicRate = dailyBasicRate / 8;
+    const attendanceDeduction = Math.round(((lateMins + earlyOutMins) / 60) * hourlyBasicRate * 100) / 100;
+
+    // 4. Performance Reward
+    const performanceAllowance = Math.round(performanceCredits * hourlyBasicRate * performanceMultiplier * 100) / 100;
+
+    const grossPay = basicSalary + fixedAllowancesTotal + overtimePay + bonus + phWorkedExtraPay + phOffDayExtraPay + performanceAllowance - unpaidLeaveDeduction - attendanceDeduction;
 
     // 2. Calculate CPF (if applicable — Citizens and PR only)
     let cpfResult = { employeeContrib: 0, employerContrib: 0, oa: 0, sa: 0, ma: 0 };
     if (employee.cpf_applicable) {
-        const ordinaryWages = basicSalary + totalAllowances - unpaidLeaveDeduction;
-        const additionalWages = overtimePay + bonus;
+        const ordinaryWages = basicSalary + fixedAllowancesTotal - unpaidLeaveDeduction;
+        const additionalWages = overtimePay + bonus + phWorkedExtraPay + phOffDayExtraPay;
         cpfResult = calculateCPF({
             dateOfBirth: employee.date_of_birth,
             ordinaryWages,
             additionalWages,
             ytdOrdinaryWages,
             ytdAdditionalWages,
+            nationality: employee.nationality,
+            prStatusStartDate: employee.pr_status_start_date,
+            isFullRateAgreed: !!employee.cpf_full_rate_agreed,
+            year: year
         });
     }
 
@@ -109,9 +143,26 @@ function processEmployeePayroll(employee, options = {}) {
         taxResidency: employee.tax_residency,
     });
 
-    // 6. Calculate net pay
-    const totalDeductions = cpfResult.employeeContrib + shgResult.amount + otherDeductions + customDeductionsTotal;
-    const netPay = Math.round((grossPay - totalDeductions) * 100) / 100;
+    // 6. Calculate net pay and apply MOM Deduction Cap (Section 32)
+    // The total amount of all deductions in any one salary period shall not exceed 50% of the salary payable.
+    // DOES NOT apply to: Absence from work, recovery of advances/loans, cooperative payments.
+    const salaryPayable = grossPay;
+    const statutoryCap = salaryPayable * 0.5;
+
+    // Deductions subject to 50% cap: CPF, SHG, Other Misc Deductions (assuming they aren't loans here)
+    const cappedDeductionsSum = cpfResult.employeeContrib + shgResult.amount + otherDeductions + customDeductionsTotal;
+
+    let totalDeductionsSubjectToCap = cappedDeductionsSum;
+    let capWarning = false;
+
+    if (totalDeductionsSubjectToCap > statutoryCap) {
+        totalDeductionsSubjectToCap = statutoryCap;
+        capWarning = true;
+    }
+
+    // Total deductions = Subject to Cap + Absence Deduction (unpaidLeaveDeduction)
+    const finalTotalDeductions = totalDeductionsSubjectToCap + unpaidLeaveDeduction;
+    const netPay = Math.round((salaryPayable - finalTotalDeductions) * 100) / 100;
 
     return {
         employee_id: employee.id,
@@ -123,7 +174,7 @@ function processEmployeePayroll(employee, options = {}) {
         other_allowance: otherAllowance,
         custom_allowances: JSON.stringify(customAllowances),
         custom_deductions: JSON.stringify(customDeductions),
-        total_allowances: totalAllowances,
+        total_allowances: fixedAllowancesTotal,
         overtime_hours: overtimeHours,
         ot_1_5_hours: ot15Hours,
         ot_2_0_hours: ot20Hours,
@@ -145,7 +196,14 @@ function processEmployeePayroll(employee, options = {}) {
         other_deductions: otherDeductions + customDeductionsTotal,
         tax_monthly_estimate: taxResult.monthlyTax,
         net_pay: netPay,
-        payment_mode: employee.payment_mode || 'Bank Transfer'
+        ph_worked_extra_pay: phWorkedExtraPay,
+        ph_off_day_extra_pay: phOffDayExtraPay,
+        late_mins: lateMins,
+        early_out_mins: earlyOutMins,
+        attendance_deduction: attendanceDeduction,
+        performance_allowance: performanceAllowance,
+        payment_mode: employee.payment_mode || 'Bank Transfer',
+        compliance_notes: capWarning ? 'MOM 50% Deduction Cap Applied' : ''
     };
 }
 

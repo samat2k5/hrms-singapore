@@ -16,6 +16,7 @@ export default function Payroll() {
     const [employeeGroup, setEmployeeGroup] = useState('General')
     const [selectedRun, setSelectedRun] = useState(null)
     const [payslips, setPayslips] = useState([])
+    const [giroFormat, setGiroFormat] = useState('DBS')
 
     // Pre-Processing State
     const [isPreProcessing, setIsPreProcessing] = useState(false)
@@ -349,6 +350,8 @@ export default function Payroll() {
                                     <th>Employee</th>
                                     <th>Basic</th>
                                     <th>Allowances</th>
+                                    <th>Perf. Allow ($)</th>
+                                    <th>Att. Pen ($)</th>
                                     <th>Gross</th>
                                     <th>CPF (EE)</th>
                                     <th>CPF (ER)</th>
@@ -369,6 +372,23 @@ export default function Payroll() {
                                         </td>
                                         <td>{formatCurrency(ps.basic_salary)}</td>
                                         <td>{formatCurrency(ps.total_allowances)}</td>
+                                        <td>
+                                            <span className={ps.performance_allowance > 0 ? "text-emerald-400 font-medium" : "text-[var(--text-muted)]"}>
+                                                {formatCurrency(ps.performance_allowance)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="flex flex-col">
+                                                <span className={ps.attendance_deduction > 0 ? "text-rose-400 font-medium" : "text-[var(--text-muted)]"}>
+                                                    -{formatCurrency(ps.attendance_deduction)}
+                                                </span>
+                                                {(ps.late_mins > 0 || ps.early_out_mins > 0) && (
+                                                    <span className="text-[10px] text-rose-500/70">
+                                                        {ps.late_mins}L / {ps.early_out_mins}E mins
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="font-medium text-[var(--text-main)]">{formatCurrency(ps.gross_pay)}</td>
                                         <td>{formatCurrency(ps.cpf_employee)}</td>
                                         <td>{formatCurrency(ps.cpf_employer)}</td>
@@ -394,9 +414,23 @@ export default function Payroll() {
                 </div>
             )}
 
-            {/* Historical Runs */}
             <div className="card-base p-6">
-                <h3 className="text-lg font-semibold text-[var(--text-main)] mb-4">Payroll History</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-[var(--text-main)]">Payroll History</h3>
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs text-[var(--text-muted)] uppercase font-bold">GIRO Format:</label>
+                        <select
+                            value={giroFormat}
+                            onChange={e => setGiroFormat(e.target.value)}
+                            className="select-base !py-1 !px-2 !text-xs w-32"
+                        >
+                            <option value="DBS">DBS (CSV)</option>
+                            <option value="OCBC">OCBC (TXT)</option>
+                            <option value="UOB">UOB (TXT)</option>
+                            <option value="APS">Interbank APS</option>
+                        </select>
+                    </div>
+                </div>
                 {loading ? <div className="h-32 loading-shimmer" /> : runs.length === 0 ? (
                     <p className="text-[var(--text-muted)] text-center py-8">No payroll runs yet. Process your first payroll above.</p>
                 ) : (
@@ -426,7 +460,10 @@ export default function Payroll() {
                                         <td><span className="badge-success">{run.status}</span></td>
                                         <td>
                                             <div className="flex gap-2">
-                                                <button onClick={() => downloadExport(`/api/payroll/export-giro/${run.id}`, `GIRO_${run.employee_group}.csv`)} className="text-xs px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title="DBS GIRO Export">🏦 GIRO</button>
+                                                <button onClick={() => {
+                                                    const ext = giroFormat === 'DBS' ? 'csv' : 'txt';
+                                                    downloadExport(`/api/payroll/export-giro/${run.id}?format=${giroFormat}`, `GIRO_${giroFormat}_${run.employee_group}.${ext}`);
+                                                }} className="text-xs px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title={`${giroFormat} GIRO Export`}>🏦 GIRO</button>
                                                 <button onClick={() => downloadExport(`/api/payroll/export-cpf/${run.id}`, `CPF_${run.employee_group}.txt`)} className="text-xs px-2 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors" title="CPF FTP File">📥 CPF</button>
                                                 <button onClick={() => viewRun(run)} className="text-xs px-2 py-1 rounded-lg bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors">View</button>
                                                 <button onClick={() => handleDelete(run.id)} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>

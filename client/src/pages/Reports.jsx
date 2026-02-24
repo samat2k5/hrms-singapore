@@ -9,6 +9,11 @@ export default function Reports() {
     const [month, setMonth] = useState(new Date().getMonth() + 1)
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [selectedEmp, setSelectedEmp] = useState(null)
+    const [bikModal, setBikModal] = useState(false)
+    const [shareModal, setShareModal] = useState(false)
+    const [bikData, setBikData] = useState([])
+    const [shareData, setShareData] = useState([])
 
     const tabs = [
         { key: 'cpf', label: '🏦 CPF Submission', desc: 'Monthly CPF contribution report' },
@@ -86,6 +91,98 @@ export default function Reports() {
         } catch (err) {
             toast.error('Export failed')
         }
+    }
+
+    const handleExportAIS = async () => {
+        try {
+            const res = await api.exportAISJson(year);
+            const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `AIS_Submission_${year}.json`;
+            a.click();
+            toast.success('AIS JSON downloaded');
+        } catch (err) {
+            toast.error(err.message);
+        }
+    }
+
+    const fetchBiks = async (empId) => {
+        try {
+            const res = await api.getBenefits(empId, year);
+            setBikData(res);
+        } catch (e) { toast.error(e.message); }
+    }
+
+    const fetchShares = async (empId) => {
+        try {
+            const res = await api.getShares(empId, year);
+            setShareData(res);
+        } catch (e) { toast.error(e.message); }
+    }
+
+    const handleExportItemizedIR8A = async (f) => {
+        try {
+            const { jsPDF } = await import('jspdf')
+            const { default: autoTable } = await import('jspdf-autotable')
+            const doc = new jsPDF()
+            const payload = JSON.parse(f.data_json);
+
+            // Mock IR8A Header
+            doc.setFontSize(14).setFont(undefined, 'bold').text('Form IR8A (For YA 2026)', 105, 15, { align: 'center' });
+            doc.setFontSize(9).setFont(undefined, 'normal').text('Return of Employee\'s Remuneration for the Year Ended 31 Dec 2025', 105, 20, { align: 'center' });
+
+            doc.setFontSize(10).text('Employee Details', 14, 30);
+            autoTable(doc, {
+                startY: 32,
+                body: [
+                    ['ID No / Type', `${payload.employee_details.id_no} (${payload.employee_details.id_type})`],
+                    ['Full Name', payload.employee_details.name],
+                    ['Nationality', payload.employee_details.nationality],
+                ],
+                theme: 'grid', styles: { fontSize: 9 }
+            });
+
+            doc.text('Income Breakdown', 14, doc.lastAutoTable.finalY + 10);
+            autoTable(doc, {
+                startY: doc.lastAutoTable.finalY + 12,
+                body: [
+                    ['Gross Salary', formatCurrency(payload.income.gross_salary)],
+                    ['Bonus', formatCurrency(payload.income.bonus)],
+                    ['Transport Allowance', formatCurrency(payload.income.transport_allowance)],
+                    ['Benefits-in-Kind (A8A)', formatCurrency(payload.income.benefits_in_kind)],
+                    ['Share Options Gain (A8B)', formatCurrency(payload.income.share_options_gain)],
+                    [{ content: 'Total Income', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payload.income.total_income), styles: { fontStyle: 'bold' } }],
+                ],
+                theme: 'grid', styles: { fontSize: 9 }
+            });
+
+            if (payload.appendix_8a) {
+                doc.addPage();
+                doc.setFontSize(14).setFont(undefined, 'bold').text('Appendix 8A (Benefits-in-Kind)', 105, 15, { align: 'center' });
+                autoTable(doc, {
+                    startY: 25,
+                    head: [['Category', 'Description', 'Value (S$)', 'From', 'To']],
+                    body: payload.appendix_8a.items.map(b => [b.category, b.description, formatCurrency(b.value), b.period_from, b.period_to]),
+                    theme: 'striped', headStyles: { fillColor: [6, 182, 212] }, styles: { fontSize: 8 }
+                });
+            }
+
+            if (payload.appendix_8b) {
+                doc.addPage();
+                doc.setFontSize(14).setFont(undefined, 'bold').text('Appendix 8B (Share Options)', 105, 15, { align: 'center' });
+                autoTable(doc, {
+                    startY: 25,
+                    head: [['Plan', 'Shares', 'Price', 'Market Val', 'Gain (S$)']],
+                    body: payload.appendix_8b.items.map(s => [s.plan_type, s.shares_count, formatCurrency(s.exercise_price), formatCurrency(s.market_value), formatCurrency(s.gain)]),
+                    theme: 'striped', headStyles: { fillColor: [59, 130, 246] }, styles: { fontSize: 8 }
+                });
+            }
+
+            doc.save(`IR8A_${payload.employee_details.id_no}_${year}.pdf`);
+            toast.success('Itemized IR8A Downloaded');
+        } catch (e) { toast.error('PDF generation failed'); }
     }
 
     return (
@@ -210,33 +307,46 @@ export default function Reports() {
                                         <h3 className="text-lg font-semibold text-[var(--text-main)] mb-1">Generated IR8A Forms ({data.year})</h3>
                                         <p className="text-sm text-[var(--text-muted)]">Strictly immutable generated statutory PDFs.</p>
                                     </div>
-                                    <button
-                                        onClick={async () => {
-                                            try { await api.generateIR8A(data.year); toast.success('Generated Successfully'); fetchReport(); }
-                                            catch (e) { toast.error(e.message) }
-                                        }}
-                                        className="btn-primary py-1.5 px-4 text-sm"
-                                        disabled={data.forms?.length > 0}
-                                    >
-                                        {data.forms?.length > 0 ? 'Batch Generated' : 'Generate New IR8A Batch'}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleExportAIS}
+                                            className="btn-primary py-1.5 px-4 text-sm bg-indigo-600 hover:bg-indigo-700"
+                                            disabled={!data.forms || data.forms.length === 0}
+                                        >
+                                            📥 Download AIS-API 2.0 JSON
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                try { await api.generateIR8A(data.year); toast.success('Generated Successfully'); fetchReport(); }
+                                                catch (e) { toast.error(e.message) }
+                                            }}
+                                            className="btn-primary py-1.5 px-4 text-sm"
+                                            disabled={data.forms?.length > 0}
+                                        >
+                                            {data.forms?.length > 0 ? 'Batch Generated' : 'Generate New IR8A Batch'}
+                                        </button>
+                                    </div>
                                 </div>
                                 <table className="table-theme">
-                                    <thead><tr><th>Employee</th><th>ID</th><th>Form Data Extracted</th><th>Status</th><th>Version</th><th>Actions</th></tr></thead>
+                                    <thead><tr><th>Employee</th><th>ID</th><th>Income Summary</th><th>Status</th><th>Appendices</th><th>Actions</th></tr></thead>
                                     <tbody>
                                         {data.forms?.map((f, i) => {
                                             const payload = JSON.parse(f.data_json);
                                             return (
                                                 <tr key={i}>
-                                                    <td className="text-[var(--text-main)]">{f.full_name}</td>
+                                                    <td className="text-[var(--text-main)] font-medium">{f.full_name}</td>
                                                     <td>{f.emp_code}</td>
                                                     <td className="text-xs space-y-1">
-                                                        <p>Gross: {formatCurrency(payload.gross_salary)}</p>
-                                                        <p>Bonus: {formatCurrency(payload.bonus)}</p>
+                                                        <p className="text-emerald-400">Salary: {formatCurrency(payload.income.gross_salary)}</p>
+                                                        <p className="text-blue-400">BIK: {formatCurrency(payload.income.benefits_in_kind)}</p>
                                                     </td>
                                                     <td><span className={f.status === 'Amended' ? 'badge-info' : 'badge-success'}>{f.status}</span></td>
-                                                    <td className="font-mono text-[var(--text-muted)]">v{f.version}</td>
-                                                    <td>
+                                                    <td className="space-x-2">
+                                                        <button onClick={() => { setSelectedEmp(f); fetchBiks(f.employee_id); setBikModal(true); }} className="text-cyan-400 hover:underline text-[10px] uppercase font-bold">A8A</button>
+                                                        <button onClick={() => { setSelectedEmp(f); fetchShares(f.employee_id); setShareModal(true); }} className="text-blue-400 hover:underline text-[10px] uppercase font-bold">A8B</button>
+                                                    </td>
+                                                    <td className="flex gap-3">
+                                                        <button onClick={() => handleExportItemizedIR8A(f)} className="text-cyan-400 hover:text-cyan-300">📄 PDF</button>
                                                         <button
                                                             onClick={async () => {
                                                                 if (window.confirm('Recalculate and generate an Amendment for this employee?')) {
@@ -251,7 +361,7 @@ export default function Reports() {
                                                                     } catch (e) { toast.error(e.message) }
                                                                 }
                                                             }}
-                                                            className="text-amber-400 text-xs hover:underline"
+                                                            className="text-amber-400 hover:underline"
                                                         >Amend</button>
                                                     </td>
                                                 </tr>
@@ -263,6 +373,125 @@ export default function Reports() {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {/* BIK Modal */}
+                            {bikModal && selectedEmp && (
+                                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                                    <div className="card-base w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 animate-scale-in">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h2 className="text-xl font-bold">Manage Appendix 8A — {selectedEmp.full_name}</h2>
+                                            <button onClick={() => setBikModal(false)} className="text-[var(--text-muted)] hover:text-white">✕</button>
+                                        </div>
+                                        <div className="space-y-4 mb-6">
+                                            {bikData.map(b => (
+                                                <div key={b.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-input)]">
+                                                    <div>
+                                                        <p className="font-bold text-sm">{b.category}</p>
+                                                        <p className="text-xs text-[var(--text-muted)]">{b.description} ({b.period_from} to {b.period_to})</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="font-mono text-emerald-400">{formatCurrency(b.value)}</span>
+                                                        <button onClick={async () => { await api.deleteBenefit(b.id); fetchBiks(selectedEmp.employee_id); }} className="text-red-400">🗑️</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <form onSubmit={async (e) => {
+                                            e.preventDefault();
+                                            const formData = new FormData(e.target);
+                                            const vals = Object.fromEntries(formData);
+                                            await api.addBenefit({ ...vals, employee_id: selectedEmp.employee_id, year });
+                                            e.target.reset();
+                                            fetchBiks(selectedEmp.employee_id);
+                                        }} className="grid grid-cols-2 gap-4 border-t border-[var(--border-main)] pt-6">
+                                            <div className="col-span-2">
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Category</label>
+                                                <select name="category" className="select-base w-full" required>
+                                                    <option>Housing</option><option>Car</option><option>Club Fees</option><option>Travel</option><option>Other</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Description</label>
+                                                <input name="description" className="input-base w-full" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Value (S$)</label>
+                                                <input name="value" type="number" step="0.01" className="input-base w-full" required />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">From</label>
+                                                <input name="period_from" type="date" className="input-base w-full" defaultValue={`${year}-01-01`} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">To</label>
+                                                <input name="period_to" type="date" className="input-base w-full" defaultValue={`${year}-12-31`} />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button type="submit" className="btn-primary w-full py-2">Add Benefit</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Share Modal */}
+                            {shareModal && selectedEmp && (
+                                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                                    <div className="card-base w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 animate-scale-in">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h2 className="text-xl font-bold">Manage Appendix 8B — {selectedEmp.full_name}</h2>
+                                            <button onClick={() => setShareModal(false)} className="text-[var(--text-muted)] hover:text-white">✕</button>
+                                        </div>
+                                        <div className="space-y-4 mb-6">
+                                            {shareData.map(s => (
+                                                <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-input)]">
+                                                    <div>
+                                                        <p className="font-bold text-sm">{s.plan_type} ({s.shares_count} shares)</p>
+                                                        <p className="text-xs text-[var(--text-muted)]">Ex: {s.exercise_price} | Mkt: {s.market_value} | On: {s.exercise_date}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="font-mono text-blue-400">+{formatCurrency(s.taxable_profit)}</span>
+                                                        <button onClick={async () => { await api.deleteShare(s.id); fetchShares(selectedEmp.employee_id); }} className="text-red-400">🗑️</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <form onSubmit={async (e) => {
+                                            e.preventDefault();
+                                            const fd = new FormData(e.target);
+                                            const vals = Object.fromEntries(fd);
+                                            const gain = (vals.market_value - vals.exercise_price) * vals.shares_count;
+                                            await api.addShare({ ...vals, taxable_profit: gain, employee_id: selectedEmp.employee_id, year });
+                                            e.target.reset();
+                                            fetchShares(selectedEmp.employee_id);
+                                        }} className="grid grid-cols-3 gap-4 border-t border-[var(--border-main)] pt-6">
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Plan Type</label>
+                                                <select name="plan_type" className="select-base w-full"><option>ESOP</option><option>ESOW</option></select>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Exercise Date</label>
+                                                <input name="exercise_date" type="date" className="input-base w-full" required />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Shares Count</label>
+                                                <input name="shares_count" type="number" className="input-base w-full" required />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Exercise Price</label>
+                                                <input name="exercise_price" type="number" step="0.001" className="input-base w-full" required />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs uppercase text-[var(--text-muted)]">Market Value</label>
+                                                <input name="market_value" type="number" step="0.001" className="input-base w-full" required />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button type="submit" className="btn-primary w-full py-2">Add Stock Gain</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* AUDIT LOGS */}
                             <div className="pt-6 border-t border-[var(--border-main)]">
