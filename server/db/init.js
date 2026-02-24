@@ -474,8 +474,8 @@ function createSchema(database) {
 }
 
 function seedData(database) {
-  // Default admin user (sees everything) and restricted HR user
-  const adminHash = bcrypt.hashSync('admin123', 10);
+  // Default system user and restricted HR user
+  const systemHash = bcrypt.hashSync('manager', 10);
   const hrHash = bcrypt.hashSync('hr123', 10);
 
   // Entities
@@ -488,7 +488,7 @@ function seedData(database) {
 
   database.run(
     `INSERT INTO users (username, password_hash, full_name) VALUES (?, ?, ?)`,
-    ['admin', adminHash, 'System Administrator']
+    ['system', systemHash, 'System Administrator']
   );
   database.run(
     `INSERT INTO user_entity_roles (user_id, entity_id, role, managed_groups) VALUES (?, ?, ?, ?)`,
