@@ -83,17 +83,17 @@ export default function LeavePolicies() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Leave Policies</h1>
-                    <p className="text-slate-400 mt-1">Configure grade-wise entitlement and increments for {activeEntity?.name || 'this entity'}.</p>
+                    <h1 className="text-3xl font-bold text-[var(--text-main)]">Leave Policies</h1>
+                    <p className="text-[var(--text-muted)] mt-1">Configure grade-wise entitlement and increments for {activeEntity?.name || 'this entity'}.</p>
                 </div>
                 {canEditConfigs && (
-                    <button onClick={handleAdd} className="gradient-btn">+ Configure Policy</button>
+                    <button onClick={handleAdd} className="btn-primary">+ Configure Policy</button>
                 )}
             </div>
 
-            <div className="glass-card overflow-hidden">
+            <div className="card-base overflow-hidden">
                 {loading ? <div className="h-64 loading-shimmer" /> : (
-                    <table className="table-glass w-full">
+                    <table className="table-theme w-full">
                         <thead>
                             <tr>
                                 <th>Grade</th>
@@ -107,7 +107,7 @@ export default function LeavePolicies() {
                         <tbody>
                             {policies.map(item => (
                                 <tr key={item.id}>
-                                    <td className="font-medium text-white">{item.employee_grade}</td>
+                                    <td className="font-medium text-[var(--text-main)]">{item.employee_grade}</td>
                                     <td>{item.leave_type_name}</td>
                                     <td>{item.base_days}</td>
                                     <td>{item.increment_per_year}</td>
@@ -115,7 +115,7 @@ export default function LeavePolicies() {
                                     <td>
                                         {canEditConfigs && (
                                             <div className="flex gap-2">
-                                                <button onClick={() => handleEdit(item)} className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">✏️ Edit</button>
+                                                <button onClick={() => handleEdit(item)} className="text-xs text-[var(--brand-primary)] hover:text-cyan-300 transition-colors">✏️ Edit</button>
                                                 <button onClick={() => confirmDelete(item)} className="text-xs text-red-400 hover:text-red-300 transition-colors">🗑️ Delete</button>
                                             </div>
                                         )}
@@ -124,7 +124,7 @@ export default function LeavePolicies() {
                             ))}
                             {policies.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-8 text-slate-500">No leave policies mapped.</td>
+                                    <td colSpan="6" className="text-center py-8 text-[var(--text-muted)]">No leave policies mapped.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -134,26 +134,26 @@ export default function LeavePolicies() {
 
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="glass-card p-6 w-full max-w-md animate-slide-up" style={{ background: 'rgba(15, 23, 42, 0.95)' }}>
-                        <h2 className="text-xl font-bold text-white mb-6">Leave Policy Settings</h2>
+                    <div className="card-base p-6 w-full max-w-md animate-slide-up" style={{ background: 'rgba(15, 23, 42, 0.95)' }}>
+                        <h2 className="text-xl font-bold text-[var(--text-main)] mb-6">Leave Policy Settings</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Employee Grade</label>
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Employee Grade</label>
                                 <select
                                     value={form.employee_grade}
                                     onChange={e => setForm({ ...form, employee_grade: e.target.value })}
-                                    className="select-glass w-full" required>
+                                    className="select-base w-full" required>
                                     <option value="">Select Grade</option>
                                     {grades.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Leave Type</label>
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Leave Type</label>
                                 <select
                                     value={form.leave_type_id}
                                     onChange={e => setForm({ ...form, leave_type_id: parseInt(e.target.value) })}
-                                    className="select-glass w-full" required>
+                                    className="select-base w-full" required>
                                     <option value="">Select Type</option>
                                     {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name}</option>)}
                                 </select>
@@ -161,16 +161,16 @@ export default function LeavePolicies() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">Base Days</label>
-                                    <input type="number" step="0.5" min="0" required value={form.base_days} onChange={e => setForm({ ...form, base_days: parseFloat(e.target.value) || 0 })} className="input-glass w-full" />
+                                    <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Base Days</label>
+                                    <input type="number" step="0.5" min="0" required value={form.base_days} onChange={e => setForm({ ...form, base_days: parseFloat(e.target.value) || 0 })} className="input-base w-full" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">Yearly Increment</label>
-                                    <input type="number" step="0.5" min="0" required value={form.increment_per_year} onChange={e => setForm({ ...form, increment_per_year: parseFloat(e.target.value) || 0 })} className="input-glass w-full" />
+                                    <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Yearly Increment</label>
+                                    <input type="number" step="0.5" min="0" required value={form.increment_per_year} onChange={e => setForm({ ...form, increment_per_year: parseFloat(e.target.value) || 0 })} className="input-base w-full" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">Max Cap Days</label>
-                                    <input type="number" step="0.5" min="0" required value={form.max_days} onChange={e => setForm({ ...form, max_days: parseFloat(e.target.value) || 0 })} className="input-glass w-full" />
+                                    <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Max Cap Days</label>
+                                    <input type="number" step="0.5" min="0" required value={form.max_days} onChange={e => setForm({ ...form, max_days: parseFloat(e.target.value) || 0 })} className="input-base w-full" />
                                 </div>
                             </div>
 
@@ -178,9 +178,9 @@ export default function LeavePolicies() {
                                 Note: MoM statutory minimums are actively enforced. The highest entitlement between your explicit policy and MoM's mapping will be automatically executed.
                             </p>
 
-                            <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-all">Cancel</button>
-                                <button type="submit" className="gradient-btn flex-1">Save Policy</button>
+                            <div className="flex gap-3 pt-4 border-t border-[var(--border-main)] mt-6">
+                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-all">Cancel</button>
+                                <button type="submit" className="btn-primary flex-1">Save Policy</button>
                             </div>
                         </form>
                     </div>

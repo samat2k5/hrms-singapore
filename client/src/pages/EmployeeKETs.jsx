@@ -2,9 +2,61 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import { formatDate, formatCurrency } from '../utils/formatters'
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+
+const Field = ({ label, name, type = 'text', options, disabled, span2, form, setForm, editing, employee, formatCurrency, value: customValue, onChange: customOnChange }) => {
+    const value = customValue !== undefined ? customValue : form[name];
+
+    return (
+        <div className={span2 ? 'md:col-span-2' : ''}>
+            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">{label}</label>
+            {!editing || disabled ? (
+                <p className="text-sm text-[var(--text-main)] py-2">
+                    {type === 'currency' ? formatCurrency(value) :
+                        type === 'checkbox' ? (value ? 'Yes' : 'No') :
+                            ((value !== undefined && value !== null && value !== '') ? value : (employee?.[name] || '—'))}
+                </p>
+            ) : type === 'checkbox' ? (
+                <div className="flex items-center gap-2 py-2">
+                    <input
+                        type="checkbox"
+                        checked={!!value}
+                        onChange={e => customOnChange ? customOnChange(e.target.checked) : setForm({ ...form, [name]: e.target.checked })}
+                        className="w-4 h-4 rounded border-[var(--border-main)] bg-[var(--bg-input)]"
+                    />
+                    <span className="text-sm text-[var(--text-main)]">{label}</span>
+                </div>
+            ) : options ? (
+                <select
+                    value={value || ''}
+                    onChange={e => customOnChange ? customOnChange(e.target.value) : setForm({ ...form, [name]: e.target.value })}
+                    className="select-base text-sm"
+                >
+                    {options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+            ) : type === 'textarea' ? (
+                <textarea
+                    value={value || ''}
+                    onChange={e => customOnChange ? customOnChange(e.target.value) : setForm({ ...form, [name]: e.target.value })}
+                    className="input-base text-sm min-h-[80px]"
+                />
+            ) : (
+                <input
+                    type={type === 'currency' ? 'number' : type}
+                    value={value ?? ''}
+                    onChange={e => {
+                        const val = (type === 'currency' || type === 'number') ? parseFloat(e.target.value) || 0 : e.target.value;
+                        if (customOnChange) customOnChange(val);
+                        else setForm({ ...form, [name]: val });
+                    }}
+                    className="input-base text-sm"
+                    step={type === 'currency' || type === 'number' ? '0.01' : undefined}
+                />
+            )}
+        </div>
+    )
+}
 
 export default function EmployeeKETs() {
     const { id } = useParams()
@@ -14,13 +66,11 @@ export default function EmployeeKETs() {
     const [loading, setLoading] = useState(true)
     const [editing, setEditing] = useState(false)
     const [form, setForm] = useState({})
+    const { activeEntity } = useAuth()
 
     useEffect(() => {
         Promise.all([api.getKETs(id), api.getEmployee(id)])
             .then(([ketData, empData]) => {
-                setKet(ketData)
-                setEmployee(empData)
-
                 let parsedAllowances = [], parsedDeductions = [];
                 try {
                     if (ketData.custom_allowances) {
@@ -33,7 +83,14 @@ export default function EmployeeKETs() {
                     }
                 } catch (e) { }
 
-                setForm({ ...ketData, _parsedCustomAllowances: parsedAllowances, _parsedCustomDeductions: parsedDeductions })
+                const mergedKet = {
+                    ...ketData,
+                    entity_name: ketData.entity_name || empData.entity_name || activeEntity?.name || ''
+                };
+
+                setKet(mergedKet)
+                setEmployee(empData)
+                setForm({ ...mergedKet, _parsedCustomAllowances: parsedAllowances, _parsedCustomDeductions: parsedDeductions })
             })
             .catch(e => toast.error(e.message))
             .finally(() => setLoading(false))
@@ -52,24 +109,25 @@ export default function EmployeeKETs() {
             delete payload._parsedCustomAllowances;
             delete payload._parsedCustomDeductions;
 
-            await api.updateKETs(id, payload)
+            const updated = await api.updateKETs(id, payload)
             toast.success('KETs updated')
             setEditing(false)
-            const updated = await api.getKETs(id)
-            setKet(updated)
 
             let pAllowances = [], pDeductions = [];
             try {
                 if (updated.custom_allowances) {
-                    const obj = JSON.parse(updated.custom_allowances);
+                    const obj = typeof updated.custom_allowances === 'string' ? JSON.parse(updated.custom_allowances) : updated.custom_allowances;
                     pAllowances = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
                 }
                 if (updated.custom_deductions) {
-                    const obj = JSON.parse(updated.custom_deductions);
+                    const obj = typeof updated.custom_deductions === 'string' ? JSON.parse(updated.custom_deductions) : updated.custom_deductions;
                     pDeductions = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
                 }
             } catch (e) { }
-            setForm({ ...updated, _parsedCustomAllowances: pAllowances, _parsedCustomDeductions: pDeductions })
+
+            const merged = { ...updated, entity_name: updated.entity_name || employee?.entity_name || activeEntity?.name || '' };
+            setKet(merged)
+            setForm({ ...merged, _parsedCustomAllowances: pAllowances, _parsedCustomDeductions: pDeductions })
         } catch (err) {
             toast.error(err.message)
         }
@@ -81,7 +139,6 @@ export default function EmployeeKETs() {
             await api.issueKETs(id)
             toast.success('KETs issued successfully')
             const updated = await api.getKETs(id)
-            setKet(updated)
 
             let pAllowances = [], pDeductions = [];
             try {
@@ -94,118 +151,153 @@ export default function EmployeeKETs() {
                     pDeductions = Object.keys(obj).map(k => ({ key: k, value: obj[k] }));
                 }
             } catch (e) { }
-            setForm({ ...updated, _parsedCustomAllowances: pAllowances, _parsedCustomDeductions: pDeductions })
+
+            const merged = { ...updated, entity_name: updated.entity_name || employee?.entity_name || activeEntity?.name || '' };
+            setKet(merged)
+            setForm({ ...merged, _parsedCustomAllowances: pAllowances, _parsedCustomDeductions: pDeductions })
         } catch (err) {
             toast.error(err.message)
         }
     }
 
-    const handleGeneratePDF = () => {
+    const handleGeneratePDF = async () => {
         try {
+            const { jsPDF } = await import('jspdf')
+            const { default: autoTable } = await import('jspdf-autotable')
+
             const doc = new jsPDF()
             doc.setFontSize(18)
+            doc.setTextColor(6, 182, 212)
             doc.text('Key Employment Terms (KET)', 14, 20)
 
             doc.setFontSize(11)
-            doc.text(`Employer: ${ket._employer || 'Company Name'}`, 14, 30)
+            doc.setTextColor(0)
+            doc.text(`Employer: ${ket.entity_name || employee?.entity_name || activeEntity?.name || 'Company Name'}`, 14, 30)
             doc.text(`Employee: ${employee?.full_name || ''} (${employee?.employee_id || ''})`, 14, 36)
             doc.text(`Issue Date: ${ket.issued_date ? formatDate(ket.issued_date) : 'Draft'}`, 14, 42)
 
             const body = [
                 ['Job Title', ket.job_title || ''],
-                ['Start Date', ket.employment_start_date ? formatDate(ket.employment_start_date) : ''],
+                ['Main Duties and Responsibilities', ket.main_duties || ''],
+                ['Employment Start Date', ket.employment_start_date ? formatDate(ket.employment_start_date) : ''],
+                ['Employment End Date', ket.employment_end_date ? formatDate(ket.employment_end_date) : 'N.A.'],
                 ['Employment Type', ket.employment_type || ''],
-                ['Working Hours/Day', ket.working_hours_per_day?.toString() || ''],
-                ['Working Days/Week', ket.working_days_per_week?.toString() || ''],
+                ['Daily Working Hours', ket.working_hours_details || `${ket.working_hours_per_day} hours/day`],
+                ['Break During Work', ket.break_hours || '—'],
+                ['Number of Working Days/Week', ket.working_days_per_week?.toString() || ''],
                 ['Rest Day', ket.rest_day || ''],
-                ['Basic Salary', formatCurrency(ket.basic_salary)],
                 ['Salary Period', ket.salary_period || ''],
-                ['Fixed Allowances', `Transport: ${formatCurrency(ket.fixed_allowances?.transport)} | Meal: ${formatCurrency(ket.fixed_allowances?.meal)}`]
+                ['Date(s) of Salary Payment', ket.salary_payment_date || '—'],
+                ['Date(s) of Overtime Payment', ket.overtime_payment_date || '—'],
+                ['Basic Rate of Pay', formatCurrency(ket.basic_salary)],
+                ['Gross Rate of Pay', formatCurrency(ket.gross_rate_of_pay)],
+                ['Overtime Rate of Pay', formatCurrency(ket.overtime_rate)],
+                ['Fixed Allowances', `Transport: ${formatCurrency(ket.fixed_allowances?.transport)} | Meal: ${formatCurrency(ket.fixed_allowances?.meal)}`],
+                ['Other Salary Components', ket.other_salary_components || '—'],
+                ['CPF Contributions Payable', ket.cpf_payable ? 'Yes' : 'No']
             ];
 
             let cAllowances = "";
             let cDeductions = "";
             try {
-                if (ket.custom_allowances) {
+                if (ket.custom_allowances && ket.custom_allowances !== '{}') {
                     const ca = JSON.parse(ket.custom_allowances);
-                    Object.keys(ca).forEach(k => cAllowances += `${k}: ${formatCurrency(ca[k])}\n`);
+                    Object.keys(ca).forEach(k => {
+                        if (ca[k]) cAllowances += `${k}: ${formatCurrency(ca[k])}\n`;
+                    });
                 }
-                if (ket.custom_deductions) {
+                if (ket.custom_deductions && ket.custom_deductions !== '{}') {
                     const cd = JSON.parse(ket.custom_deductions);
-                    Object.keys(cd).forEach(k => cDeductions += `${k}: ${formatCurrency(cd[k])}\n`);
+                    Object.keys(cd).forEach(k => {
+                        if (cd[k]) cDeductions += `${k}: ${formatCurrency(cd[k])}\n`;
+                    });
                 }
             } catch (e) { }
 
             if (cAllowances) body.push(['Custom Allowances', cAllowances.trim()]);
             if (cDeductions) body.push(['Custom Deductions', cDeductions.trim()]);
 
-            doc.autoTable({
+            const leaveBody = [
+                ['Paid Annual Leave', `${ket.annual_leave_days} days/year`],
+                ['Paid Outpatient Sick Leave', `${ket.sick_leave_days} days/year`],
+                ['Paid Hospitalisation Leave', `${ket.hospitalization_days} days/year`],
+                ['Medical Benefits', ket.medical_benefits || '—']
+            ];
+
+            autoTable(doc, {
                 startY: 50,
                 head: [['Term Details', 'Value']],
                 body: body,
                 theme: 'grid',
-                headStyles: { fillColor: [15, 23, 42] }
+                headStyles: { fillColor: [15, 23, 42] },
+                styles: { fontSize: 9 }
             })
 
-            doc.save(`KET_${employee?.employee_id || 'Draft'}.pdf`)
+            autoTable(doc, {
+                startY: doc.lastAutoTable.finalY + 10,
+                head: [['Leave & Medical Benefits', 'Value']],
+                body: leaveBody,
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42] },
+                styles: { fontSize: 9 }
+            })
+
+            const otherBody = [
+                ['Length of Probation', `${ket.probation_months} months`],
+                ['Probation Start Date', ket.probation_start_date ? formatDate(ket.probation_start_date) : '—'],
+                ['Probation End Date', ket.probation_end_date ? formatDate(ket.probation_end_date) : '—'],
+                ['Notice Period (Termination)', ket.notice_period || '—']
+            ];
+
+            autoTable(doc, {
+                startY: doc.lastAutoTable.finalY + 10,
+                head: [['Other Terms', 'Value']],
+                body: otherBody,
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42] },
+                styles: { fontSize: 9 }
+            })
+
+            doc.save(`KET_${employee?.full_name?.replace(/\s+/g, '_') || 'Employee'}.pdf`)
             toast.success('KET PDF Generated!')
         } catch (err) {
             console.error(err)
-            toast.error('Failed to generate PDF')
+            toast.error('Failed to generate PDF: ' + err.message)
         }
     }
 
-    if (loading) return <div className="glass-card h-96 loading-shimmer" />
-    if (!ket) return <div className="text-center py-20 text-slate-400">KETs not found</div>
-
-    const Field = ({ label, name, type = 'text', options, disabled, span2 }) => (
-        <div className={span2 ? 'md:col-span-2' : ''}>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{label}</label>
-            {!editing || disabled ? (
-                <p className="text-sm text-white py-2">{type === 'currency' ? formatCurrency(form[name]) : (form[name] || '—')}</p>
-            ) : options ? (
-                <select value={form[name] || ''} onChange={e => setForm({ ...form, [name]: e.target.value })} className="select-glass text-sm">
-                    {options.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-            ) : (
-                <input
-                    type={type === 'currency' ? 'number' : type}
-                    value={form[name] || ''}
-                    onChange={e => setForm({ ...form, [name]: type === 'currency' || type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value })}
-                    className="input-glass text-sm"
-                    step={type === 'currency' || type === 'number' ? '0.01' : undefined}
-                />
-            )}
-        </div>
-    )
+    if (loading) return <div className="card-base h-96 loading-shimmer" />
+    if (!ket) return <div className="text-center py-20 text-[var(--text-muted)]">KETs not found</div>
 
     const allowances = form.fixed_allowances || {}
     const deductions = form.fixed_deductions || {}
+
+    const fieldProps = { form, setForm, editing, employee, formatCurrency };
 
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/employees')} className="text-slate-400 hover:text-white transition-colors">← Back</button>
+                    <button onClick={() => navigate('/employees')} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">← Back</button>
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Key Employment Terms</h1>
-                        <p className="text-slate-400">{employee?.full_name} ({employee?.employee_id})</p>
+                        <h1 className="text-2xl font-bold text-[var(--text-main)]">Key Employment Terms</h1>
+                        <p className="text-[var(--text-muted)]">{employee?.full_name} ({employee?.employee_id})</p>
                     </div>
                 </div>
                 <div className="flex gap-3">
                     {!editing ? (
                         <>
-                            <button onClick={handleGeneratePDF} className="px-4 py-2 rounded-xl border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-sm transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)]">📄 Generate PDF</button>
-                            <button onClick={() => setEditing(true)} className="px-4 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 text-sm transition-all">✏️ Edit</button>
+                            <button onClick={handleGeneratePDF} className="px-4 py-2 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 text-sm transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)]">📄 Generate PDF</button>
+                            <button onClick={() => setEditing(true)} className="px-4 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all">✏️ Edit</button>
                             {!ket.issued_date && (
-                                <button onClick={handleIssue} className="gradient-btn text-sm">📋 Issue KET</button>
+                                <button onClick={handleIssue} className="btn-primary text-sm">📋 Issue KET</button>
                             )}
                         </>
                     ) : (
                         <>
-                            <button onClick={() => { setEditing(false); setForm({ ...ket, _parsedCustomAllowances: form._parsedCustomAllowances, _parsedCustomDeductions: form._parsedCustomDeductions }) }} className="px-4 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 text-sm transition-all">Cancel</button>
-                            <button onClick={handleSave} className="gradient-btn text-sm">💾 Save Changes</button>
+                            <button onClick={() => { setEditing(false); setForm({ ...ket, _parsedCustomAllowances: form._parsedCustomAllowances, _parsedCustomDeductions: form._parsedCustomDeductions }) }} className="px-4 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all">Cancel</button>
+                            <button onClick={handleSave} className="btn-primary text-sm">💾 Save Changes</button>
                         </>
                     )}
                 </div>
@@ -213,32 +305,32 @@ export default function EmployeeKETs() {
 
             {/* Status Banner */}
             {ket.issued_date ? (
-                <div className="glass-card p-4 border-emerald-500/30 bg-emerald-500/5">
+                <div className="card-base p-4 border-emerald-500/30 bg-emerald-500/5">
                     <div className="flex items-center gap-3">
                         <span className="text-lg">✅</span>
                         <div>
                             <p className="text-sm font-medium text-emerald-400">KETs Issued</p>
-                            <p className="text-xs text-slate-400">Officially issued on {formatDate(ket.issued_date)}</p>
+                            <p className="text-xs text-[var(--text-muted)]">Officially issued on {formatDate(ket.issued_date)}</p>
                         </div>
                     </div>
                 </div>
             ) : ket.is_overdue ? (
-                <div className="glass-card p-4 border-red-500/30 bg-red-500/5">
+                <div className="card-base p-4 border-red-500/30 bg-red-500/5">
                     <div className="flex items-center gap-3">
                         <span className="text-lg">⚠️</span>
                         <div>
                             <p className="text-sm font-medium text-red-400">OVERDUE — KETs must be issued within 14 days of start date</p>
-                            <p className="text-xs text-slate-400">Deadline was {formatDate(ket.deadline)}. Please issue immediately to comply with MOM requirements.</p>
+                            <p className="text-xs text-[var(--text-muted)]">Deadline was {formatDate(ket.deadline)}. Please issue immediately to comply with MOM requirements.</p>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="glass-card p-4 border-amber-500/30 bg-amber-500/5">
+                <div className="card-base p-4 border-amber-500/30 bg-amber-500/5">
                     <div className="flex items-center gap-3">
                         <span className="text-lg">📝</span>
                         <div>
                             <p className="text-sm font-medium text-amber-400">KETs Not Yet Issued</p>
-                            <p className="text-xs text-slate-400">Must be issued within 14 days of employment start date per MOM guidelines.</p>
+                            <p className="text-xs text-[var(--text-muted)]">Must be issued within 14 days of employment start date per MOM guidelines.</p>
                         </div>
                     </div>
                 </div>
@@ -248,77 +340,102 @@ export default function EmployeeKETs() {
             {/* KET Sections */}
             <div className="grid gap-6">
                 {/* Employment Details */}
-                <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4 pb-3 border-b border-white/5">🏢 Employment Details</h3>
+                <div className="card-base p-6">
+                    <h3 className="text-lg font-semibold text-[var(--text-main)] mb-4 pb-3 border-b border-[var(--border-main)]">🏢 Section A | Employment Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Field label="Employer Name" name="_employer" disabled />
-                        <Field label="Employee Name" name="employee_name" disabled />
-                        <Field label="Employee Code" name="employee_code" disabled />
-                        <Field label="Job Title & Duties" name="job_title" span2 />
-                        <Field label="Employment Start Date" name="employment_start_date" type="date" />
-                        <Field label="Employment Type" name="employment_type" options={['Permanent', 'Contract', 'Part-time']} />
-                        <Field label="Contract Duration" name="contract_duration" />
-                        <Field label="Probation Period (months)" name="probation_months" type="number" />
+                        <Field label="Employer Name" name="entity_name" disabled {...fieldProps} />
+                        <Field label="Employee Name" name="employee_name" disabled {...fieldProps} />
+                        <Field label="Employee Code" name="employee_code" disabled {...fieldProps} />
+                        <Field label="Job Title" name="job_title" {...fieldProps} />
+                        <Field label="Employment Type" name="employment_type" options={['Full-Time Employment', 'Part-Time Employment']} {...fieldProps} />
+                        <Field label="Main Duties and Responsibilities" name="main_duties" type="textarea" span2 {...fieldProps} />
+                        <Field label="Employment Start Date" name="employment_start_date" type="date" {...fieldProps} />
+                        <Field label="Employment End Date (fixed-term)" name="employment_end_date" type="date" {...fieldProps} />
+                        <Field label="Place of Work" name="place_of_work" span2 {...fieldProps} />
                     </div>
                 </div>
 
-                {/* Working Arrangements */}
-                <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4 pb-3 border-b border-white/5">🕐 Working Arrangements</h3>
+                {/* Working Hours and Rest Day */}
+                <div className="card-base p-6">
+                    <h3 className="text-lg font-semibold text-[var(--text-main)] mb-4 pb-3 border-b border-[var(--border-main)]">🕐 Section B | Working Hours and Rest Day</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Field label="Working Hours Per Day" name="working_hours_per_day" type="number" />
-                        <Field label="Working Days Per Week" name="working_days_per_week" type="number" />
-                        <Field label="Rest Day" name="rest_day" options={['Sunday', 'Saturday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']} />
-                        <Field label="Place of Work" name="place_of_work" span2 />
+                        <Field label="Daily Working Hours (Start/End)" name="working_hours_details" {...fieldProps} />
+                        <Field label="Break During Work" name="break_hours" {...fieldProps} />
+                        <Field label="Working Hours Per Day (Total)" name="working_hours_per_day" type="number" {...fieldProps} />
+                        <Field label="Number of Working Days Per Week" name="working_days_per_week" type="number" {...fieldProps} />
+                        <Field label="Rest Day" name="rest_day" options={['Sunday', 'Saturday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']} {...fieldProps} />
                     </div>
                 </div>
 
-                {/* Salary & Remuneration */}
-                <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4 pb-3 border-b border-white/5">💰 Salary & Remuneration</h3>
+                {/* Salary */}
+                <div className="card-base p-6">
+                    <h3 className="text-lg font-semibold text-[var(--text-main)] mb-4 pb-3 border-b border-[var(--border-main)]">💰 Section C | Salary</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Field label="Salary Period" name="salary_period" options={['Monthly', 'Weekly', 'Daily']} />
-                        <Field label="Basic Salary" name="basic_salary" type="currency" />
-                        <Field label="Overtime Rate (per hour)" name="overtime_rate" type="currency" />
-                        <Field label="Overtime Payment Period" name="overtime_payment_period" />
-                        <Field label="Bonus/Incentive Structure" name="bonus_structure" span2 />
+                        <Field label="Salary Period" name="salary_period" options={['Monthly', 'Weekly', 'Daily', 'Hourly']} {...fieldProps} />
+                        <Field label="Date(s) of Salary Payment" name="salary_payment_date" {...fieldProps} />
+                        <div />
+                        <Field label="Overtime Payment Period" name="overtime_payment_period" {...fieldProps} />
+                        <Field label="Date(s) of Overtime Payment" name="overtime_payment_date" {...fieldProps} />
+                        <div />
+                        <Field label="Basic Rate of Pay" name="basic_salary" type="currency" {...fieldProps} />
+                        <Field label="Gross Rate of Pay" name="gross_rate_of_pay" type="currency" {...fieldProps} />
+                        <Field label="Overtime Rate of Pay" name="overtime_rate" type="currency" {...fieldProps} />
+                        <Field label="Other Salary-Related Components" name="other_salary_components" span2 {...fieldProps} />
+                        <Field label="CPF contributions payable" name="cpf_payable" type="checkbox" {...fieldProps} />
                     </div>
-                    <div className="mt-4 pt-4 border-t border-white/5">
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Fixed Allowances</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                            <div><span className="text-slate-400">Transport:</span> <span className="text-white">{formatCurrency(allowances.transport)}</span></div>
-                            <div><span className="text-slate-400">Meal:</span> <span className="text-white">{formatCurrency(allowances.meal)}</span></div>
+                    <div className="mt-4 pt-4 border-t border-[var(--border-main)] grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Field
+                            label="Transport Allowance"
+                            value={form.fixed_allowances?.transport}
+                            onChange={v => setForm({ ...form, fixed_allowances: { ...form.fixed_allowances, transport: v } })}
+                            type="currency"
+                            {...fieldProps}
+                        />
+                        <Field
+                            label="Meal Allowance"
+                            value={form.fixed_allowances?.meal}
+                            onChange={v => setForm({ ...form, fixed_allowances: { ...form.fixed_allowances, meal: v } })}
+                            type="currency"
+                            {...fieldProps}
+                        />
+                        <div className="flex items-end pb-2">
+                            <p className="text-xs text-[var(--text-muted)]">Fixed Deductions: <span className="text-[var(--text-main)]">{formatCurrency(Object.values(deductions).reduce((a, b) => a + Number(b), 0))}</span></p>
                         </div>
                     </div>
                 </div>
 
-                {/* Leave & Benefits */}
-                <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4 pb-3 border-b border-white/5">🌴 Leave Entitlements & Medical Benefits</h3>
+                {/* Leave & Medical Benefits */}
+                <div className="card-base p-6">
+                    <h3 className="text-lg font-semibold text-[var(--text-main)] mb-4 pb-3 border-b border-[var(--border-main)]">🌴 Section D | Leave and Medical Benefits</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Field label="Annual Leave (days)" name="annual_leave_days" type="number" />
-                        <Field label="Outpatient Sick Leave (days)" name="sick_leave_days" type="number" />
-                        <Field label="Hospitalization Leave (days)" name="hospitalization_days" type="number" />
-                        <Field label="Maternity Leave (weeks)" name="maternity_weeks" type="number" />
-                        <Field label="Paternity Leave (weeks)" name="paternity_weeks" type="number" />
-                        <Field label="Childcare Leave (days)" name="childcare_days" type="number" />
-                        <Field label="Medical Benefits" name="medical_benefits" span2 />
+                        <Field label="Annual Leave (days)" name="annual_leave_days" type="number" {...fieldProps} />
+                        <Field label="Outpatient Sick Leave (days)" name="sick_leave_days" type="number" {...fieldProps} />
+                        <Field label="Hospitalization Leave (days)" name="hospitalization_days" type="number" {...fieldProps} />
+                        <Field label="Medical Benefits" name="medical_benefits" span2 {...fieldProps} />
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-[var(--border-main)] grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <Field label="Maternity Leave (weeks)" name="maternity_weeks" type="number" {...fieldProps} />
+                        <Field label="Paternity Leave (weeks)" name="paternity_weeks" type="number" {...fieldProps} />
+                        <Field label="Childcare Leave (days)" name="childcare_days" type="number" {...fieldProps} />
                     </div>
                 </div>
 
-                {/* Notice Period */}
-                <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4 pb-3 border-b border-white/5">📄 Other Terms</h3>
+                {/* Others */}
+                <div className="card-base p-6">
+                    <h3 className="text-lg font-semibold text-[var(--text-main)] mb-4 pb-3 border-b border-[var(--border-main)]">📄 Section E | Others</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Field label="Notice Period" name="notice_period" />
+                        <Field label="Length of Probation (months)" name="probation_months" type="number" {...fieldProps} />
+                        <Field label="Probation Start Date" name="probation_start_date" type="date" {...fieldProps} />
+                        <Field label="Probation End Date" name="probation_end_date" type="date" {...fieldProps} />
+                        <Field label="Notice Period for Termination" name="notice_period" span2 {...fieldProps} />
                     </div>
                 </div>
             </div>
 
             {/* MOM Compliance Note */}
-            <div className="glass-card p-4 border-cyan-500/20 bg-cyan-500/5">
+            <div className="card-base p-4 border-[var(--brand-primary)]/30 bg-cyan-500/5">
                 <p className="text-xs text-cyan-300 font-medium mb-1">📋 MOM Compliance Note</p>
-                <p className="text-xs text-slate-400">This document contains all 17 mandatory fields as required by the Ministry of Manpower (MOM) for Key Employment Terms under the Employment Act. KETs must be issued within 14 days of the employee's start date.</p>
+                <p className="text-xs text-[var(--text-muted)]">This document contains all mandatory fields as required by the Ministry of Manpower (MOM) for Key Employment Terms under the Employment Act. KETs must be issued within 14 days of the employee's start date.</p>
             </div>
         </div >
     )

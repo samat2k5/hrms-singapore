@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { getDb } = require('./db/init');
+const { getDb, reloadDb } = require('./db/init');
 
 const authRoutes = require('./routes/auth');
 const employeeRoutes = require('./routes/employees');
@@ -54,6 +54,10 @@ app.use('/api/iras', require('./routes/iras'));
 
 // Health check
 app.get('/api/health', (req, res) => {
+    if (req.query.reload === 'true') {
+        reloadDb();
+        return res.json({ status: 'ok', message: 'Database reloaded from disk' });
+    }
     res.json({ status: 'ok', name: 'HRMS Singapore API', version: '1.0.0' });
 });
 

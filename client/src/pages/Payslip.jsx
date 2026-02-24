@@ -39,7 +39,7 @@ export default function Payslip() {
             doc.setFont(undefined, 'bold')
             doc.text('Employer:', 14, y)
             doc.setFont(undefined, 'normal')
-            doc.text(ps.entity_name || 'HRMS Singapore Pte Ltd', 50, y)
+            doc.text(ps.entity_name || 'ezyHR Pte Ltd', 50, y)
 
             y += 7
             doc.setFont(undefined, 'bold')
@@ -216,8 +216,8 @@ export default function Payslip() {
         }
     }
 
-    if (loading) return <div className="glass-card h-96 loading-shimmer" />
-    if (!payslip) return <div className="text-center py-20 text-slate-400">Payslip not found</div>
+    if (loading) return <div className="card-base h-96 loading-shimmer" />
+    if (!payslip) return <div className="text-center py-20 text-[var(--text-muted)]">Payslip not found</div>
 
     const ps = payslip
     const totalDeductions = ps.cpf_employee + ps.shg_deduction + ps.other_deductions
@@ -227,44 +227,44 @@ export default function Payslip() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/payroll')} className="text-slate-400 hover:text-white transition-colors">← Back</button>
+                    <button onClick={() => navigate('/payroll')} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">← Back</button>
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Itemized Payslip</h1>
-                        <p className="text-slate-400">{formatMonth(ps.period_year, ps.period_month)}</p>
+                        <h1 className="text-2xl font-bold text-[var(--text-main)]">Itemized Payslip</h1>
+                        <p className="text-[var(--text-muted)]">{formatMonth(ps.period_year, ps.period_month)}</p>
                     </div>
                 </div>
-                <button onClick={handleExportPDF} className="gradient-btn text-sm">📥 Export PDF</button>
+                <button onClick={handleExportPDF} className="btn-primary text-sm">📥 Export PDF</button>
             </div>
 
             {/* MOM Compliance Badge */}
-            <div className="glass-card p-3 border-cyan-500/20 bg-cyan-500/5 flex items-center gap-2">
+            <div className="card-base p-3 border-[var(--brand-primary)]/30 bg-cyan-500/5 flex items-center gap-2">
                 <span>✅</span>
-                <p className="text-xs text-cyan-400 font-medium">MOM Compliant Itemized Payslip — Employment Act</p>
+                <p className="text-xs text-[var(--brand-primary)] font-medium">MOM Compliant Itemized Payslip — Employment Act</p>
             </div>
 
             {/* Payslip Content */}
-            <div className="glass-card p-6 space-y-6" id="payslip-content">
+            <div className="card-base p-6 space-y-6" id="payslip-content">
                 {/* Employee Info */}
-                <div className="grid grid-cols-2 gap-4 pb-4 border-b border-white/5">
+                <div className="grid grid-cols-2 gap-4 pb-4 border-b border-[var(--border-main)]">
                     <div>
-                        <p className="text-xs text-slate-500 uppercase">Employer</p>
-                        <p className="text-sm font-medium text-white">{ps.entity_name || 'HRMS Singapore Pte Ltd'}</p>
+                        <p className="text-xs text-[var(--text-muted)] uppercase">Employer</p>
+                        <p className="text-sm font-medium text-[var(--text-main)]">{ps.entity_name || 'ezyHR Pte Ltd'}</p>
                     </div>
                     <div>
-                        <p className="text-xs text-slate-500 uppercase">Employee</p>
-                        <p className="text-sm font-medium text-white">{ps.employee_name} ({ps.employee_code})</p>
+                        <p className="text-xs text-[var(--text-muted)] uppercase">Employee</p>
+                        <p className="text-sm font-medium text-[var(--text-main)]">{ps.employee_name} ({ps.employee_code})</p>
                     </div>
                     <div>
-                        <p className="text-xs text-slate-500 uppercase">Salary Period</p>
-                        <p className="text-sm text-white">{formatMonth(ps.period_year, ps.period_month)}</p>
+                        <p className="text-xs text-[var(--text-muted)] uppercase">Salary Period</p>
+                        <p className="text-sm text-[var(--text-main)]">{formatMonth(ps.period_year, ps.period_month)}</p>
                     </div>
                     <div>
-                        <p className="text-xs text-slate-500 uppercase">Payment Mode</p>
-                        <p className="text-sm text-white">{ps.payment_mode || 'Bank Transfer'}</p>
+                        <p className="text-xs text-[var(--text-muted)] uppercase">Payment Mode</p>
+                        <p className="text-sm text-[var(--text-main)]">{ps.payment_mode || 'Bank Transfer'}</p>
                     </div>
                     <div>
-                        <p className="text-xs text-slate-500 uppercase">Payment Date</p>
-                        <p className="text-sm text-white">{ps.payment_date ? formatDate(ps.payment_date) : formatDate(ps.run_date)}</p>
+                        <p className="text-xs text-[var(--text-muted)] uppercase">Payment Date</p>
+                        <p className="text-sm text-[var(--text-main)]">{ps.payment_date ? formatDate(ps.payment_date) : formatDate(ps.run_date)}</p>
                     </div>
                 </div>
 
@@ -336,19 +336,19 @@ export default function Payslip() {
                 </div>
 
                 {/* Net Pay */}
-                <div className="pt-4 border-t-2 border-cyan-500/30 mb-8">
+                <div className="pt-4 border-t-2 border-[var(--brand-primary)]/30 mb-8">
                     <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-white">NET PAY</span>
+                        <span className="text-lg font-bold text-[var(--text-main)]">NET PAY</span>
                         <span className="text-2xl font-bold gradient-text">{formatCurrency(ps.net_pay)}</span>
                     </div>
                 </div>
 
                 {/* Detailed Timesheet Append */}
                 {ps.timesheets && ps.timesheets.length > 0 && (
-                    <div className="pt-6 border-t border-white/5 space-y-4">
-                        <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wider mb-3">🕒 Detailed Timesheet Attendance</h3>
+                    <div className="pt-6 border-t border-[var(--border-main)] space-y-4">
+                        <h3 className="text-sm font-semibold text-[var(--brand-primary)] uppercase tracking-wider mb-3">🕒 Detailed Timesheet Attendance</h3>
                         <div className="overflow-x-auto">
-                            <table className="table-glass w-full text-xs">
+                            <table className="table-theme w-full text-xs">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
@@ -363,13 +363,13 @@ export default function Payslip() {
                                 <tbody>
                                     {ps.timesheets.map(t => (
                                         <tr key={t.id}>
-                                            <td className="text-slate-300">{formatDate(t.date)}</td>
-                                            <td className="text-white">{t.shift || ''}</td>
+                                            <td className="text-[var(--text-muted)]">{formatDate(t.date)}</td>
+                                            <td className="text-[var(--text-main)]">{t.shift || ''}</td>
                                             <td className="text-emerald-400">{t.in_time || ''}</td>
                                             <td className="text-amber-400">{t.out_time || ''}</td>
-                                            <td className="text-cyan-400">{t.ot_1_5_hours > 0 ? t.ot_1_5_hours : '-'}</td>
+                                            <td className="text-[var(--brand-primary)]">{t.ot_1_5_hours > 0 ? t.ot_1_5_hours : '-'}</td>
                                             <td className="text-purple-400">{t.ot_2_0_hours > 0 ? t.ot_2_0_hours : '-'}</td>
-                                            <td className="text-slate-400">{t.remarks || ''}</td>
+                                            <td className="text-[var(--text-muted)]">{t.remarks || ''}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -384,9 +384,9 @@ export default function Payslip() {
 
 function Row({ label, value, isBold, isHighlight, isNegative }) {
     return (
-        <div className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-white/3 transition-colors">
-            <span className={`text-sm ${isBold ? 'font-semibold text-white' : 'text-slate-400'}`}>{label}</span>
-            <span className={`text-sm ${isBold ? 'font-semibold' : ''} ${isHighlight ? 'text-cyan-400' : isNegative ? 'text-red-400' : 'text-white'}`}>
+        <div className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-[var(--bg-input)] transition-colors">
+            <span className={`text-sm ${isBold ? 'font-semibold text-[var(--text-main)]' : 'text-[var(--text-muted)]'}`}>{label}</span>
+            <span className={`text-sm ${isBold ? 'font-semibold' : ''} ${isHighlight ? 'text-[var(--brand-primary)]' : isNegative ? 'text-red-400' : 'text-[var(--text-main)]'}`}>
                 {isNegative ? `(${formatCurrency(Math.abs(value))})` : formatCurrency(value)}
             </span>
         </div>

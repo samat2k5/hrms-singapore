@@ -34,7 +34,7 @@ router.post('/import', authMiddleware, upload.single('file'), async (req, res) =
         };
 
         // Cache employee mapping for this entity to speed up lookups
-        const employeeResult = db.exec(`SELECT id, employee_id, site_id FROM employees WHERE entity_id = ${entityId}`);
+        const employeeResult = db.exec('SELECT id, employee_id, site_id FROM employees WHERE entity_id = ?', [entityId]);
         const employeeMap = {}; // employee_id -> {id, site_id}
         toObjects(employeeResult).forEach(emp => {
             employeeMap[emp.employee_id] = { id: emp.id, site_id: emp.site_id };
@@ -45,8 +45,8 @@ router.post('/import', authMiddleware, upload.single('file'), async (req, res) =
             SELECT h.* FROM site_working_hours h
             JOIN sites s ON h.site_id = s.id
             JOIN customers c ON s.customer_id = c.id
-            WHERE c.entity_id = ${entityId}
-        `);
+            WHERE c.entity_id = ?
+        `, [entityId]);
         const hoursMap = {}; // "siteId_dayOfWeek_shift" -> config
         toObjects(siteHoursResult).forEach(h => {
             hoursMap[`${h.site_id}_${h.day_of_week}_${h.shift_type}`] = h;
@@ -225,10 +225,10 @@ router.get('/history', authMiddleware, async (req, res) => {
             SELECT t.*, e.full_name as employee_name, e.employee_id as employee_code
             FROM timesheets t
             JOIN employees e ON t.employee_id = e.id
-            WHERE t.entity_id = ${entityId}
+            WHERE t.entity_id = ?
             ORDER BY t.date DESC
             LIMIT 500
-        `);
+        `, [entityId]);
         res.json(toObjects(runs));
     } catch (err) {
         res.status(500).json({ error: err.message });

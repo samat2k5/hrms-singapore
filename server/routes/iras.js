@@ -31,8 +31,8 @@ router.get('/forms/:year', authMiddleware, async (req, res) => {
             SELECT f.*, e.employee_id as emp_code, e.full_name 
             FROM iras_forms f 
             JOIN employees e ON f.employee_id = e.id 
-            WHERE f.entity_id = ${req.user.entityId} AND f.year = ${year}
-        `);
+            WHERE f.entity_id = ? AND f.year = ?
+        `, [req.user.entityId, year]);
         res.json(toObjects(result));
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -47,7 +47,7 @@ router.post('/generate/:year', authMiddleware, async (req, res) => {
         const entityId = req.user.entityId;
 
         // Check if already generated Original
-        const check = db.exec(`SELECT id FROM iras_forms WHERE entity_id = ${entityId} AND year = ${year} AND form_type = 'IR8A' AND version = 1`);
+        const check = db.exec('SELECT id FROM iras_forms WHERE entity_id = ? AND year = ? AND form_type = \'IR8A\' AND version = 1', [entityId, year]);
         if (toObjects(check).length > 0) {
             return res.status(400).json({ error: 'Original IR8A for this year already generated. Use Amendments instead.' });
         }
@@ -62,10 +62,10 @@ router.post('/generate/:year', authMiddleware, async (req, res) => {
             FROM payslips p
             JOIN payroll_runs r ON p.payroll_run_id = r.id
             JOIN employees e ON p.employee_id = e.id
-            WHERE e.entity_id = ${entityId}
-            AND r.period_year = ${year}
+            WHERE e.entity_id = ?
+            AND r.period_year = ?
             GROUP BY p.employee_id
-        `);
+        `, [entityId, year]);
 
         const rows = toObjects(aggregations);
         let recordsCount = 0;
@@ -117,7 +117,7 @@ router.post('/amend/:year/:empId', authMiddleware, async (req, res) => {
         if (year > currentYear + 1) return res.status(400).json({ error: "Cannot amend forms beyond 1 advance year." });
 
         // Get latest version
-        const vResult = db.exec(`SELECT MAX(version) as max_v FROM iras_forms WHERE entity_id = ${entityId} AND employee_id = ${empId} AND year = ${year} AND form_type = 'IR8A'`);
+        const vResult = db.exec('SELECT MAX(version) as max_v FROM iras_forms WHERE entity_id = ? AND employee_id = ? AND year = ? AND form_type = \'IR8A\'', [entityId, empId, year]);
         const maxV = toObjects(vResult)[0]?.max_v || 0;
 
         if (maxV === 0) return res.status(400).json({ error: "No original form found to amend." });
@@ -126,8 +126,8 @@ router.post('/amend/:year/:empId', authMiddleware, async (req, res) => {
         const aggregations = db.exec(`
             SELECT SUM(p.gross_pay) as total_gross, SUM(p.bonus) as total_bonus, SUM(p.cpf_employee) as total_cpf, SUM(p.cpf_employer) as total_employer_cpf
             FROM payslips p JOIN payroll_runs r ON p.payroll_run_id = r.id
-            WHERE p.employee_id = ${empId} AND r.period_year = ${year}
-        `);
+            WHERE p.employee_id = ? AND r.period_year = ?
+        `, [empId, year]);
         const aRow = toObjects(aggregations)[0];
 
         const dataJson = JSON.stringify({
@@ -163,10 +163,10 @@ router.get('/cessation-check', authMiddleware, async (req, res) => {
         const db = await getDb();
         const result = db.exec(`
             SELECT * FROM employees 
-            WHERE entity_id = ${req.user.entityId} 
+            WHERE entity_id = ? 
             AND cessation_date IS NOT NULL 
             AND nationality NOT IN ('Citizen', 'Permanent Resident')
-        `);
+        `, [req.user.entityId]);
         const employees = toObjects(result);
         res.json(employees);
     } catch (e) {
@@ -183,10 +183,10 @@ router.get('/cpf-excess', authMiddleware, async (req, res) => {
             FROM payslips p
             JOIN employees e ON p.employee_id = e.id
             JOIN payroll_runs r ON p.payroll_run_id = r.id
-            WHERE e.entity_id = ${req.user.entityId}
+            WHERE e.entity_id = ?
             GROUP BY p.employee_id
             HAVING total_cpf > 37740
-        `);
+        `, [req.user.entityId]);
         res.json(toObjects(aggregations));
     } catch (e) {
         res.status(500).json({ error: e.message });

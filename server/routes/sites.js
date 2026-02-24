@@ -38,7 +38,7 @@ router.post('/', authMiddleware, async (req, res) => {
         const { customer_id, name, description } = req.body;
 
         // Verify customer ownership
-        const custResult = db.exec(`SELECT id FROM customers WHERE id = ${customer_id} AND entity_id = ${req.user.entityId}`);
+        const custResult = db.exec('SELECT id FROM customers WHERE id = ? AND entity_id = ?', [customer_id, req.user.entityId]);
         if (!custResult.length) return res.status(403).json({ error: 'Invalid Customer ID' });
 
         db.run(
@@ -58,7 +58,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const db = await getDb();
         const { customer_id, name, description } = req.body;
 
-        const custResult = db.exec(`SELECT id FROM customers WHERE id = ${customer_id} AND entity_id = ${req.user.entityId}`);
+        const custResult = db.exec('SELECT id FROM customers WHERE id = ? AND entity_id = ?', [customer_id, req.user.entityId]);
         if (!custResult.length) return res.status(403).json({ error: 'Invalid Customer ID' });
 
         db.run(
@@ -77,10 +77,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         // verify ownership via join
-        const s = db.exec(`SELECT s.id FROM sites s JOIN customers c ON s.customer_id = c.id WHERE s.id = ${req.params.id} AND c.entity_id = ${req.user.entityId}`);
+        const s = db.exec('SELECT s.id FROM sites s JOIN customers c ON s.customer_id = c.id WHERE s.id = ? AND c.entity_id = ?', [req.params.id, req.user.entityId]);
         if (!s.length) return res.status(404).json({ error: 'Site not found' });
 
-        db.run(`DELETE FROM sites WHERE id = ${req.params.id}`);
+        db.run('DELETE FROM sites WHERE id = ?', [req.params.id]);
         saveDb();
         res.json({ message: 'Site deleted' });
     } catch (err) {
@@ -93,10 +93,10 @@ router.get('/:id/hours', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         // verify entity ownership
-        const siteResult = db.exec(`SELECT s.id FROM sites s JOIN customers c ON s.customer_id = c.id WHERE s.id = ${req.params.id} AND c.entity_id = ${req.user.entityId}`);
+        const siteResult = db.exec('SELECT s.id FROM sites s JOIN customers c ON s.customer_id = c.id WHERE s.id = ? AND c.entity_id = ?', [req.params.id, req.user.entityId]);
         if (!siteResult.length) return res.status(404).json({ error: 'Site not found' });
 
-        const result = db.exec(`SELECT * FROM site_working_hours WHERE site_id = ${req.params.id} ORDER BY shift_type, day_of_week`);
+        const result = db.exec('SELECT * FROM site_working_hours WHERE site_id = ? ORDER BY shift_type, day_of_week', [req.params.id]);
         res.json(toObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -111,11 +111,11 @@ router.post('/:id/hours', authMiddleware, async (req, res) => {
         const schedules = req.body; // array of objects
 
         // Verify entity ownership
-        const siteResult = db.exec(`SELECT s.id FROM sites s JOIN customers c ON s.customer_id = c.id WHERE s.id = ${id} AND c.entity_id = ${req.user.entityId}`);
+        const siteResult = db.exec('SELECT s.id FROM sites s JOIN customers c ON s.customer_id = c.id WHERE s.id = ? AND c.entity_id = ?', [id, req.user.entityId]);
         if (!siteResult.length) return res.status(404).json({ error: 'Site not found' });
 
         // Delete existing and insert new block
-        db.run(`DELETE FROM site_working_hours WHERE site_id = ${id}`);
+        db.run('DELETE FROM site_working_hours WHERE site_id = ?', [id]);
 
         for (const s of schedules) {
             db.run(

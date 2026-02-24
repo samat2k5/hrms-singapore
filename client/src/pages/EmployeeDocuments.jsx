@@ -71,7 +71,7 @@ export default function EmployeeDocuments() {
                     <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-orange-400">
                         Identity & Documents
                     </h1>
-                    <p className="text-slate-400 mt-1">Managing documents for {employee?.full_name} ({employee?.employee_id})</p>
+                    <p className="text-[var(--text-muted)] mt-1">Managing documents for {employee?.full_name} ({employee?.employee_id})</p>
                 </div>
                 <div className="flex gap-3">
                     <button onClick={() => navigate('/employees')} className="btn-secondary">Back to Employees</button>
@@ -81,18 +81,18 @@ export default function EmployeeDocuments() {
 
             <div className="card-glass overflow-hidden">
                 {documents.length === 0 ? (
-                    <div className="p-8 text-center text-slate-400">No documents found for this employee.</div>
+                    <div className="p-8 text-center text-[var(--text-muted)]">No documents found for this employee.</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="border-b border-white/10 bg-white/5">
-                                    <th className="p-4 font-semibold text-slate-300">Type</th>
-                                    <th className="p-4 font-semibold text-slate-300">Document No.</th>
-                                    <th className="p-4 font-semibold text-slate-300">Issue Date</th>
-                                    <th className="p-4 font-semibold text-slate-300">Expiry Date</th>
-                                    <th className="p-4 font-semibold text-slate-300">Status</th>
-                                    <th className="p-4 font-semibold text-slate-300">Actions</th>
+                                <tr className="border-b border-[var(--border-main)] bg-[var(--bg-input)]">
+                                    <th className="p-4 font-semibold text-[var(--text-muted)]">Type</th>
+                                    <th className="p-4 font-semibold text-[var(--text-muted)]">Document No.</th>
+                                    <th className="p-4 font-semibold text-[var(--text-muted)]">Issue Date</th>
+                                    <th className="p-4 font-semibold text-[var(--text-muted)]">Expiry Date</th>
+                                    <th className="p-4 font-semibold text-[var(--text-muted)]">Status</th>
+                                    <th className="p-4 font-semibold text-[var(--text-muted)]">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -115,11 +115,11 @@ export default function EmployeeDocuments() {
                                     }
 
                                     return (
-                                        <tr key={doc.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                            <td className="p-4 font-medium text-white">{doc.document_type}</td>
+                                        <tr key={doc.id} className="border-b border-[var(--border-main)] hover:bg-[var(--bg-input)] transition-colors">
+                                            <td className="p-4 font-medium text-[var(--text-main)]">{doc.document_type}</td>
                                             <td className="p-4">{doc.document_number}</td>
-                                            <td className="p-4 text-slate-400">{doc.issue_date || '-'}</td>
-                                            <td className="p-4 text-slate-400">{doc.expiry_date || '-'}</td>
+                                            <td className="p-4 text-[var(--text-muted)]">{doc.issue_date || '-'}</td>
+                                            <td className="p-4 text-[var(--text-muted)]">{doc.expiry_date || '-'}</td>
                                             <td className="p-4"><span className={statusColor}>{status}</span></td>
                                             <td className="p-4">
                                                 <button onClick={() => handleDelete(doc.id)} className="text-sm text-red-400 hover:text-red-300 transition-colors">Delete</button>
@@ -137,12 +137,12 @@ export default function EmployeeDocuments() {
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm slide-up">
                     <div className="card-glass w-full max-w-md p-6">
-                        <h2 className="text-xl font-bold text-white mb-6">Add Document</h2>
+                        <h2 className="text-xl font-bold text-[var(--text-main)] mb-6">Add Document</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Document Type</label>
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Document Type</label>
                                 <select
-                                    className="select-glass"
+                                    className="select-base"
                                     value={form.document_type}
                                     onChange={e => setForm({ ...form, document_type: e.target.value })}
                                 >
@@ -157,25 +157,25 @@ export default function EmployeeDocuments() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Document No. / Unique ID</label>
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Document No. / Unique ID</label>
                                 <input
-                                    type="text" required className="input-glass"
+                                    type="text" required className="input-base"
                                     value={form.document_number} onChange={e => setForm({ ...form, document_number: e.target.value })}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">Issue Date</label>
+                                    <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Issue Date</label>
                                     <input
-                                        type="date" className="input-glass" required
+                                        type="date" className="input-base" required
                                         value={form.issue_date} onChange={e => setForm({ ...form, issue_date: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">Expiry Date</label>
+                                    <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Expiry Date</label>
                                     <input
-                                        type="date" className="input-glass"
+                                        type="date" className="input-base"
                                         value={form.expiry_date} onChange={e => setForm({ ...form, expiry_date: e.target.value })}
                                     />
                                 </div>

@@ -64,17 +64,17 @@ export default function EmployeeGrades() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Employee Grades</h1>
-                    <p className="text-slate-400 mt-1">Manage corporate grading structure for {activeEntity?.name || 'this entity'}.</p>
+                    <h1 className="text-3xl font-bold text-[var(--text-main)]">Employee Grades</h1>
+                    <p className="text-[var(--text-muted)] mt-1">Manage corporate grading structure for {activeEntity?.name || 'this entity'}.</p>
                 </div>
                 {canEditConfigs && (
-                    <button onClick={handleAdd} className="gradient-btn">+ Add Grade</button>
+                    <button onClick={handleAdd} className="btn-primary">+ Add Grade</button>
                 )}
             </div>
 
-            <div className="glass-card overflow-hidden">
+            <div className="card-base overflow-hidden">
                 {loading ? <div className="h-64 loading-shimmer" /> : (
-                    <table className="table-glass w-full">
+                    <table className="table-theme w-full">
                         <thead>
                             <tr>
                                 <th>Name</th>
@@ -85,8 +85,8 @@ export default function EmployeeGrades() {
                         <tbody>
                             {grades.map(item => (
                                 <tr key={item.id}>
-                                    <td className="font-medium text-white">{item.name}</td>
-                                    <td className="text-slate-400 truncate max-w-xs">{item.description || '-'}</td>
+                                    <td className="font-medium text-[var(--text-main)]">{item.name}</td>
+                                    <td className="text-[var(--text-muted)] truncate max-w-xs">{item.description || '-'}</td>
                                     <td>
                                         {canEditConfigs && (
                                             <div className="flex gap-2">
@@ -98,7 +98,7 @@ export default function EmployeeGrades() {
                             ))}
                             {grades.length === 0 && (
                                 <tr>
-                                    <td colSpan="3" className="text-center py-8 text-slate-500">No employee grades found.</td>
+                                    <td colSpan="3" className="text-center py-8 text-[var(--text-muted)]">No employee grades found.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -108,32 +108,32 @@ export default function EmployeeGrades() {
 
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="glass-card p-6 w-full max-w-md animate-slide-up" style={{ background: 'rgba(15, 23, 42, 0.95)' }}>
-                        <h2 className="text-xl font-bold text-white mb-6">Add Employee Grade</h2>
+                    <div className="card-base p-6 w-full max-w-md animate-slide-up" style={{ background: 'rgba(15, 23, 42, 0.95)' }}>
+                        <h2 className="text-xl font-bold text-[var(--text-main)] mb-6">Add Employee Grade</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Grade Name (e.g., A1, Executive, Staff)</label>
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Grade Name (e.g., A1, Executive, Staff)</label>
                                 <input
                                     type="text"
                                     required
                                     value={form.name || ''}
                                     onChange={e => setForm({ ...form, name: e.target.value })}
-                                    className="input-glass w-full"
+                                    className="input-base w-full"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Description (Optional)</label>
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Description (Optional)</label>
                                 <textarea
                                     value={form.description || ''}
                                     onChange={e => setForm({ ...form, description: e.target.value })}
-                                    className="input-glass w-full min-h-[80px]"
+                                    className="input-base w-full min-h-[80px]"
                                 />
                             </div>
 
-                            <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-all">Cancel</button>
-                                <button type="submit" className="gradient-btn flex-1">Save</button>
+                            <div className="flex gap-3 pt-4 border-t border-[var(--border-main)] mt-6">
+                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-all">Cancel</button>
+                                <button type="submit" className="btn-primary flex-1">Save</button>
                             </div>
                         </form>
                     </div>

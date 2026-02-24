@@ -91,42 +91,42 @@ export default function Reports() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-white">Compliance Reports</h1>
-                <p className="text-slate-400 mt-1">CPF, IRAS, SDL & SHG statutory reports</p>
+                <h1 className="text-3xl font-bold text-[var(--text-main)]">Compliance Reports</h1>
+                <p className="text-[var(--text-muted)] mt-1">CPF, IRAS, SDL & SHG statutory reports</p>
             </div>
 
             {/* Tabs */}
             <div className="flex gap-2 flex-wrap">
                 {tabs.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${tab === t.key ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'}`}>
+                        className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${tab === t.key ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-[var(--brand-primary)] border border-[var(--brand-primary)]/30' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-input)] border border-transparent'}`}>
                         {t.label}
                     </button>
                 ))}
             </div>
 
             {/* Controls */}
-            <div className="glass-card p-6">
-                <div className="flex items-end gap-4">
+            <div className="card-base p-6">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                     {tab !== 'ir8a' && (
-                        <div>
-                            <label className="block text-sm text-slate-300 mb-1.5">Month</label>
-                            <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className="select-glass w-40">
+                        <div className="w-full sm:w-auto">
+                            <label className="block text-sm text-[var(--text-muted)] mb-1.5">Month</label>
+                            <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className="select-base w-full sm:w-40">
                                 {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                             </select>
                         </div>
                     )}
-                    <div>
-                        <label className="block text-sm text-slate-300 mb-1.5">Year</label>
-                        <select value={year} onChange={e => setYear(parseInt(e.target.value))} className="select-glass w-32">
+                    <div className="w-full sm:w-auto">
+                        <label className="block text-sm text-[var(--text-muted)] mb-1.5">Year</label>
+                        <select value={year} onChange={e => setYear(parseInt(e.target.value))} className="select-base w-full sm:w-32">
                             {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                     </div>
-                    <button onClick={fetchReport} disabled={loading} className="gradient-btn">
+                    <button onClick={fetchReport} disabled={loading} className="btn-primary w-full sm:w-auto mt-2 sm:mt-0 text-center">
                         {loading ? 'Loading...' : '📊 Generate Report'}
                     </button>
                     {data && (
-                        <button onClick={handleExportPDF} className="px-4 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 text-sm transition-all">
+                        <button onClick={handleExportPDF} className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all text-center">
                             📥 Export PDF
                         </button>
                     )}
@@ -134,36 +134,36 @@ export default function Reports() {
             </div>
 
             {/* Report Content */}
-            {loading && <div className="glass-card h-48 loading-shimmer" />}
+            {loading && <div className="card-base h-48 loading-shimmer" />}
 
             {data && !loading && (
-                <div className="glass-card p-6 animate-slide-up">
+                <div className="card-base p-6 animate-slide-up">
                     {/* CPF Report */}
                     {tab === 'cpf' && (
                         <>
-                            <h3 className="text-lg font-semibold text-white mb-1">CPF Monthly Submission Report</h3>
-                            <p className="text-sm text-slate-400 mb-4">{data.period}</p>
+                            <h3 className="text-lg font-semibold text-[var(--text-main)] mb-1">CPF Monthly Submission Report</h3>
+                            <p className="text-sm text-[var(--text-muted)] mb-4">{data.period}</p>
                             {data.totals && (
                                 <div className="grid grid-cols-3 gap-4 mb-6">
-                                    <div className="p-3 rounded-xl bg-white/3">
-                                        <p className="text-xs text-slate-400">Total CPF (Employee)</p>
-                                        <p className="text-lg font-bold text-white">{formatCurrency(data.totals.totalCPFEmployee)}</p>
+                                    <div className="p-3 rounded-xl bg-[var(--bg-input)]">
+                                        <p className="text-xs text-[var(--text-muted)]">Total CPF (Employee)</p>
+                                        <p className="text-lg font-bold text-[var(--text-main)]">{formatCurrency(data.totals.totalCPFEmployee)}</p>
                                     </div>
-                                    <div className="p-3 rounded-xl bg-white/3">
-                                        <p className="text-xs text-slate-400">Total CPF (Employer)</p>
-                                        <p className="text-lg font-bold text-white">{formatCurrency(data.totals.totalCPFEmployer)}</p>
+                                    <div className="p-3 rounded-xl bg-[var(--bg-input)]">
+                                        <p className="text-xs text-[var(--text-muted)]">Total CPF (Employer)</p>
+                                        <p className="text-lg font-bold text-[var(--text-main)]">{formatCurrency(data.totals.totalCPFEmployer)}</p>
                                     </div>
-                                    <div className="p-3 rounded-xl bg-white/3">
-                                        <p className="text-xs text-slate-400">Total Contributions</p>
-                                        <p className="text-lg font-bold text-cyan-400">{formatCurrency(data.totals.totalCPFEmployee + data.totals.totalCPFEmployer)}</p>
+                                    <div className="p-3 rounded-xl bg-[var(--bg-input)]">
+                                        <p className="text-xs text-[var(--text-muted)]">Total Contributions</p>
+                                        <p className="text-lg font-bold text-[var(--brand-primary)]">{formatCurrency(data.totals.totalCPFEmployee + data.totals.totalCPFEmployer)}</p>
                                     </div>
                                 </div>
                             )}
-                            <table className="table-glass">
+                            <table className="table-theme">
                                 <thead><tr><th>Employee</th><th>ID</th><th>Gross</th><th>CPF (EE)</th><th>CPF (ER)</th><th>OA</th><th>SA</th><th>MA</th></tr></thead>
                                 <tbody>
                                     {data.employees?.map((e, i) => (
-                                        <tr key={i}><td className="text-white">{e.employee_name}</td><td>{e.employee_code}</td><td>{formatCurrency(e.gross_pay)}</td><td>{formatCurrency(e.cpf_employee)}</td><td>{formatCurrency(e.cpf_employer)}</td><td>{formatCurrency(e.cpf_oa)}</td><td>{formatCurrency(e.cpf_sa)}</td><td>{formatCurrency(e.cpf_ma)}</td></tr>
+                                        <tr key={i}><td className="text-[var(--text-main)]">{e.employee_name}</td><td>{e.employee_code}</td><td>{formatCurrency(e.gross_pay)}</td><td>{formatCurrency(e.cpf_employee)}</td><td>{formatCurrency(e.cpf_employer)}</td><td>{formatCurrency(e.cpf_oa)}</td><td>{formatCurrency(e.cpf_sa)}</td><td>{formatCurrency(e.cpf_ma)}</td></tr>
                                     ))}
                                 </tbody>
                             </table>
@@ -177,12 +177,12 @@ export default function Reports() {
                             {data.cessation && data.cessation.length > 0 && (
                                 <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
                                     <h4 className="flex items-center gap-2 text-amber-400 font-bold mb-2">⚠️ IR21 Required (Foreign Cessation)</h4>
-                                    <p className="text-sm text-slate-300 mb-3">The following foreign employees have a cessation date and require Form IR21 submission to withhold tax clearance. They have been automatically excluded from the standard IR8A generation batch.</p>
-                                    <table className="table-glass w-full text-sm">
+                                    <p className="text-sm text-[var(--text-muted)] mb-3">The following foreign employees have a cessation date and require Form IR21 submission to withhold tax clearance. They have been automatically excluded from the standard IR8A generation batch.</p>
+                                    <table className="table-theme w-full text-sm">
                                         <thead><tr><th>Employee</th><th>ID</th><th>Nationality</th><th>Cessation Date</th></tr></thead>
                                         <tbody>
                                             {data.cessation.map((e, i) => (
-                                                <tr key={i}><td className="text-white">{e.full_name}</td><td>{e.employee_id}</td><td>{e.nationality}</td><td className="text-amber-400 font-medium">{e.cessation_date}</td></tr>
+                                                <tr key={i}><td className="text-[var(--text-main)]">{e.full_name}</td><td>{e.employee_id}</td><td>{e.nationality}</td><td className="text-amber-400 font-medium">{e.cessation_date}</td></tr>
                                             ))}
                                         </tbody>
                                     </table>
@@ -192,12 +192,12 @@ export default function Reports() {
                             {data.cpfExcess && data.cpfExcess.length > 0 && (
                                 <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10">
                                     <h4 className="flex items-center gap-2 text-rose-400 font-bold mb-2">🚨 CPF Excess Contribution Detected</h4>
-                                    <p className="text-sm text-slate-300 mb-3">The following employees appear to have CPF contributions exceeding their Ordinary Wage/Additional Wage caps. You must claim a refund from the CPF Board.</p>
-                                    <table className="table-glass w-full text-sm">
+                                    <p className="text-sm text-[var(--text-muted)] mb-3">The following employees appear to have CPF contributions exceeding their Ordinary Wage/Additional Wage caps. You must claim a refund from the CPF Board.</p>
+                                    <table className="table-theme w-full text-sm">
                                         <thead><tr><th>Employee</th><th>ID</th><th>Total CPF Paid</th></tr></thead>
                                         <tbody>
                                             {data.cpfExcess.map((e, i) => (
-                                                <tr key={i}><td className="text-white">{e.full_name}</td><td>{e.emp_code}</td><td className="text-rose-400 font-bold">{formatCurrency(e.total_cpf)}</td></tr>
+                                                <tr key={i}><td className="text-[var(--text-main)]">{e.full_name}</td><td>{e.emp_code}</td><td className="text-rose-400 font-bold">{formatCurrency(e.total_cpf)}</td></tr>
                                             ))}
                                         </tbody>
                                     </table>
@@ -207,35 +207,35 @@ export default function Reports() {
                             <div>
                                 <div className="flex justify-between items-center mb-4">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-white mb-1">Generated IR8A Forms ({data.year})</h3>
-                                        <p className="text-sm text-slate-400">Strictly immutable generated statutory PDFs.</p>
+                                        <h3 className="text-lg font-semibold text-[var(--text-main)] mb-1">Generated IR8A Forms ({data.year})</h3>
+                                        <p className="text-sm text-[var(--text-muted)]">Strictly immutable generated statutory PDFs.</p>
                                     </div>
                                     <button
                                         onClick={async () => {
                                             try { await api.generateIR8A(data.year); toast.success('Generated Successfully'); fetchReport(); }
                                             catch (e) { toast.error(e.message) }
                                         }}
-                                        className="gradient-btn py-1.5 px-4 text-sm"
+                                        className="btn-primary py-1.5 px-4 text-sm"
                                         disabled={data.forms?.length > 0}
                                     >
                                         {data.forms?.length > 0 ? 'Batch Generated' : 'Generate New IR8A Batch'}
                                     </button>
                                 </div>
-                                <table className="table-glass">
+                                <table className="table-theme">
                                     <thead><tr><th>Employee</th><th>ID</th><th>Form Data Extracted</th><th>Status</th><th>Version</th><th>Actions</th></tr></thead>
                                     <tbody>
                                         {data.forms?.map((f, i) => {
                                             const payload = JSON.parse(f.data_json);
                                             return (
                                                 <tr key={i}>
-                                                    <td className="text-white">{f.full_name}</td>
+                                                    <td className="text-[var(--text-main)]">{f.full_name}</td>
                                                     <td>{f.emp_code}</td>
                                                     <td className="text-xs space-y-1">
                                                         <p>Gross: {formatCurrency(payload.gross_salary)}</p>
                                                         <p>Bonus: {formatCurrency(payload.bonus)}</p>
                                                     </td>
                                                     <td><span className={f.status === 'Amended' ? 'badge-info' : 'badge-success'}>{f.status}</span></td>
-                                                    <td className="font-mono text-slate-400">v{f.version}</td>
+                                                    <td className="font-mono text-[var(--text-muted)]">v{f.version}</td>
                                                     <td>
                                                         <button
                                                             onClick={async () => {
@@ -258,22 +258,22 @@ export default function Reports() {
                                             )
                                         })}
                                         {(!data.forms || data.forms.length === 0) && (
-                                            <tr><td colSpan="6" className="text-center py-4 text-slate-500">No forms generated yet for {data.year}.</td></tr>
+                                            <tr><td colSpan="6" className="text-center py-4 text-[var(--text-muted)]">No forms generated yet for {data.year}.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
                             </div>
 
                             {/* AUDIT LOGS */}
-                            <div className="pt-6 border-t border-white/10">
-                                <h3 className="text-lg font-semibold text-white mb-2">Submission Audit Trail</h3>
-                                <table className="table-glass w-full text-sm">
+                            <div className="pt-6 border-t border-[var(--border-main)]">
+                                <h3 className="text-lg font-semibold text-[var(--text-main)] mb-2">Submission Audit Trail</h3>
+                                <table className="table-theme w-full text-sm">
                                     <thead><tr><th>Timestamp</th><th>User</th><th>Submission Type</th><th>Records</th></tr></thead>
                                     <tbody>
                                         {data.logs?.slice(0, 5).map((log, i) => (
                                             <tr key={i}>
-                                                <td className="text-slate-400">{new Date(log.timestamp).toLocaleString()}</td>
-                                                <td className="text-white">{log.username}</td>
+                                                <td className="text-[var(--text-muted)]">{new Date(log.timestamp).toLocaleString()}</td>
+                                                <td className="text-[var(--text-main)]">{log.username}</td>
                                                 <td><span className={log.submission_type.includes('Original') ? 'badge-success' : 'badge-info'}>{log.submission_type}</span></td>
                                                 <td>{log.records_count}</td>
                                             </tr>
@@ -287,14 +287,14 @@ export default function Reports() {
                     {/* SDL Report */}
                     {tab === 'sdl' && (
                         <>
-                            <h3 className="text-lg font-semibold text-white mb-1">Skills Development Levy Report</h3>
-                            <p className="text-sm text-slate-400 mb-2">{data.period}</p>
-                            <p className="text-sm text-cyan-400 mb-4">Total SDL: <span className="font-bold">{formatCurrency(data.totalSDL)}</span> (rounded down to nearest dollar)</p>
-                            <table className="table-glass">
+                            <h3 className="text-lg font-semibold text-[var(--text-main)] mb-1">Skills Development Levy Report</h3>
+                            <p className="text-sm text-[var(--text-muted)] mb-2">{data.period}</p>
+                            <p className="text-sm text-[var(--brand-primary)] mb-4">Total SDL: <span className="font-bold">{formatCurrency(data.totalSDL)}</span> (rounded down to nearest dollar)</p>
+                            <table className="table-theme">
                                 <thead><tr><th>Employee</th><th>ID</th><th>Gross Pay</th><th>SDL</th></tr></thead>
                                 <tbody>
                                     {data.employees?.map((e, i) => (
-                                        <tr key={i}><td className="text-white">{e.employee_name}</td><td>{e.employee_code}</td><td>{formatCurrency(e.gross_pay)}</td><td>{formatCurrency(e.sdl)}</td></tr>
+                                        <tr key={i}><td className="text-[var(--text-main)]">{e.employee_name}</td><td>{e.employee_code}</td><td>{formatCurrency(e.gross_pay)}</td><td>{formatCurrency(e.sdl)}</td></tr>
                                     ))}
                                 </tbody>
                             </table>
@@ -304,24 +304,24 @@ export default function Reports() {
                     {/* SHG Report */}
                     {tab === 'shg' && (
                         <>
-                            <h3 className="text-lg font-semibold text-white mb-1">Self-Help Group Deductions Report</h3>
-                            <p className="text-sm text-slate-400 mb-4">{data.period}</p>
+                            <h3 className="text-lg font-semibold text-[var(--text-main)] mb-1">Self-Help Group Deductions Report</h3>
+                            <p className="text-sm text-[var(--text-muted)] mb-4">{data.period}</p>
                             {data.byFund && (
                                 <div className="grid grid-cols-4 gap-4 mb-6">
                                     {Object.entries(data.byFund).map(([fund, info]) => (
-                                        <div key={fund} className="p-3 rounded-xl bg-white/3">
-                                            <p className="text-xs text-slate-400">{fund}</p>
-                                            <p className="text-lg font-bold text-white">{formatCurrency(info.total)}</p>
-                                            <p className="text-xs text-slate-500">{info.count} employee(s)</p>
+                                        <div key={fund} className="p-3 rounded-xl bg-[var(--bg-input)]">
+                                            <p className="text-xs text-[var(--text-muted)]">{fund}</p>
+                                            <p className="text-lg font-bold text-[var(--text-main)]">{formatCurrency(info.total)}</p>
+                                            <p className="text-xs text-[var(--text-muted)]">{info.count} employee(s)</p>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                            <table className="table-glass">
+                            <table className="table-theme">
                                 <thead><tr><th>Employee</th><th>ID</th><th>Fund</th><th>Deduction</th></tr></thead>
                                 <tbody>
                                     {data.employees?.map((e, i) => (
-                                        <tr key={i}><td className="text-white">{e.employee_name}</td><td>{e.employee_code}</td><td><span className="badge-info">{e.shg_fund}</span></td><td>{formatCurrency(e.shg_deduction)}</td></tr>
+                                        <tr key={i}><td className="text-[var(--text-main)]">{e.employee_name}</td><td>{e.employee_code}</td><td><span className="badge-info">{e.shg_fund}</span></td><td>{formatCurrency(e.shg_deduction)}</td></tr>
                                     ))}
                                 </tbody>
                             </table>
@@ -329,7 +329,7 @@ export default function Reports() {
                     )}
 
                     {(!data.employees && tab !== 'ir8a') || (data.employees?.length === 0) ? (
-                        <p className="text-center py-8 text-slate-500">No data found for this period. Process a payroll run first.</p>
+                        <p className="text-center py-8 text-[var(--text-muted)]">No data found for this period. Process a payroll run first.</p>
                     ) : null}
                 </div>
             )}

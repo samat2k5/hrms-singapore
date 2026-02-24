@@ -29,14 +29,13 @@ router.get('/types', authMiddleware, async (req, res) => {
 async function computeDynamicBalances(db, employeeId, year) {
     // 1. Get raw balances
     const balResult = db.exec(`
-        SELECT lb.*, lt.name as leave_type_name, 
-               e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, e.employee_grade
-        FROM leave_balances lb 
-        JOIN leave_types lt ON lb.leave_type_id = lt.id 
-        JOIN employees e ON lb.employee_id = e.id 
-        WHERE lb.employee_id = ${employeeId} AND lb.year = ${year} AND e.status = 'Active'
+        SELECT lb.*, lt.name as leave_type_name, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, e.employee_grade
+        FROM leave_balances lb
+        JOIN leave_types lt ON lb.leave_type_id = lt.id
+        JOIN employees e ON lb.employee_id = e.id
+        WHERE lb.employee_id = ? AND lb.year = ? AND e.status = 'Active'
         ORDER BY lt.id
-    `);
+    `, [employeeId, year]);
 
     let balances = toObjects(balResult);
     if (!balances.length) return [];
@@ -93,7 +92,7 @@ async function computeDynamicBalances(db, employeeId, year) {
     totalCompletedMonthsTillDate = Math.max(0, totalCompletedMonthsTillDate);
 
     // Fetch Grade Policies
-    const polResult = db.exec(`SELECT * FROM leave_policies WHERE employee_grade = '${emp.employee_grade}'`);
+    const polResult = db.exec('SELECT * FROM leave_policies WHERE employee_grade = ?', [emp.employee_grade]);
     const policies = toObjects(polResult);
 
     balances = balances.map(lb => {
@@ -206,7 +205,8 @@ router.post('/request', authMiddleware, async (req, res) => {
         // Check balance
         const year = new Date(start_date).getFullYear();
         const balResult = db.exec(
-            `SELECT * FROM leave_balances WHERE employee_id = ${employee_id} AND leave_type_id = ${leave_type_id} AND year = ${year}`
+            'SELECT * FROM leave_balances WHERE employee_id = ? AND leave_type_id = ? AND year = ?',
+            [employee_id, leave_type_id, year]
         );
         const balances = toObjects(balResult);
 
@@ -232,7 +232,7 @@ router.put('/request/:id/approve', authMiddleware, async (req, res) => {
         const db = await getDb();
 
         // Get the request
-        const reqResult = db.exec(`SELECT * FROM leave_requests WHERE id = ${req.params.id}`);
+        const reqResult = db.exec('SELECT * FROM leave_requests WHERE id = ?', [req.params.id]);
         const requests = toObjects(reqResult);
         if (!requests.length) return res.status(404).json({ error: 'Request not found' });
 
@@ -240,12 +240,13 @@ router.put('/request/:id/approve', authMiddleware, async (req, res) => {
         if (lr.status !== 'Pending') return res.status(400).json({ error: 'Request is not pending' });
 
         // Update status
-        db.run(`UPDATE leave_requests SET status = 'Approved' WHERE id = ${req.params.id}`);
+        db.run('UPDATE leave_requests SET status = \'Approved\' WHERE id = ?', [req.params.id]);
 
         // Update balance
         const year = new Date(lr.start_date).getFullYear();
         db.run(
-            `UPDATE leave_balances SET taken = taken + ${lr.days}, balance = balance - ${lr.days} WHERE employee_id = ${lr.employee_id} AND leave_type_id = ${lr.leave_type_id} AND year = ${year}`
+            'UPDATE leave_balances SET taken = taken + ?, balance = balance - ? WHERE employee_id = ? AND leave_type_id = ? AND year = ?',
+            [lr.days, lr.days, lr.employee_id, lr.leave_type_id, year]
         );
 
         saveDb();
@@ -259,7 +260,7 @@ router.put('/request/:id/approve', authMiddleware, async (req, res) => {
 router.put('/request/:id/reject', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        db.run(`UPDATE leave_requests SET status = 'Rejected' WHERE id = ${req.params.id}`);
+        db.run('UPDATE leave_requests SET status = \'Rejected\' WHERE id = ?', [req.params.id]);
         saveDb();
         res.json({ message: 'Leave rejected' });
     } catch (err) {

@@ -28,36 +28,36 @@ export default function Login() {
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="glass-card p-8 w-full max-w-md animate-slide-up">
+            <div className="card-base p-8 w-full max-w-md animate-slide-up">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                        <span className="text-3xl">🏢</span>
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                        <span className="text-3xl">👥</span>
                     </div>
-                    <h1 className="text-2xl font-bold gradient-text">HRMS Singapore</h1>
-                    <p className="text-slate-400 text-sm mt-2">MOM · IRAS · CPF Compliant Payroll</p>
+                    <h1 className="text-2xl font-bold hover:scale-105 transition-transform"><span className="text-[var(--brand-primary)]">ezy</span><span className="text-emerald-500">HR</span></h1>
+                    <p className="text-[var(--text-muted)] text-sm mt-2">MOM · IRAS · CPF Compliant</p>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Username</label>
                         <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="input-glass"
+                            className="input-base"
                             placeholder="Enter username"
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="input-glass"
+                            className="input-base"
                             placeholder="Enter password"
                             required
                         />
@@ -65,10 +65,10 @@ export default function Login() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="gradient-btn w-full flex items-center justify-center gap-2"
+                        className="btn-primary w-full flex items-center justify-center gap-2"
                     >
                         {loading ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <div className="w-5 h-5 border-2 border-[var(--border-main)] border-t-white rounded-full animate-spin" />
                         ) : (
                             'Sign In'
                         )}
@@ -76,7 +76,7 @@ export default function Login() {
                 </form>
 
                 <div className="mt-6 text-center">
-                    <p className="text-sm text-slate-400 font-medium">Designed & Developed by Mathi & Team</p>
+                    <p className="text-sm text-[var(--text-muted)] font-medium">Designed & Developed by Mathi & Team</p>
                 </div>
             </div>
         </div>

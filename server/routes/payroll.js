@@ -22,17 +22,8 @@ router.get('/runs', authMiddleware, async (req, res) => {
         const entityId = req.user.entityId;
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
 
-        let query = `SELECT * FROM payroll_runs WHERE entity_id = ${entityId} ORDER BY period_year DESC, period_month DESC`;
-
-        // RBAC enforcement for Payroll Runs
-        if (req.user.role === 'HR') {
-            const groups = req.user.managedGroups || [];
-            if (groups.length === 0) return res.json([]);
-            const groupList = groups.map(g => `'${g}'`).join(',');
-            query = `SELECT * FROM payroll_runs WHERE entity_id = ${entityId} AND employee_group IN (${groupList}) ORDER BY period_year DESC, period_month DESC`;
-        }
-
-        const result = db.exec(query);
+        const query = 'SELECT * FROM payroll_runs WHERE entity_id = ? ORDER BY period_year DESC, period_month DESC';
+        const result = db.exec(query, [entityId]);
         res.json(toObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -54,14 +45,15 @@ router.post('/run', authMiddleware, async (req, res) => {
 
         // Check for existing run
         const existing = db.exec(
-            `SELECT id FROM payroll_runs WHERE entity_id = ${entityId} AND period_year = ${year} AND period_month = ${month} AND employee_group = '${employee_group}'`
+            'SELECT id FROM payroll_runs WHERE entity_id = ? AND period_year = ? AND period_month = ? AND employee_group = ?',
+            [entityId, year, month, employee_group]
         );
         if (toObjects(existing).length) {
             return res.status(400).json({ error: `Payroll already processed for ${employee_group} in ${month}/${year}` });
         }
 
         // Get active employees
-        const empResult = db.exec(`SELECT * FROM employees WHERE entity_id = ${entityId} AND status = 'Active' AND employee_group = '${employee_group}'`);
+        const empResult = db.exec('SELECT * FROM employees WHERE entity_id = ? AND status = \'Active\' AND employee_group = ?', [entityId, employee_group]);
         const employees = toObjects(empResult);
 
         if (!employees.length) {
@@ -84,24 +76,14 @@ router.post('/run', authMiddleware, async (req, res) => {
         for (const emp of employees) {
             // Get unpaid leave days for this month from leave requests
             const leaveResult = db.exec(
-                `SELECT COALESCE(SUM(lr.days), 0) as unpaid_days 
-                 FROM leave_requests lr 
-                 JOIN leave_types lt ON lr.leave_type_id = lt.id 
-                 WHERE lr.employee_id = ${emp.id} 
-                 AND lr.status = 'Approved' 
-                 AND lt.name = 'Unpaid Leave' 
-                 AND strftime('%Y', lr.start_date) = '${year}' 
-                 AND strftime('%m', lr.start_date) = '${String(month).padStart(2, '0')}'`
+                'SELECT COALESCE(SUM(lr.days), 0) as unpaid_days FROM leave_requests lr JOIN leave_types lt ON lr.leave_type_id = lt.id WHERE lr.employee_id = ? AND lr.status = \'Approved\' AND lt.name = \'Unpaid Leave\' AND strftime(\'%Y\', lr.start_date) = ? AND strftime(\'%m\', lr.start_date) = ?',
+                [emp.id, String(year), String(month).padStart(2, '0')]
             );
 
             // Also get absences recorded via Attendance Import (remarks suggesting leave/absence)
             const attendanceAbsenceResult = db.exec(
-                `SELECT COUNT(*) as absence_days 
-                 FROM attendance_remarks 
-                 WHERE employee_id = ${emp.id} 
-                 AND (remark_type = 'Leave/Notice' OR description LIKE '%LEAVE%' OR description LIKE '%ABSENT%')
-                 AND strftime('%Y', date) = '${year}' 
-                 AND strftime('%m', date) = '${String(month).padStart(2, '0')}'`
+                'SELECT COUNT(*) as absence_days FROM attendance_remarks WHERE employee_id = ? AND (remark_type = \'Leave/Notice\' OR description LIKE \'%LEAVE%\' OR description LIKE \'%ABSENT%\') AND strftime(\'%Y\', date) = ? AND strftime(\'%m\', date) = ?',
+                [emp.id, String(year), String(month).padStart(2, '0')]
             );
 
             const approvedUnpaidDays = toObjects(leaveResult)[0]?.unpaid_days || 0;
@@ -110,13 +92,8 @@ router.post('/run', authMiddleware, async (req, res) => {
 
             // Get OT hours for this month from timesheets
             const otResult = db.exec(
-                `SELECT COALESCE(SUM(ot_hours), 0) as total_ot,
-                        COALESCE(SUM(ot_1_5_hours), 0) as total_ot_1_5,
-                        COALESCE(SUM(ot_2_0_hours), 0) as total_ot_2_0
-                 FROM timesheets 
-                 WHERE employee_id = ${emp.id} 
-                 AND strftime('%Y', date) = '${year}' 
-                 AND strftime('%m', date) = '${String(month).padStart(2, '0')}'`
+                'SELECT COALESCE(SUM(ot_hours), 0) as total_ot, COALESCE(SUM(ot_1_5_hours), 0) as total_ot_1_5, COALESCE(SUM(ot_2_0_hours), 0) as total_ot_2_0 FROM timesheets WHERE employee_id = ? AND strftime(\'%Y\', date) = ? AND strftime(\'%m\', date) = ?',
+                [emp.id, String(year), String(month).padStart(2, '0')]
             );
             const otHours = toObjects(otResult)[0]?.total_ot || 0;
             const ot15Hours = toObjects(otResult)[0]?.total_ot_1_5 || 0;
@@ -126,7 +103,7 @@ router.post('/run', authMiddleware, async (req, res) => {
             // Hourly Rate = (12 * Basic Salary) / (52 * Working Hours Per Week)
             // Fetch working hours from KETs if available, fallback to MOM standard 44 hours
             let workingHoursPerWeek = 44;
-            const ketResult = db.exec(`SELECT working_hours_per_day, working_days_per_week FROM employee_kets WHERE employee_id = ${emp.id}`);
+            const ketResult = db.exec('SELECT working_hours_per_day, working_days_per_week FROM employee_kets WHERE employee_id = ?', [emp.id]);
             if (ketResult.length && ketResult[0].values[0][0]) {
                 const hoursPerDay = ketResult[0].values[0][0] || 8;
                 const daysPerWeek = ketResult[0].values[0][1] || 5.5;
@@ -170,8 +147,8 @@ router.post('/run', authMiddleware, async (req, res) => {
         saveDb();
 
         // Return the complete payroll run with payslips
-        const finalRun = toObjects(db.exec(`SELECT * FROM payroll_runs WHERE id = ${runId}`))[0];
-        const payslips = toObjects(db.exec(`SELECT * FROM payslips WHERE payroll_run_id = ${runId}`));
+        const finalRun = toObjects(db.exec('SELECT * FROM payroll_runs WHERE id = ?', [runId]))[0];
+        const payslips = toObjects(db.exec('SELECT * FROM payslips WHERE payroll_run_id = ?', [runId]));
 
         res.status(201).json({ run: finalRun, payslips });
     } catch (err) {
@@ -186,11 +163,11 @@ router.get('/run/:id', authMiddleware, async (req, res) => {
         const entityId = req.user.entityId;
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
 
-        const runResult = db.exec(`SELECT * FROM payroll_runs WHERE id = ${req.params.id} AND entity_id = ${entityId}`);
+        const runResult = db.exec('SELECT * FROM payroll_runs WHERE id = ? AND entity_id = ?', [req.params.id, entityId]);
         const run = toObjects(runResult)[0];
         if (!run) return res.status(404).json({ error: 'Payroll run not found or access denied' });
 
-        const payslips = toObjects(db.exec(`SELECT * FROM payslips WHERE payroll_run_id = ${req.params.id}`));
+        const payslips = toObjects(db.exec('SELECT * FROM payslips WHERE payroll_run_id = ?', [req.params.id]));
         res.json({ run, payslips });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -207,8 +184,8 @@ router.get('/payslip/:id', authMiddleware, async (req, res) => {
             JOIN payroll_runs pr ON p.payroll_run_id = pr.id 
             JOIN employees e ON p.employee_id = e.id
             JOIN entities be ON e.entity_id = be.id
-            WHERE p.id = ${req.params.id}
-        `);
+            WHERE p.id = ?
+        `, [req.params.id]);
         const payslips = toObjects(result);
         if (!payslips.length) return res.status(404).json({ error: 'Payslip not found' });
 
@@ -265,8 +242,8 @@ router.get('/export-giro/:runId', async (req, res) => {
             SELECT p.*, e.bank_name, e.bank_account, e.employee_id as emp_code
             FROM payslips p 
             JOIN employees e ON p.employee_id = e.id 
-            WHERE p.payroll_run_id = ${runId}
-        `);
+            WHERE p.payroll_run_id = ?
+        `, [runId]);
         const slips = toObjects(slipsResult);
 
         // DBS IDEAL GIRO FORMAT (Simplified CSV for example)
@@ -299,8 +276,8 @@ router.get('/export-cpf/:runId', async (req, res) => {
             SELECT p.*, e.employee_id as emp_code
             FROM payslips p 
             JOIN employees e ON p.employee_id = e.id 
-            WHERE p.payroll_run_id = ${runId} AND (p.cpf_employee > 0 OR p.cpf_employer > 0)
-        `);
+            WHERE p.payroll_run_id = ? AND (p.cpf_employee > 0 OR p.cpf_employer > 0)
+        `, [runId]);
         const slips = toObjects(slipsResult);
 
         // CPFB CSN FTP Fixed-Width layout (Mock structure)
@@ -332,7 +309,7 @@ router.delete('/run/:id', authMiddleware, async (req, res) => {
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
 
         // Ensure the run belongs to the active entity
-        const runRes = await db.exec(`SELECT id FROM payroll_runs WHERE id = ${id} AND entity_id = ${entityId}`);
+        const runRes = await db.exec('SELECT id FROM payroll_runs WHERE id = ? AND entity_id = ?', [id, entityId]);
         if (!runRes.length || !runRes[0].values.length) {
             return res.status(404).json({ error: 'Payroll run not found for this entity' });
         }

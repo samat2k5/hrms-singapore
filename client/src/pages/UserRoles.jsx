@@ -79,18 +79,18 @@ export default function UserRoles() {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">User Roles</h1>
-                    <p className="text-slate-400 mt-1">Define system access levels and permissions.</p>
+                    <h1 className="text-3xl font-bold text-[var(--text-main)]">User Roles</h1>
+                    <p className="text-[var(--text-muted)] mt-1">Define system access levels and permissions.</p>
                 </div>
-                <button onClick={() => { setEditing(null); setForm(emptyRole); setShowModal(true) }} className="gradient-btn">+ Create Role</button>
+                <button onClick={() => { setEditing(null); setForm(emptyRole); setShowModal(true) }} className="btn-primary w-full sm:w-auto">+ Create Role</button>
             </div>
 
-            <div className="glass-card overflow-hidden">
+            <div className="card-base overflow-hidden">
                 {loading ? <div className="h-64 loading-shimmer" /> : (
                     <div className="overflow-x-auto">
-                        <table className="table-glass">
+                        <table className="table-theme">
                             <thead>
                                 <tr>
                                     <th>Role Name</th>
@@ -102,12 +102,12 @@ export default function UserRoles() {
                             <tbody>
                                 {roles.map(r => (
                                     <tr key={r.id}>
-                                        <td className="font-bold text-white">{r.name}</td>
-                                        <td className="text-slate-300">{r.description}</td>
-                                        <td className="text-slate-400 text-sm">{new Date(r.created_at).toLocaleDateString()}</td>
+                                        <td className="font-bold text-[var(--text-main)]">{r.name}</td>
+                                        <td className="text-[var(--text-muted)]">{r.description}</td>
+                                        <td className="text-[var(--text-muted)] text-sm">{new Date(r.created_at).toLocaleDateString()}</td>
                                         <td>
                                             <div className="flex gap-2">
-                                                <button onClick={() => handleEdit(r)} className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">✏️ Edit</button>
+                                                <button onClick={() => handleEdit(r)} className="text-xs text-[var(--brand-primary)] hover:text-cyan-300 transition-colors">✏️ Edit</button>
                                                 {!['Admin', 'HR'].includes(r.name) && (
                                                     <button onClick={() => confirmDelete(r)} className="text-xs text-red-400 hover:text-red-300 transition-colors">🗑️ Delete</button>
                                                 )}
@@ -123,23 +123,23 @@ export default function UserRoles() {
 
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="glass-card p-6 w-full max-w-md animate-slide-up" style={{ background: 'rgba(15, 23, 42, 0.95)' }}>
+                    <div className="card-base p-6 w-full max-w-md animate-slide-up" style={{ background: 'rgba(15, 23, 42, 0.95)' }}>
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white">{editing ? 'Edit Role' : 'Create New Role'}</h2>
-                            <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white text-2xl">×</button>
+                            <h2 className="text-xl font-bold text-[var(--text-main)]">{editing ? 'Edit Role' : 'Create New Role'}</h2>
+                            <button onClick={() => setShowModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] text-2xl">×</button>
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Role Name</label>
-                                <input required type="text" className="input-glass w-full" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} disabled={editing && ['Admin', 'HR'].includes(editing.name)} />
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Role Name</label>
+                                <input required type="text" className="input-base w-full" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} disabled={editing && ['Admin', 'HR'].includes(editing.name)} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">Description</label>
-                                <textarea className="input-glass w-full" rows="3" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                                <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Description</label>
+                                <textarea className="input-base w-full" rows="3" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
                             </div>
-                            <div className="flex gap-3 pt-4 border-t border-white/5">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-all">Cancel</button>
-                                <button type="submit" className="gradient-btn flex-1">{editing ? 'Save Changes' : 'Create Role'}</button>
+                            <div className="flex gap-3 pt-4 border-t border-[var(--border-main)]">
+                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-all">Cancel</button>
+                                <button type="submit" className="btn-primary flex-1">{editing ? 'Save Changes' : 'Create Role'}</button>
                             </div>
                         </form>
                     </div>

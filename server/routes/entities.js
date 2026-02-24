@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb } = require('../db/init');
+const { getDb, saveDb } = require('../db/init');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -39,10 +39,10 @@ router.post('/', authMiddleware, async (req, res) => {
     if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
-        const { name, uen } = req.body;
+        const { name, uen, address, contact_number, website, email_domains } = req.body;
 
         // Insert Entity
-        db.run('INSERT INTO entities (name, uen) VALUES (?, ?)', [name, uen]);
+        db.run('INSERT INTO entities (name, uen, address, contact_number, website, email_domains) VALUES (?, ?, ?, ?, ?, ?)', [name, uen, address || '', contact_number || '', website || '', email_domains || '']);
 
         // Get inserted ID
         const result = db.exec('SELECT last_insert_rowid() AS id');
@@ -55,7 +55,7 @@ router.post('/', authMiddleware, async (req, res) => {
         );
 
         saveDb();
-        res.status(201).json({ id: entityId, name, uen, role: 'Admin', managed_groups: '[]' });
+        res.status(201).json({ id: entityId, name, uen, address, contact_number, website, email_domains, role: 'Admin', managed_groups: '[]' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -66,8 +66,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
-        const { name, uen } = req.body;
-        db.run('UPDATE entities SET name = ?, uen = ? WHERE id = ?', [name, uen, req.params.id]);
+        const { name, uen, address, contact_number, website, email_domains } = req.body;
+        db.run('UPDATE entities SET name = ?, uen = ?, address = ?, contact_number = ?, website = ?, email_domains = ? WHERE id = ?', [name, uen, address || '', contact_number || '', website || '', email_domains || '', req.params.id]);
         saveDb();
         res.json({ message: 'Entity updated successfully' });
     } catch (err) {

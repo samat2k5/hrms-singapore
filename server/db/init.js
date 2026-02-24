@@ -13,14 +13,42 @@ async function getDb() {
   const SQL = await initSQL();
 
   if (fs.existsSync(DB_PATH)) {
-    const buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-    createSchema(db);
+    const fileBuffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(fileBuffer);
+
+    // SELF-HEALING MIGRATION: Ensure MOM columns exist
+    try {
+      const check = db.exec("PRAGMA table_info(employee_kets)");
+      const columns = check[0].values.map(v => v[1]);
+      if (!columns.includes('main_duties')) {
+        console.log('[DB] Migrating employee_kets for MOM alignment...');
+        const migrations = [
+          { name: 'main_duties', type: 'TEXT' },
+          { name: 'employment_end_date', type: 'DATE' },
+          { name: 'working_hours_details', type: 'TEXT' },
+          { name: 'break_hours', type: 'TEXT' },
+          { name: 'salary_payment_date', type: 'TEXT' },
+          { name: 'overtime_payment_date', type: 'TEXT' },
+          { name: 'gross_rate_of_pay', type: 'REAL' },
+          { name: 'other_salary_components', type: 'TEXT' },
+          { name: 'cpf_payable', type: 'BOOLEAN DEFAULT 1' },
+          { name: 'probation_start_date', type: 'DATE' },
+          { name: 'probation_end_date', type: 'DATE' }
+        ];
+        for (const col of migrations) {
+          try { db.run(`ALTER TABLE employee_kets ADD COLUMN ${col.name} ${col.type}`); } catch (e) { }
+        }
+        saveDb();
+        console.log('[DB] MOM Alignment migration completed');
+      }
+    } catch (e) { console.error('[DB] Migration check failed:', e.message); }
+
   } else {
     db = new SQL.Database();
     createSchema(db);
     seedData(db);
     seedConfigData(db);
+    saveDb();
   }
 
   // Ensure default roles exist
@@ -36,17 +64,31 @@ async function getDb() {
 
 function saveDb() {
   if (!db) return;
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  try {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+    console.log(`[DB] Saved to ${DB_PATH} (${buffer.length} bytes)`);
+  } catch (err) {
+    console.error(`[DB] Failed to save to ${DB_PATH}:`, err.message);
+  }
+}
+
+function reloadDb() {
+  db = null;
+  console.log('[DB] Database variable cleared for reload');
 }
 
 function createSchema(database) {
   database.run(`
     CREATE TABLE IF NOT EXISTS entities (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uen TEXT UNIQUE,
       name TEXT NOT NULL,
-      uen TEXT UNIQUE NOT NULL,
+      address TEXT,
+      contact_number TEXT,
+      website TEXT,
+      email_domains TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -101,6 +143,17 @@ function createSchema(database) {
   `);
 
   database.run(`
+    CREATE TABLE IF NOT EXISTS email_domains (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      domain TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id),
+      UNIQUE(entity_id, domain)
+    )
+  `);
+
+  database.run(`
     CREATE TABLE IF NOT EXISTS holidays (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entity_id INTEGER NOT NULL,
@@ -140,6 +193,10 @@ function createSchema(database) {
       employee_grade TEXT DEFAULT '',
       gender TEXT,
       language TEXT,
+      mobile_number TEXT,
+      whatsapp_number TEXT,
+      email TEXT,
+      highest_education TEXT,
       date_joined DATE,
       basic_salary REAL,
       transport_allowance REAL,
@@ -203,6 +260,17 @@ function createSchema(database) {
       probation_months INTEGER DEFAULT 3,
       notice_period TEXT DEFAULT '1 month',
       place_of_work TEXT,
+      main_duties TEXT,
+      employment_end_date DATE,
+      working_hours_details TEXT,
+      break_hours TEXT,
+      salary_payment_date TEXT,
+      overtime_payment_date TEXT,
+      gross_rate_of_pay REAL,
+      other_salary_components TEXT,
+      cpf_payable BOOLEAN DEFAULT 1,
+      probation_start_date DATE,
+      probation_end_date DATE,
       issued_date DATE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (employee_id) REFERENCES employees(id)
@@ -411,14 +479,8 @@ function seedData(database) {
   const hrHash = bcrypt.hashSync('hr123', 10);
 
   // Entities
-  database.run(
-    `INSERT INTO entities (name, uen) VALUES (?, ?)`,
-    ['Acme Corp Tech (Singapore) Pte Ltd', '202012345A']
-  );
-  database.run(
-    `INSERT INTO entities (name, uen) VALUES (?, ?)`,
-    ['Acme Corp Services (Singapore) Pte Ltd', '202054321B']
-  );
+  database.run(`INSERT INTO entities (name, uen, address, contact_number, website, email_domains) VALUES (?, ?, ?, ?, ?, ?)`, ['Hypex Pte Ltd', '202012345A', '123 Tech Lane, Singapore', '65432100', 'https://hypex.sg', 'hypex.com.sg, gmail.com, yahoo.com']);
+  database.run(`INSERT INTO entities (name, uen, address, contact_number, website, email_domains) VALUES (?, ?, ?, ?, ?, ?)`, ['Samat Global', '202167890B', '456 Global Way, Singapore', '67890011', 'https://samat.com', 'samat.com, gmail.com']);
 
   // Default User Roles
   database.run(`INSERT INTO user_roles (name, description) VALUES (?, ?)`, ['Admin', 'Full system access']);
@@ -544,6 +606,12 @@ function seedConfigData(database) {
     database.run(`INSERT INTO employee_grades (entity_id, name, description) VALUES (?, ?, ?)`, [2, grade, `${grade} Grade`]);
   });
 
+  // Seed Email Domains
+  ['hypex.com.sg', 'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'].forEach(domain => {
+    database.run(`INSERT INTO email_domains (entity_id, domain) VALUES (?, ?)`, [1, domain]);
+    database.run(`INSERT INTO email_domains (entity_id, domain) VALUES (?, ?)`, [2, domain]);
+  });
+
   // Seed Public Holidays for Singapore (Entity 1 & 2)
   const currentYear = new Date().getFullYear();
   const holidays = [
@@ -563,4 +631,4 @@ function seedConfigData(database) {
   });
 }
 
-module.exports = { getDb, saveDb };
+module.exports = { getDb, saveDb, reloadDb };

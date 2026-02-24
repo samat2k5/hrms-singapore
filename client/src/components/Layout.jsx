@@ -1,37 +1,93 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 const navItems = [
     { to: '/', icon: '📊', label: 'Dashboard' },
-    { to: '/employees', icon: '👥', label: 'Employees' },
-    { to: '/leave', icon: '🌴', label: 'Leave' },
+    { to: '/employees', icon: '👥', label: 'Employee' },
+    { to: '/leave', icon: '🌴', label: 'Leaves' },
     { to: '/attendance', icon: '📅', label: 'Attendance' },
     { to: '/payroll', icon: '💰', label: 'Payroll' },
     { to: '/reports', icon: '📋', label: 'Reports' },
 ]
 
+const masterItems = [
+    { to: '/entities', icon: '🏢', label: 'Companies', adminOnly: true },
+    { to: '/sites', icon: '📍', label: 'Sites', adminOnly: false },
+    { to: '/customers', icon: '🤝', label: 'Customers', adminOnly: false },
+    { to: '/departments', icon: '📁', label: 'Departments', adminOnly: false },
+    { to: '/employee-groups', icon: '👥', label: 'Groups', adminOnly: false },
+    { to: '/employee-grades', icon: '⭐', label: 'Grades', adminOnly: false },
+    { to: '/holidays', icon: '🏖️', label: 'Holidays', adminOnly: false },
+    { to: '/leave-policies', icon: '📜', label: 'Leave Policies', adminOnly: true },
+    { to: '/users', icon: '👤', label: 'Users', adminOnly: true },
+    { to: '/user-roles', icon: '🔑', label: 'Roles', adminOnly: true },
+]
+
 export default function Layout() {
     const { user, logout, entities, activeEntity, switchEntity, role } = useAuth()
-    const [showMaster, setShowMaster] = useState(true)
+    const { theme, toggleTheme } = useTheme()
+    const [showMaster, setShowMaster] = useState(false)
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const navigate = useNavigate()
+    const location = useLocation()
 
     const handleLogout = () => {
         logout()
         navigate('/login')
     }
 
+    const closeMobileMenu = () => setMobileMenuOpen(false)
+
+    const getPageTitle = () => {
+        const path = location.pathname;
+        if (path === '/') return 'Dashboard';
+        if (path.startsWith('/employees')) return 'Employees';
+        if (path.startsWith('/leave')) return 'Leave Management';
+        if (path.startsWith('/payroll')) return 'Payroll';
+        if (path.startsWith('/attendance')) return 'Attendance';
+        const pathName = path.split('/')[1];
+        if (pathName) {
+            return pathName.charAt(0).toUpperCase() + pathName.slice(1).replace('-', ' ');
+        }
+        return 'Dashboard';
+    }
+
+    const pageTitle = getPageTitle();
+
     return (
-        <div className="flex h-screen overflow-hidden">
+        <div className="flex h-screen overflow-hidden bg-[var(--bg-main)] text-[var(--text-main)] font-sans">
+            {/* Mobile Header */}
+            <div className="md:hidden flex items-center justify-between p-4 border-b border-[var(--border-main)] bg-[var(--bg-card)] shrink-0 absolute top-0 left-0 right-0 z-40">
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold italic tracking-tight"><span className="text-[var(--brand-primary)]">ezy</span><span className="text-emerald-500">HR</span></h1>
+                </div>
+                <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-[var(--text-muted)]">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        {mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
+                    </svg>
+                </button>
+            </div>
+
+            {mobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm" onClick={closeMobileMenu} />}
+
             {/* Sidebar */}
-            <aside className="glass-sidebar w-64 flex flex-col pt-6 shrink-0 border-r border-white/5">
+            <aside className={`
+                fixed md:static inset-y-0 left-0 z-50
+                w-64 flex flex-col shrink-0 border-r border-[var(--border-main)] sidebar-theme
+                transform transition-transform duration-300 ease-in-out
+                ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}>
                 {/* Logo */}
-                <div className="px-6 mb-6">
-                    <h1 className="text-xl font-bold gradient-text">HRMS Singapore</h1>
-                    <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Workspace</p>
+                <div className="h-20 flex items-center px-6 border-b border-[var(--border-main)] md:border-none md:mt-4">
+                    <h1 className="text-3xl font-bold italic tracking-tight"><span className="text-[var(--brand-primary)]">ezy</span><span className="text-emerald-500">HR</span></h1>
                 </div>
 
-                {/* Navigation - Scrollable */}
+                {/* Main Menu nav */}
+                <div className="px-5 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mt-2">
+                    Main Menu
+                </div>
                 <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar pb-6">
                     <div className="space-y-1">
                         {navItems.map(item => (
@@ -39,14 +95,15 @@ export default function Layout() {
                                 key={item.to}
                                 to={item.to}
                                 end={item.to === '/'}
+                                onClick={closeMobileMenu}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
-                                        ? 'bg-gradient-to-r from-cyan-500/10 to-blue-500/10 text-cyan-400 border border-cyan-500/20'
-                                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
+                                        ? 'bg-[var(--bg-main)] brand-text shadow-sm'
+                                        : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)]'
                                     }`
                                 }
                             >
-                                <span className="text-lg">{item.icon}</span>
+                                <span className="text-lg w-6 text-center">{item.icon}</span>
                                 <span>{item.label}</span>
                             </NavLink>
                         ))}
@@ -54,167 +111,57 @@ export default function Layout() {
 
                     {/* Master Data Group */}
                     {['Admin', 'HR'].includes(role) && (
-                        <div className="pt-4 mt-4 border-t border-white/5">
+                        <div className="pt-4 mt-4">
+                            <div className="px-5 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                                Settings
+                            </div>
                             <button
                                 onClick={() => setShowMaster(!showMaster)}
-                                className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-slate-300 transition-colors group"
+                                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors group"
                             >
-                                <span>Master Data</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-lg w-6 text-center">⚙️</span>
+                                    <span>Master Data</span>
+                                </div>
                                 <span className={`transition-transform duration-200 ${showMaster ? 'rotate-180' : ''}`}>▼</span>
                             </button>
 
                             {showMaster && (
-                                <div className="mt-2 space-y-1 animate-slide-down">
-                                    {role === 'Admin' && (
-                                        <NavLink
-                                            to="/entities"
-                                            className={({ isActive }) =>
-                                                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                    ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                                }`
-                                            }
-                                        >
-                                            <span className="text-base text-center w-5">🏢</span>
-                                            <span>Entities</span>
-                                        </NavLink>
-                                    )}
-
-                                    <NavLink
-                                        to="/customers"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">🤝</span>
-                                        <span>Customers</span>
-                                    </NavLink>
-
-                                    <NavLink
-                                        to="/sites"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">📍</span>
-                                        <span>Physical Sites</span>
-                                    </NavLink>
-
-                                    <NavLink
-                                        to="/departments"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">📁</span>
-                                        <span>Departments</span>
-                                    </NavLink>
-
-                                    <NavLink
-                                        to="/employee-groups"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">🧩</span>
-                                        <span>Groups</span>
-                                    </NavLink>
-
-                                    <NavLink
-                                        to="/employee-grades"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">⭐</span>
-                                        <span>Grades</span>
-                                    </NavLink>
-
-                                    <NavLink
-                                        to="/leave-policies"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">📜</span>
-                                        <span>Leave Policies</span>
-                                    </NavLink>
-
-                                    <NavLink
-                                        to="/holidays"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">🎉</span>
-                                        <span>Holidays</span>
-                                    </NavLink>
-
-                                    <NavLink
-                                        to="/user-roles"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                            }`
-                                        }
-                                    >
-                                        <span className="text-base text-center w-5">🔑</span>
-                                        <span>User Roles</span>
-                                    </NavLink>
+                                <div className="mt-1 space-y-1 ml-4 border-l-2 border-[var(--border-main)] pl-2">
+                                    {masterItems.map(item => {
+                                        if (item.adminOnly && role !== 'Admin') return null;
+                                        return (
+                                            <NavLink
+                                                key={item.to}
+                                                to={item.to}
+                                                onClick={closeMobileMenu}
+                                                className={({ isActive }) =>
+                                                    `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                                        ? 'brand-text bg-[var(--bg-main)] shadow-sm'
+                                                        : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)]'
+                                                    }`
+                                                }
+                                            >
+                                                <span className="text-base w-5 text-center">{item.icon}</span>
+                                                <span>{item.label}</span>
+                                            </NavLink>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
                     )}
-
-                    {role === 'Admin' && (
-                        <div className="pt-2">
-                            <NavLink
-                                to="/users"
-                                className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
-                                        ? 'bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10 text-purple-400 border border-purple-500/20'
-                                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                    }`
-                                }
-                            >
-                                <span className="text-lg">🔐</span>
-                                <span>Access Control</span>
-                            </NavLink>
-                        </div>
-                    )}
                 </nav>
 
-                {/* Bottom Section - Fixed at the bottom */}
-                <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-md space-y-4">
+                {/* Bottom Section */}
+                <div className="p-4 border-t border-[var(--border-main)] sidebar-theme">
                     {/* Entity Switcher */}
                     {entities?.length > 0 && (
-                        <div className="px-1">
-                            <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-widest pl-1">Business Entity</p>
+                        <div className="mb-2">
+                            <p className="text-[10px] text-[var(--text-muted)] mb-1 font-bold uppercase tracking-widest pl-1">Entity</p>
                             <div className="relative group">
                                 <select
-                                    className="w-full bg-slate-900 border border-white/10 text-white text-xs rounded-lg focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 p-2 appearance-none cursor-pointer hover:bg-slate-800 transition-all outline-none font-medium"
+                                    className="w-full bg-[var(--bg-input)] border border-[var(--border-main)] text-[var(--text-main)] text-xs rounded-xl focus:ring-1 focus:ring-[var(--brand-primary)] outline-none focus:border-[var(--brand-primary)] p-2.5 appearance-none cursor-pointer font-medium"
                                     value={activeEntity?.id || ''}
                                     onChange={(e) => {
                                         const selected = entities.find(ent => ent.id === parseInt(e.target.value));
@@ -222,48 +169,62 @@ export default function Layout() {
                                     }}
                                 >
                                     {entities.map(ent => (
-                                        <option key={ent.id} value={ent.id} className="bg-slate-900 text-white py-2">
-                                            {ent.name}
-                                        </option>
+                                        <option key={ent.id} value={ent.id}>{ent.name}</option>
                                     ))}
                                 </select>
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[8px]">
-                                    ▼
-                                </div>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] text-[8px]">▼</div>
                             </div>
                         </div>
                     )}
-
-                    {/* User Profile & Sign Out Wrapper */}
-                    <div className="glass-card bg-white/[0.03] p-2 rounded-xl border border-white/5">
-                        <div className="flex items-center gap-3 p-1">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-cyan-500/20 shrink-0">
-                                {user?.fullName?.charAt(0) || 'A'}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-200 truncate">{user?.fullName || 'Admin'}</p>
-                                <p className="text-[10px] text-slate-500 truncate">{user?.username || 'admin'}</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleLogout}
-                            className="w-full mt-2 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-all duration-200 text-left flex items-center gap-2 group"
-                        >
-                            <svg className="w-3.5 h-3.5 group-hover:text-red-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                            <span className="font-medium">Sign Out</span>
-                        </button>
-                    </div>
                 </div>
             </aside>
 
-            {/* Main content */}
-            <main className="flex-1 overflow-y-auto p-8">
-                <div className="max-w-7xl mx-auto animate-fade-in">
-                    <Outlet />
-                </div>
-            </main>
+            {/* Main Wrapper */}
+            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[var(--bg-main)] pt-16 md:pt-0">
+                {/* Topbar */}
+                <header className="hidden md:flex h-20 px-8 items-center justify-between shrink-0 bg-[var(--bg-main)]">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium text-[var(--text-muted)] mb-0.5">Home / <span className="text-[var(--text-main)] font-semibold">{pageTitle}</span></span>
+                        <h2 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">{pageTitle === 'Dashboard' ? 'Admin Dashboard' : pageTitle}</h2>
+                    </div>
+
+                    <div className="flex items-center gap-3 bg-[var(--bg-card)] px-3 py-2 rounded-full shadow-[var(--shadow-main)] border border-[var(--border-main)]">
+                        <div className="relative flex items-center bg-[var(--bg-input)] rounded-full px-4 py-2 focus-within:ring-1 focus-within:ring-[var(--brand-primary)] transition-all mr-2">
+                            <span className="text-[var(--text-muted)] mr-2">🔍</span>
+                            <input type="text" placeholder="Search Keyword" className="bg-transparent border-none outline-none text-sm w-48 focus:w-64 transition-all text-[var(--text-main)] placeholder-[var(--text-muted)]" />
+                            <span className="text-[var(--text-muted)] ml-2 bg-[var(--bg-main)] px-2 py-0.5 rounded text-xs select-none">⌘K</span>
+                        </div>
+
+                        <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)] flex items-center justify-center">
+                            🇺🇸
+                        </button>
+
+                        <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)] hidden lg:block">
+                            <span className="text-lg">⛶</span>
+                        </button>
+
+                        <button onClick={toggleTheme} className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)]">
+                            {theme === 'light' ? '🌙' : '☀️'}
+                        </button>
+
+                        <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)]">
+                            <span className="relative text-lg">🔔<span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-[var(--bg-card)]"></span></span>
+                        </button>
+
+                        <div className="pl-4 py-1 ml-1 border-l border-[var(--border-main)] flex items-center gap-3 cursor-pointer group" onClick={handleLogout} title="Logout">
+                            <div className="w-10 h-10 rounded-full overflow-hidden bg-[var(--brand-primary)] flex justify-center items-center text-white font-bold text-base shadow-sm group-hover:shadow-md transition-shadow">
+                                {user?.fullName?.charAt(0) || 'A'}
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <main className="flex-1 overflow-y-auto p-4 md:px-8 w-full custom-scrollbar">
+                    <div className="max-w-7xl mx-auto pb-12 animate-fade-in">
+                        <Outlet />
+                    </div>
+                </main>
+            </div>
         </div>
     )
 }

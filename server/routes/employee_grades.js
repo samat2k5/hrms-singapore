@@ -17,7 +17,7 @@ function toObjects(result) {
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const result = db.exec(`SELECT * FROM employee_grades WHERE entity_id = ${req.user.entityId} ORDER BY name`);
+        const result = db.exec('SELECT * FROM employee_grades WHERE entity_id = ? ORDER BY name ASC', [req.user.entityId]);
         res.json(toObjects(result));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

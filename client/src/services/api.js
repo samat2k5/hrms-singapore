@@ -58,6 +58,7 @@ const api = {
     deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
     transferEmployee: (id, targetEntityId) => request(`/employees/${id}/transfer`, { method: 'POST', body: JSON.stringify({ targetEntityId }) }),
     updateBulkCustomModifiers: (records) => request('/employees/bulk-custom', { method: 'POST', body: JSON.stringify({ records }) }),
+    importEmployees: (formData) => request('/employees/bulk-import', { method: 'POST', body: formData }),
 
     // Attendance
     uploadAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
@@ -161,8 +162,10 @@ const api = {
 
     getEmployeeGrades: () => request('/employee-grades'),
     createEmployeeGrade: (data) => request('/employee-grades', { method: 'POST', body: JSON.stringify(data) }),
+    updateEmployeeGrade: (id, data) => request(`/employee-grades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteEmployeeGrade: (id) => request(`/employee-grades/${id}`, { method: 'DELETE' }),
 
+    // Holidays
     getHolidays: () => request('/holidays'),
     createHoliday: (data) => request('/holidays', { method: 'POST', body: JSON.stringify(data) }),
     updateHoliday: (id, data) => request(`/holidays/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

@@ -9,6 +9,7 @@ import EmployeeGroups from './pages/EmployeeGroups'
 import EmployeeGrades from './pages/EmployeeGrades'
 import Holidays from './pages/Holidays'
 import Employees from './pages/Employees'
+import EmployeeForm from './pages/EmployeeForm'
 import EmployeeKETs from './pages/EmployeeKETs'
 import EmployeeDocuments from './pages/EmployeeDocuments'
 import Leave from './pages/Leave'
@@ -73,6 +74,8 @@ export default function App() {
         <Route path="employee-grades" element={<EmployeeGrades />} />
         <Route path="holidays" element={<Holidays />} />
         <Route path="employees" element={<Employees />} />
+        <Route path="employees/add" element={<EmployeeForm />} />
+        <Route path="employees/edit/:id" element={<EmployeeForm />} />
         <Route path="employees/:id/kets" element={<EmployeeKETs />} />
         <Route path="employees/:id/documents" element={<EmployeeDocuments />} />
         <Route path="leave" element={<Leave />} />
