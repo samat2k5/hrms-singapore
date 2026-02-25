@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -9,25 +9,28 @@ const emptyEmployee = {
     tax_residency: 'Resident', race: 'Chinese', gender: 'Male', language: 'English', mobile_number: '', whatsapp_number: '', email: '', highest_education: '', designation: '', department: '', employee_group: 'General', employee_grade: '', site_id: '',
     date_joined: '', cessation_date: '', basic_salary: 0, transport_allowance: 0, meal_allowance: 0,
     other_allowance: 0, payment_mode: 'Bank Transfer', custom_allowances: '{}', custom_deductions: '{}',
-    bank_name: '', bank_account: '', cpf_applicable: 1,
+    bank_name: '', bank_account: '', cpf_applicable: 0,
     pr_status_start_date: '', cpf_full_rate_agreed: 0,
     working_days_per_week: 5.5, rest_day: 'Sunday',
     working_hours_per_day: 8, working_hours_per_week: 44,
-    status: 'Active',
+    status: 'Active', photo_url: null,
+    other_deduction: 0,
     _parsedCustomAllowances: [], _parsedCustomDeductions: []
 }
 
 const Field = ({ label, name, type = 'text', options, required, span2, form, setForm, min, max }) => (
     <div className={span2 ? 'md:col-span-2' : ''}>
-        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">{label}</label>
+        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">
+            {label} {required && <span className="text-rose-500">*</span>}
+        </label>
         {options ? (
-            <select value={form[name]} onChange={e => setForm({ ...form, [name]: e.target.value })} className="select-base">
+            <select value={form[name]} onChange={e => setForm({ ...form, [name]: e.target.value })} className="select-base" required={required}>
                 {options.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
         ) : (
             <input
                 type={type}
-                value={form[name]}
+                value={form[name] || ''}
                 onChange={e => setForm({ ...form, [name]: type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value })}
                 className="input-base"
                 required={required}
@@ -42,11 +45,14 @@ export default function EmployeeForm() {
     const navigate = useNavigate()
     const { activeEntity } = useAuth()
     const isEditing = Boolean(id)
+    const fileInputRef = useRef(null)
 
     const [loading, setLoading] = useState(isEditing)
     const [submitting, setSubmitting] = useState(false)
     const [form, setForm] = useState(emptyEmployee)
     const [documents, setDocuments] = useState([])
+    const [photoFile, setPhotoFile] = useState(null)
+    const [photoPreview, setPhotoPreview] = useState(null)
 
     // Config data
     const [configDepartments, setConfigDepartments] = useState([])
@@ -105,6 +111,10 @@ export default function EmployeeForm() {
                     }
                 } catch (e) { }
                 setForm({ ...emp, _parsedCustomAllowances: parsedAllowances, _parsedCustomDeductions: parsedDeductions })
+
+                if (emp.photo_url) {
+                    setPhotoPreview(emp.photo_url)
+                }
             }).catch(e => {
                 toast.error('Failed to load employee: ' + e.message)
                 navigate('/employees')
@@ -114,29 +124,90 @@ export default function EmployeeForm() {
         }
     }, [id, isEditing, navigate])
 
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0]
+        if (file) {
+            setPhotoFile(file)
+            setPhotoPreview(URL.createObjectURL(file))
+        }
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setSubmitting(true)
         try {
-            const payload = { ...form };
-            const cAllowances = {};
-            payload._parsedCustomAllowances?.forEach(item => { if (item.key) cAllowances[item.key] = Number(item.value) || 0; });
-            const cDeductions = {};
-            payload._parsedCustomDeductions?.forEach(item => { if (item.key) cDeductions[item.key] = Number(item.value) || 0; });
+            const formData = new FormData();
 
-            payload.custom_allowances = JSON.stringify(cAllowances);
-            payload.custom_deductions = JSON.stringify(cDeductions);
-            delete payload._parsedCustomAllowances;
-            delete payload._parsedCustomDeductions;
+            // Core identification fields
+            formData.append('employee_id', form.employee_id || '');
+            formData.append('full_name', form.full_name || '');
+
+            // Basic & Personal
+            formData.append('date_of_birth', form.date_of_birth || '');
+            formData.append('national_id', form.national_id || '');
+            formData.append('nationality', form.nationality || 'Singapore Citizen');
+            formData.append('tax_residency', form.tax_residency || 'Resident');
+            formData.append('race', form.race || 'Chinese');
+            formData.append('gender', form.gender || 'Male');
+            formData.append('language', form.language || 'English');
+            formData.append('status', form.status || 'Active');
+
+            // Contact
+            formData.append('mobile_number', form.mobile_number || '');
+            formData.append('whatsapp_number', form.whatsapp_number || '');
+            formData.append('email', form.email || '');
+
+            // Employment
+            formData.append('highest_education', form.highest_education || '');
+            formData.append('designation', form.designation || '');
+            formData.append('department', form.department || '');
+            formData.append('employee_group', form.employee_group || 'General');
+            formData.append('employee_grade', form.employee_grade || '');
+            formData.append('site_id', form.site_id || '');
+            formData.append('date_joined', form.date_joined || '');
+            formData.append('cessation_date', form.cessation_date || '');
+            formData.append('working_days_per_week', form.working_days_per_week || 5.5);
+            formData.append('rest_day', form.rest_day || 'Sunday');
+            formData.append('working_hours_per_day', form.working_hours_per_day || 8);
+            formData.append('working_hours_per_week', form.working_hours_per_week || 44);
+
+            // Payroll
+            formData.append('basic_salary', form.basic_salary || 0);
+            formData.append('transport_allowance', form.transport_allowance || 0);
+            formData.append('meal_allowance', form.meal_allowance || 0);
+            formData.append('other_allowance', form.other_allowance || 0); // Accommodation Deduction
+            formData.append('other_deduction', form.other_deduction || 0); // Other Deduction
+            formData.append('payment_mode', form.payment_mode || 'Bank Transfer');
+            formData.append('bank_name', form.bank_name || '');
+            formData.append('bank_account', form.bank_account || '');
+            formData.append('cpf_applicable', form.cpf_applicable);
+            formData.append('pr_status_start_date', form.pr_status_start_date || '');
+            formData.append('cpf_full_rate_agreed', form.cpf_full_rate_agreed);
+
+            // Custom Mods
+            const cAllowances = {};
+            form._parsedCustomAllowances?.forEach(item => { if (item.key) cAllowances[item.key] = Number(item.value) || 0; });
+            const cDeductions = {};
+            form._parsedCustomDeductions?.forEach(item => { if (item.key) cDeductions[item.key] = Number(item.value) || 0; });
+            formData.append('custom_allowances', JSON.stringify(cAllowances));
+            formData.append('custom_deductions', JSON.stringify(cDeductions));
+
+            // Photo
+            if (photoFile) {
+                formData.append('photo', photoFile);
+            } else if (form.photo_url) {
+                formData.append('photo_url', form.photo_url);
+            }
 
             let savedEmployee = null;
             if (isEditing) {
-                savedEmployee = await api.updateEmployee(id, payload)
+                savedEmployee = await api.updateEmployee(id, formData)
                 toast.success('Employee updated')
             } else {
-                savedEmployee = await api.createEmployee(payload)
+                savedEmployee = await api.createEmployee(formData)
                 toast.success('Employee added')
             }
+
             if (savedEmployee.warning) {
                 toast((t) => (
                     <span><b>Warning:</b> {savedEmployee.warning}</span>
@@ -146,17 +217,15 @@ export default function EmployeeForm() {
             // Upload any attached documents sequentially
             if (documents.length > 0) {
                 const uploadPromises = documents.map(async (doc) => {
-                    const formData = new FormData();
-                    formData.append('employee_id', savedEmployee.id);
-                    formData.append('document_type', doc.document_type);
-                    formData.append('document_number', doc.document_number);
-                    if (doc.issue_date) formData.append('issue_date', doc.issue_date);
-                    if (doc.expiry_date) formData.append('expiry_date', doc.expiry_date);
-                    if (doc.file) formData.append('file', doc.file);
-
-                    return api.createDocument(formData);
+                    const docFormData = new FormData();
+                    docFormData.append('employee_id', savedEmployee.id);
+                    docFormData.append('document_type', doc.document_type);
+                    docFormData.append('document_number', doc.document_number);
+                    if (doc.issue_date) docFormData.append('issue_date', doc.issue_date);
+                    if (doc.expiry_date) docFormData.append('expiry_date', doc.expiry_date);
+                    if (doc.file) docFormData.append('file', doc.file);
+                    return api.createDocument(docFormData);
                 });
-
                 await Promise.all(uploadPromises);
                 toast.success(`Uploaded ${documents.length} documents successfully`);
             }
@@ -202,23 +271,55 @@ export default function EmployeeForm() {
 
             <div className="card-base p-6 md:p-8">
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                    {/* Photo Upload Header Section */}
+                    <div className="md:col-span-2 lg:col-span-3 flex flex-col items-center mb-8 pb-8 border-b border-[var(--border-main)] relative">
+                        <div
+                            className="group relative w-40 h-40 rounded-full border-4 border-[var(--border-main)] overflow-hidden bg-[var(--bg-input)] cursor-pointer shadow-2xl transition-all hover:border-[var(--brand-primary)]"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {photoPreview ? (
+                                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-[var(--text-muted)]">
+                                    <span className="text-4xl mb-2">👤</span>
+                                    <span className="text-xs font-bold uppercase tracking-wider">Upload Photo</span>
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-sm font-bold uppercase">{photoPreview ? 'Change Photo' : 'Upload'}</span>
+                            </div>
+                        </div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handlePhotoChange}
+                        />
+                        <div className="mt-4 text-center">
+                            <h3 className="text-lg font-bold text-[var(--text-main)]">{form.full_name || 'New Employee'}</h3>
+                            <p className="text-xs text-[var(--text-muted)] font-bold tracking-[0.2em] uppercase mt-1">Professional Identity Photo</p>
+                        </div>
+                    </div>
+
                     <div className="md:col-span-2 lg:col-span-3 border-b border-[var(--border-main)] pb-2 mb-2">
                         <h3 className="text-lg font-semibold text-[var(--brand-primary)]">Basic Information</h3>
                     </div>
 
                     <Field form={form} setForm={setForm} label="Employee ID" name="employee_id" required />
                     <Field form={form} setForm={setForm} label="Full Name" name="full_name" required />
-                    <Field form={form} setForm={setForm} label="Status" name="status" options={['Active', 'Inactive']} />
+                    <Field form={form} setForm={setForm} label="Status" name="status" options={['Active', 'Inactive']} required />
 
                     <Field form={form} setForm={setForm} label="Date of Birth" name="date_of_birth" type="date" required />
-                    <Field form={form} setForm={setForm} label="Gender" name="gender" options={['Male', 'Female']} />
-                    <Field form={form} setForm={setForm} label="Race" name="race" options={['Chinese', 'Indian', 'Malay', 'Eurasian', 'Other']} />
+                    <Field form={form} setForm={setForm} label="Gender" name="gender" options={['Male', 'Female']} required />
+                    <Field form={form} setForm={setForm} label="Race" name="race" options={['Chinese', 'Indian', 'Malay', 'Eurasian', 'Other']} required />
 
-                    <Field form={form} setForm={setForm} label="Nationality" name="nationality" options={['Singapore Citizen', 'SPR', 'Foreigner']} />
+                    <Field form={form} setForm={setForm} label="Nationality" name="nationality" options={['Singapore Citizen', 'SPR', 'Foreigner']} required />
                     <Field form={form} setForm={setForm} label="National ID (NRIC/FIN)" name="national_id" required={['Singapore Citizen', 'SPR'].includes(form.nationality)} />
-                    <Field form={form} setForm={setForm} label="Language" name="language" options={['English', 'Mandarin', 'Malay', 'Tamil', 'Bengali', 'Telugu', 'Hindi', 'Others']} />
+                    <Field form={form} setForm={setForm} label="Language" name="language" options={['English', 'Mandarin', 'Malay', 'Tamil', 'Bengali', 'Telugu', 'Hindi', 'Others']} required />
 
-                    <Field form={form} setForm={setForm} label="Highest Education Attained" name="highest_education" options={['Primary', 'Secondary', 'O Level', 'A Level', 'Diploma', 'Bachelor Degree', 'Master Degree', 'Doctorate', 'Others']} />
+                    <Field form={form} setForm={setForm} label="Highest Education Attained" name="highest_education" options={['Primary', 'Secondary', 'O Level', 'A Level', 'Diploma', 'Bachelor Degree', 'Master Degree', 'Doctorate', 'Others']} required />
 
                     {form.nationality === 'SPR' && (
                         <>
@@ -250,7 +351,7 @@ export default function EmployeeForm() {
                         <div className="flex gap-2">
                             <input
                                 type="tel"
-                                value={form.whatsapp_number}
+                                value={form.whatsapp_number || ''}
                                 onChange={e => setForm({ ...form, whatsapp_number: e.target.value })}
                                 className="input-base flex-1"
                             />
@@ -274,7 +375,7 @@ export default function EmployeeForm() {
                             type="email"
                             list="email-domains"
                             className="input-base w-full"
-                            value={form.email}
+                            value={form.email || ''}
                             onChange={e => setForm({ ...form, email: e.target.value })}
                             placeholder="employee@domain.com"
                         />
@@ -298,8 +399,10 @@ export default function EmployeeForm() {
 
                     {/* Dynamic Departments Dropdown */}
                     <div>
-                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Department</label>
-                        <select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="select-base">
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">
+                            Department <span className="text-rose-500">*</span>
+                        </label>
+                        <select value={form.department || ''} onChange={e => setForm({ ...form, department: e.target.value })} className="select-base" required>
                             <option value="">Select a Department...</option>
                             {configDepartments.map(d => (
                                 <option key={d.id} value={d.name}>{d.name}</option>
@@ -307,12 +410,14 @@ export default function EmployeeForm() {
                         </select>
                     </div>
 
-                    <Field form={form} setForm={setForm} label="Designation" name="designation" />
+                    <Field form={form} setForm={setForm} label="Designation" name="designation" required />
 
                     {/* Dynamic Groups Dropdown */}
                     <div>
-                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Employee Group</label>
-                        <select value={form.employee_group} onChange={e => setForm({ ...form, employee_group: e.target.value })} className="select-base">
+                        <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">
+                            Employee Group <span className="text-rose-500">*</span>
+                        </label>
+                        <select value={form.employee_group || 'General'} onChange={e => setForm({ ...form, employee_group: e.target.value })} className="select-base" required>
                             {configGroups.map(g => (
                                 <option key={g.id} value={g.name}>{g.name}</option>
                             ))}
@@ -322,7 +427,7 @@ export default function EmployeeForm() {
                     {/* Dynamic Grades Dropdown */}
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Employee Grade</label>
-                        <select value={form.employee_grade} onChange={e => setForm({ ...form, employee_grade: e.target.value })} className="select-base">
+                        <select value={form.employee_grade || ''} onChange={e => setForm({ ...form, employee_grade: e.target.value })} className="select-base">
                             <option value="">No Grade</option>
                             {configGrades.map(g => (
                                 <option key={g.id} value={g.name}>{g.name}</option>
@@ -345,53 +450,55 @@ export default function EmployeeForm() {
                         <h3 className="text-lg font-semibold text-[var(--brand-primary)]">Payroll & Compensation</h3>
                     </div>
 
-                    <Field form={form} setForm={setForm} label="Basic Salary (S$)" name="basic_salary" type="number" />
-                    <Field form={form} setForm={setForm} label="Payment Mode" name="payment_mode" options={['Bank Transfer', 'GIRO', 'Cash', 'Cheque']} />
-                    <Field form={form} setForm={setForm} label="Tax Residency" name="tax_residency" options={['Resident', 'Non-Resident']} />
+                    <Field form={form} setForm={setForm} label="Basic Salary (S$)" name="basic_salary" type="number" required />
+                    <Field form={form} setForm={setForm} label="Payment Mode" name="payment_mode" options={['Bank Transfer', 'GIRO', 'Cash', 'Cheque']} required />
+                    <Field form={form} setForm={setForm} label="Tax Residency" name="tax_residency" options={['Resident', 'Non-Resident']} required />
 
                     <Field form={form} setForm={setForm} label="Bank Name" name="bank_name" />
                     <Field form={form} setForm={setForm} label="Bank Account" name="bank_account" />
 
-                    <div className="flex items-end mb-2">
-                        <div className="flex items-center gap-3 w-full p-4 rounded-xl bg-slate-800/50 border border-[var(--border-main)]">
+                    <div className="md:col-span-1">
+                        <div className="h-full flex items-center gap-3 p-3.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-main)] transition-all">
                             <input type="checkbox" checked={form.cpf_applicable === 1} onChange={e => setForm({ ...form, cpf_applicable: e.target.checked ? 1 : 0 })} className="w-5 h-5 rounded accent-[var(--brand-primary)]" />
-                            <label className="text-sm font-medium text-[var(--text-muted)] cursor-pointer" onClick={() => setForm({ ...form, cpf_applicable: form.cpf_applicable === 1 ? 0 : 1 })}>CPF Applicable (Singapore Citizens & SPR only)</label>
+                            <label className="text-sm font-medium text-[var(--text-muted)] cursor-pointer leading-tight select-none" onClick={() => setForm({ ...form, cpf_applicable: form.cpf_applicable === 1 ? 0 : 1 })}>
+                                CPF Applicable <br />
+                                <span className="text-[10px] opacity-70">(Citizens & SPR)</span>
+                            </label>
                         </div>
                     </div>
 
-                    <Field form={form} setForm={setForm} label="Basic Salary ($)" name="basic_salary" type="number" required />
-
                     {/* MOM Rate Displays */}
-                    <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-blue-50/30 rounded-lg border border-blue-100">
+                    <div className="md:col-span-2 lg:col-span-2 grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm backdrop-blur-sm">
                         <div>
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Daily Basic Rate</p>
-                            <p className="text-lg font-semibold text-blue-700">
+                            <p className="text-xs text-[var(--text-muted)] uppercase font-bold tracking-wider mb-1">Daily Basic Rate</p>
+                            <p className="text-lg font-semibold text-[var(--info)]">
                                 ${((12 * (form.basic_salary || 0)) / (52 * (parseFloat(form.working_days_per_week) || 5.5))).toFixed(2)}
                             </p>
                         </div>
                         <div>
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Hourly Basic Rate</p>
-                            <p className="text-lg font-semibold text-blue-700">
+                            <p className="text-xs text-[var(--text-muted)] uppercase font-bold tracking-wider mb-1">Hourly Basic Rate</p>
+                            <p className="text-lg font-semibold text-[var(--info)]">
                                 ${((12 * (form.basic_salary || 0)) / (52 * (form.working_hours_per_week || 44))).toFixed(2)}
                             </p>
                         </div>
                         <div>
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">1.5x OT Rate</p>
-                            <p className="text-lg font-semibold text-green-700">
+                            <p className="text-xs text-[var(--text-muted)] uppercase font-bold tracking-wider mb-1">1.5x OT Rate</p>
+                            <p className="text-lg font-semibold text-[var(--success)]">
                                 ${(((12 * (form.basic_salary || 0)) / (52 * (form.working_hours_per_week || 44))) * 1.5).toFixed(2)}
                             </p>
                         </div>
                         <div>
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">2.0x OT Rate</p>
-                            <p className="text-lg font-semibold text-orange-700">
+                            <p className="text-xs text-[var(--text-muted)] uppercase font-bold tracking-wider mb-1">2.0x OT Rate</p>
+                            <p className="text-lg font-semibold text-[var(--warning)]">
                                 ${(((12 * (form.basic_salary || 0)) / (52 * (form.working_hours_per_week || 44))) * 2.0).toFixed(2)}
                             </p>
                         </div>
                     </div>
 
                     <Field form={form} setForm={setForm} label="Fixed Transport Allowance ($)" name="transport_allowance" type="number" />
-                    <Field form={form} setForm={setForm} label="Meal Allowance" name="meal_allowance" type="number" />
-                    <Field form={form} setForm={setForm} label="Other Allowance" name="other_allowance" type="number" />
+                    <Field form={form} setForm={setForm} label="Fixed Allowance" name="meal_allowance" type="number" />
+                    <Field form={form} setForm={setForm} label="Accommodation Deduction" name="other_allowance" type="number" />
+                    <Field form={form} setForm={setForm} label="Other Deduction" name="other_deduction" type="number" />
 
                     <div className="md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div className="space-y-4">

@@ -33,6 +33,11 @@
 }
 
 .dark {
+  /* Accessibility: Lighter primary for dark backgrounds */
+  --brand-primary: #a855f7;
+  --brand-primary-light: #c084fc;
+
+  /* Theme Defaults (Dark Mode) */
   --bg-main: #0b1437;
   --bg-card: #111c44;
   --bg-sidebar: #111c44;

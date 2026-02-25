@@ -336,10 +336,7 @@ export default function Attendance() {
                 </div>
                 <button
                     onClick={() => setShowImport(!showImport)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold transition-all shadow-lg ${showImport
-                        ? "bg-slate-700 text-gray-300 hover:bg-slate-600"
-                        : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/30"
-                        }`}
+                    className={`btn-primary !py-2.5 flex items-center gap-2 ${showImport ? "!bg-slate-700 !shadow-none" : ""}`}
                 >
                     {showImport ? (
                         <><span className="text-lg">✖</span> Close Import Tool</>
@@ -627,11 +624,11 @@ export default function Attendance() {
                                     <th className="px-4 py-4 w-32 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-main)] text-center">In Time</th>
                                     <th className="px-4 py-4 w-32 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-main)] text-center">Out Time</th>
                                     <th className="px-4 py-4 w-32 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-main)] text-center">Shift</th>
-                                    <th className="px-4 py-4 w-24 text-xs font-bold uppercase tracking-widest text-indigo-500 border-r border-[var(--border-main)] text-center bg-indigo-500/5">Normal</th>
-                                    <th className="px-4 py-4 w-24 text-xs font-bold uppercase tracking-widest text-amber-500 border-r border-[var(--border-main)] text-center bg-indigo-500/5">OT 1.5x</th>
-                                    <th className="px-4 py-4 w-24 text-xs font-bold uppercase tracking-widest text-orange-500 border-r border-[var(--border-main)] text-center">OT 2.0x</th>
+                                    <th className="px-4 py-4 w-24 text-xs font-bold uppercase tracking-widest text-[var(--info)] border-r border-[var(--border-main)] text-center bg-[var(--info)]/5">Normal</th>
+                                    <th className="px-4 py-4 w-24 text-xs font-bold uppercase tracking-widest text-[var(--warning)] border-r border-[var(--border-main)] text-center bg-[var(--warning)]/5">OT 1.5x</th>
+                                    <th className="px-4 py-4 w-24 text-xs font-bold uppercase tracking-widest text-[var(--danger)] border-r border-[var(--border-main)] text-center bg-[var(--danger)]/5">OT 2.0x</th>
                                     <th className="px-4 py-4 w-24 text-xs font-bold uppercase tracking-widest text-rose-500 border-r border-[var(--border-main)] text-center bg-rose-500/5">PH Hrs</th>
-                                    <th className="px-4 py-4 w-28 text-xs font-bold uppercase tracking-widest text-emerald-500 border-r border-[var(--border-main)] text-center bg-emerald-500/5">Perf. Credit</th>
+                                    <th className="px-4 py-4 w-28 text-xs font-bold uppercase tracking-widest text-[var(--success)] border-r border-[var(--border-main)] text-center bg-[var(--success)]/5">Perf. Credit</th>
                                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Manual Remarks</th>
                                 </tr>
                             </thead>
@@ -697,31 +694,31 @@ export default function Attendance() {
                                                         <option value="Split" className="bg-[var(--bg-input)]">Split</option>
                                                     </select>
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-indigo-500/5">
+                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-[var(--info)]/5">
                                                     <input
                                                         type="number"
                                                         step="0.5"
                                                         value={row.normal_hours}
                                                         onChange={e => handleMatrixChange(idx, 'normal_hours', e.target.value)}
-                                                        className="w-16 bg-[var(--bg-input)] border border-indigo-500/20 rounded-lg px-1 py-1.5 text-center text-indigo-500 text-xs font-mono outline-none focus:border-indigo-500"
+                                                        className="w-16 bg-[var(--bg-input)] border border-[var(--info)]/20 rounded-lg px-1 py-1.5 text-center text-[var(--info)] text-xs font-mono outline-none focus:border-[var(--info)]"
                                                     />
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-indigo-500/5">
+                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-[var(--warning)]/5">
                                                     <input
                                                         type="number"
                                                         step="0.5"
                                                         value={row.ot_1_5_hours}
                                                         onChange={e => handleMatrixChange(idx, 'ot_1_5_hours', e.target.value)}
-                                                        className="w-16 bg-[var(--bg-input)] border border-amber-500/20 rounded-lg px-1 py-1.5 text-center text-amber-500 text-xs font-mono font-bold outline-none focus:border-amber-500"
+                                                        className="w-16 bg-[var(--bg-input)] border border-[var(--warning)]/20 rounded-lg px-1 py-1.5 text-center text-[var(--warning)] text-xs font-mono font-bold outline-none focus:border-[var(--warning)]"
                                                     />
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)]">
+                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-[var(--danger)]/5">
                                                     <input
                                                         type="number"
                                                         step="0.5"
                                                         value={row.ot_2_0_hours}
                                                         onChange={e => handleMatrixChange(idx, 'ot_2_0_hours', e.target.value)}
-                                                        className="w-16 bg-[var(--bg-input)] border border-orange-500/20 rounded-lg px-1 py-1.5 text-center text-orange-500 text-xs font-mono font-bold outline-none focus:border-orange-500"
+                                                        className="w-16 bg-[var(--bg-input)] border border-[var(--danger)]/20 rounded-lg px-1 py-1.5 text-center text-[var(--danger)] text-xs font-mono font-bold outline-none focus:border-[var(--danger)]"
                                                     />
                                                 </td>
                                                 <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-rose-500/5">
@@ -733,13 +730,13 @@ export default function Attendance() {
                                                         className="w-16 bg-[var(--bg-input)] border border-rose-500/20 rounded-lg px-1 py-1.5 text-center text-rose-500 text-xs font-mono font-bold outline-none focus:border-rose-500"
                                                     />
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-emerald-500/5">
+                                                <td className="px-3 py-2 text-center border-r border-[var(--border-main)] bg-[var(--success)]/5">
                                                     <input
                                                         type="number"
                                                         step="0.5"
                                                         value={row.performance_credit}
                                                         onChange={e => handleMatrixChange(idx, 'performance_credit', e.target.value)}
-                                                        className="w-16 bg-[var(--bg-input)] border border-emerald-500/20 rounded-lg px-1 py-1.5 text-center text-emerald-500 text-xs font-mono outline-none focus:border-emerald-500"
+                                                        className="w-16 bg-[var(--bg-input)] border border-[var(--success)]/20 rounded-lg px-1 py-1.5 text-center text-[var(--success)] text-xs font-mono outline-none focus:border-[var(--success)]"
                                                     />
                                                 </td>
                                                 <td className="px-6 py-2">

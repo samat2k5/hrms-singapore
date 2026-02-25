@@ -33,18 +33,36 @@ async function getDb() {
       }
     } catch (e) { console.error('[DB] Entities migration failed:', e.message); }
 
-    // Employee Face Descriptor Migration
+    // Employee Table Migrations (Face, Photo, Work Hours)
     try {
       const check = db.exec("PRAGMA table_info(employees)");
       if (check.length > 0) {
         const columns = check[0].values.map(v => v[1]);
-        if (!columns.includes('face_descriptor')) {
-          console.log('[DB] Migrating employees: Adding face_descriptor...');
-          db.run(`ALTER TABLE employees ADD COLUMN face_descriptor TEXT`);
-          saveDb();
+        const migrations = [
+          { name: 'face_descriptor', type: 'TEXT' },
+          { name: 'photo_url', type: 'TEXT' },
+          { name: 'working_days_per_week', type: 'REAL DEFAULT 5.5' },
+          { name: 'rest_day', type: "TEXT DEFAULT 'Sunday'" },
+          { name: 'working_hours_per_day', type: 'REAL DEFAULT 8' },
+          { name: 'working_hours_per_week', type: 'REAL DEFAULT 44' },
+          { name: 'other_deduction', type: 'REAL DEFAULT 0' },
+          { name: 'site_id', type: 'INTEGER' },
+          { name: 'cessation_date', type: 'DATE' },
+          { name: 'pr_status_start_date', type: 'DATE' },
+          { name: 'cpf_full_rate_agreed', type: 'BOOLEAN DEFAULT 0' }
+        ];
+
+        let migrated = false;
+        for (const col of migrations) {
+          if (!columns.includes(col.name)) {
+            console.log(`[DB] Migrating employees: Adding ${col.name}...`);
+            db.run(`ALTER TABLE employees ADD COLUMN ${col.name} ${col.type}`);
+            migrated = true;
+          }
         }
+        if (migrated) saveDb();
       }
-    } catch (e) { console.error('[DB] Employee face migration failed:', e.message); }
+    } catch (e) { console.error('[DB] Employee table migration failed:', e.message); }
 
     // MOM Alignment Migrations
     try {
@@ -282,10 +300,12 @@ function createSchema(database) {
       email TEXT,
       highest_education TEXT,
       date_joined DATE,
+      cessation_date DATE,
       basic_salary REAL,
       transport_allowance REAL,
       meal_allowance REAL,
       other_allowance REAL,
+      other_deduction REAL DEFAULT 0,
       custom_allowances TEXT DEFAULT '{}',
       custom_deductions TEXT DEFAULT '{}',
       payment_mode TEXT DEFAULT 'Bank Transfer',
@@ -296,6 +316,10 @@ function createSchema(database) {
       cpf_full_rate_agreed BOOLEAN DEFAULT 0,
       working_days_per_week REAL DEFAULT 5.5,
       rest_day TEXT DEFAULT 'Sunday',
+      working_hours_per_day REAL DEFAULT 8,
+      working_hours_per_week REAL DEFAULT 44,
+      site_id INTEGER,
+      photo_url TEXT,
       status TEXT DEFAULT 'Active',
       face_descriptor TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

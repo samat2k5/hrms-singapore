@@ -226,6 +226,23 @@ export default function Payslip() {
                     t.remarks || ''
                 ]);
 
+                // Calculate and add Total Row
+                const totals = ps.timesheets.reduce((acc, t) => ({
+                    normal: acc.normal + (Number(t.normal_hours) || 0),
+                    ot15: acc.ot15 + (Number(t.ot_1_5_hours) || 0),
+                    ot20: acc.ot20 + (Number(t.ot_2_0_hours) || 0),
+                    ph: acc.ph + (Number(t.ph_hours) || 0)
+                }), { normal: 0, ot15: 0, ot20: 0, ph: 0 });
+
+                tsBody.push([
+                    { content: 'TOTAL', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right' } },
+                    { content: totals.normal > 0 ? totals.normal.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
+                    { content: totals.ot15 > 0 ? totals.ot15.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
+                    { content: totals.ot20 > 0 ? totals.ot20.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
+                    { content: totals.ph > 0 ? totals.ph.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
+                    ''
+                ]);
+
                 autoTable(doc, {
                     startY: 45,
                     head: [['Date', 'Shift', 'In', 'Out', 'Basic', 'OT 1.5x', 'OT 2.0x', 'PH', 'Remarks']],
@@ -233,6 +250,17 @@ export default function Payslip() {
                     theme: 'grid',
                     headStyles: { fillColor: [15, 23, 42] },
                     styles: { fontSize: 8 },
+                    margin: { top: 35, bottom: 25 },
+                    didDrawPage: (data) => {
+                        // Maintain branding/footer on every page if it spans multiple pages
+                        if (data.pageNumber > 1) {
+                            // Header Branding on new pages
+                            doc.setFontSize(7);
+                            doc.setTextColor(150);
+                            doc.addImage(logo, ps.logo_url ? (ps.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 20, 10);
+                            doc.text('ITEMIZED PAYSLIP — Attendance Supplement', 105, 15, { align: 'center' });
+                        }
+                    }
                 })
             }
 
@@ -248,6 +276,15 @@ export default function Payslip() {
 
     const ps = payslip
     const totalDeductions = ps.cpf_employee + ps.shg_deduction + ps.other_deductions
+
+    const timesheetTotals = ps.timesheets?.reduce((acc, t) => ({
+        normal: acc.normal + (Number(t.normal_hours) || 0),
+        ot15: acc.ot15 + (Number(t.ot_1_5_hours) || 0),
+        ot20: acc.ot20 + (Number(t.ot_2_0_hours) || 0),
+        ph: acc.ph + (Number(t.ph_hours) || 0)
+    }), { normal: 0, ot15: 0, ot20: 0, ph: 0 });
+
+    const hasAttendance = timesheetTotals && (timesheetTotals.normal > 0 || timesheetTotals.ot15 > 0 || timesheetTotals.ot20 > 0 || timesheetTotals.ph > 0);
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
@@ -384,7 +421,7 @@ export default function Payslip() {
                 </div>
 
                 {/* Detailed Timesheet Append */}
-                {ps.timesheets && ps.timesheets.length > 0 && (
+                {hasAttendance && (
                     <div className="pt-6 border-t border-[var(--border-main)] space-y-4">
                         <h3 className="text-sm font-semibold text-[var(--brand-primary)] uppercase tracking-wider mb-3">🕒 Detailed Timesheet Attendance</h3>
                         <div className="overflow-x-auto">
@@ -417,6 +454,16 @@ export default function Payslip() {
                                         </tr>
                                     ))}
                                 </tbody>
+                                <tfoot className="border-t-2 border-[var(--border-main)] font-bold text-[var(--text-main)] bg-[var(--brand-primary)]/5">
+                                    <tr>
+                                        <td colSpan={4} className="text-right py-2 px-3">TOTALS</td>
+                                        <td className="py-2 px-3">{timesheetTotals.normal.toFixed(1)}</td>
+                                        <td className="py-2 px-3">{timesheetTotals.ot15.toFixed(1)}</td>
+                                        <td className="py-2 px-3">{timesheetTotals.ot20.toFixed(1)}</td>
+                                        <td className="py-2 px-3">{timesheetTotals.ph.toFixed(1)}</td>
+                                        <td />
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>

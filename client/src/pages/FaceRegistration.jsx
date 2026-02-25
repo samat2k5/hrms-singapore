@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const FaceRegistration = () => {
     const { id } = useParams();
@@ -13,6 +13,24 @@ const FaceRegistration = () => {
     const [detecting, setDetecting] = useState(false);
     const [registered, setRegistered] = useState(false);
     const [statusMessage, setStatusMessage] = useState('Position Face for Enrollment');
+
+    // SweetAlert2 Toast Mixin
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        background: 'var(--bg-main)',
+        color: 'var(--text-main)',
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer);
+            toast.addEventListener('mouseleave', Swal.resumeTimer);
+        },
+        customClass: {
+            popup: 'glass-card border border-[var(--border-main)] rounded-xl shadow-2xl'
+        }
+    });
 
     useEffect(() => {
         const loadModelsAndData = async () => {
@@ -30,7 +48,10 @@ const FaceRegistration = () => {
                     loadFaceApiModels();
                 }
             } catch (err) {
-                toast.error('Failed to load employee data');
+                Toast.fire({
+                    icon: 'error',
+                    title: 'Failed to load employee data'
+                });
                 navigate('/employees');
             }
         };
@@ -47,7 +68,10 @@ const FaceRegistration = () => {
                 startVideo();
             } catch (err) {
                 console.error('Face API models failed to load:', err);
-                toast.error('Failed to load face recognition models');
+                Toast.fire({
+                    icon: 'error',
+                    title: 'Failed to load face recognition models'
+                });
             }
         };
 
@@ -70,7 +94,10 @@ const FaceRegistration = () => {
             })
             .catch(err => {
                 console.error('Camera access denied:', err);
-                toast.error('Camera access denied');
+                Toast.fire({
+                    icon: 'error',
+                    title: 'Camera access denied'
+                });
                 setLoading(false);
             });
     };
@@ -93,20 +120,30 @@ const FaceRegistration = () => {
 
                 setRegistered(true);
                 setStatusMessage('Face Signature Registered Successfully');
-                toast.success('Face signature registered successfully');
+
+                Toast.fire({
+                    icon: 'success',
+                    title: 'Face signature registered successfully'
+                });
 
                 setTimeout(() => {
                     navigate('/employees');
                 }, 2000);
             } else {
                 setStatusMessage('No face detected. Try again.');
-                toast.error('No face detected. Please position your face clearly in the frame.');
+                Toast.fire({
+                    icon: 'error',
+                    title: 'No face detected. Please position your face clearly.'
+                });
             }
         } catch (err) {
             console.error('Capture failed:', err);
             const msg = err.message || 'Failed to capture face signature';
             setStatusMessage(msg);
-            toast.error(msg);
+            Toast.fire({
+                icon: 'error',
+                title: msg
+            });
         } finally {
             setDetecting(false);
         }

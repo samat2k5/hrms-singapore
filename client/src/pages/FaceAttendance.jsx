@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../services/api';
-import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const FaceAttendance = () => {
     const videoRef = useRef(null);
@@ -10,6 +10,24 @@ const FaceAttendance = () => {
     const [lastAction, setLastAction] = useState(null);
     const [statusMessage, setStatusMessage] = useState('Face Attendance Ready');
     const [cooldown, setCooldown] = useState(false);
+
+    // SweetAlert2 Toast Mixin
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        background: 'var(--bg-main)',
+        color: 'var(--text-main)',
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer);
+            toast.addEventListener('mouseleave', Swal.resumeTimer);
+        },
+        customClass: {
+            popup: 'glass-card border border-[var(--border-main)] rounded-xl shadow-2xl'
+        }
+    });
 
     useEffect(() => {
         const loadModels = async () => {
@@ -24,7 +42,10 @@ const FaceAttendance = () => {
                     loadFaceApiModels();
                 }
             } catch (err) {
-                toast.error('Failed to load face recognition models');
+                Toast.fire({
+                    icon: 'error',
+                    title: 'Failed to load face recognition models'
+                });
             }
         };
 
@@ -72,7 +93,10 @@ const FaceAttendance = () => {
                 }
             })
             .catch(err => {
-                toast.error('Camera access denied');
+                Toast.fire({
+                    icon: 'error',
+                    title: 'Camera access denied'
+                });
                 setLoading(false);
             });
     };
@@ -109,7 +133,11 @@ const FaceAttendance = () => {
 
                 setLastAction(result);
                 setStatusMessage(`Welcome ${result.employee.full_name}! Clocked ${result.action}`);
-                toast.success(`Clocked ${result.action}: ${result.employee.full_name}`);
+
+                Toast.fire({
+                    icon: 'success',
+                    title: `Clocked ${result.action}: ${result.employee.full_name}`
+                });
 
                 // Set cooldown to prevent double scans
                 setCooldown(true);
@@ -124,8 +152,13 @@ const FaceAttendance = () => {
         } catch (err) {
             console.error('Clocking failed:', err);
             const msg = err.message || 'Face recognition failed';
-            // Only show toast if it's a real failure, not just 'not recognized' (which is handled by statusMessage)
-            if (!msg.toLowerCase().includes('not recognized')) toast.error(msg);
+            // Only show toast if it's a real failure, not just 'not recognized'
+            if (!msg.toLowerCase().includes('not recognized')) {
+                Toast.fire({
+                    icon: 'error',
+                    title: msg
+                });
+            }
             setStatusMessage(msg);
 
             // Short cooldown on errors to prevent spam

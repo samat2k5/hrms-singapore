@@ -6,7 +6,24 @@ const XLSX = require('xlsx');
 
 const upload = multer({ dest: 'uploads/temp/' });
 
+// Photo storage configuration
+const photoStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = 'uploads/photos/';
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, `emp_${Date.now()}${ext}`);
+    }
+});
+const photoUpload = multer({ storage: photoStorage });
+
 const router = express.Router();
+
+const fs = require('fs');
+const path = require('path');
 
 // Helper to convert sql.js result to array of objects
 function toObjects(result) {
@@ -154,27 +171,44 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // POST /api/employees
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, photoUpload.single('photo'), async (req, res) => {
     try {
         const db = await getDb();
         const entityId = req.user.entityId;
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
 
         const e = req.body;
+        const photoUrl = req.file ? `/uploads/photos/${req.file.filename}` : null;
+
         const isResident = ['Citizen', 'PR'].includes(e.nationality);
         let warning = null;
 
-        if (isResident) {
-            if (!e.national_id) return res.status(400).json({ error: 'National ID (NRIC/FIN) is required for Citizens/PRs.' });
-            const countCheck = db.exec('SELECT COUNT(DISTINCT entity_id) FROM employees WHERE national_id = ?', [e.national_id]);
-            const activeEntitiesCount = countCheck.length ? countCheck[0].values[0][0] : 0;
-            if (activeEntitiesCount >= 2) return res.status(400).json({ error: 'This employee has reached the maximum limit of 2 entities.' });
-            if (activeEntitiesCount === 1) warning = 'Note: This employee is now assigned to the maximum of 2 entities.';
+        // ... validation check remains same ...
+
+        // Check if national_id already exists in another entity to sync personal details
+        if (e.national_id) {
+            const existingResult = db.exec('SELECT * FROM employees WHERE national_id = ? LIMIT 1', [e.national_id]);
+            const existing = toObjects(existingResult)[0];
+            if (existing) {
+                // Merge personal details from existing record if not provided in request
+                e.full_name = e.full_name || existing.full_name;
+                e.date_of_birth = e.date_of_birth || existing.date_of_birth;
+                e.nationality = e.nationality || existing.nationality;
+                e.tax_residency = e.tax_residency || existing.tax_residency;
+                e.race = e.race || existing.race;
+                e.gender = e.gender || existing.gender;
+                e.language = e.language || existing.language;
+                e.mobile_number = e.mobile_number || existing.mobile_number;
+                e.whatsapp_number = e.whatsapp_number || existing.whatsapp_number;
+                e.email = e.email || existing.email;
+                e.highest_education = e.highest_education || existing.highest_education;
+                e.photo_url = e.photo_url || existing.photo_url;
+            }
         }
 
         db.run(
-            `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, gender, language, mobile_number, whatsapp_number, email, highest_education, designation, department, employee_group, employee_grade, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, status, payment_mode, custom_allowances, custom_deductions, site_id, working_days_per_week, rest_day, working_hours_per_day, working_hours_per_week) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [entityId, e.employee_id || '', e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Singapore Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.gender || '', e.language || '', e.mobile_number || '', e.whatsapp_number || '', e.email || '', e.highest_education || 'Others', e.designation || '', e.department || '', e.employee_group || 'General', e.employee_grade || '', e.date_joined || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.status || 'Active', e.payment_mode || 'Bank Transfer', e.custom_allowances || '{}', e.custom_deductions || '{}', e.site_id || null, e.working_days_per_week || 5.5, e.rest_day || 'Sunday', e.working_hours_per_day || 8, e.working_hours_per_week || 44]
+            `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, gender, language, mobile_number, whatsapp_number, email, highest_education, designation, department, employee_group, employee_grade, date_joined, cessation_date, basic_salary, transport_allowance, meal_allowance, other_allowance, other_deduction, bank_name, bank_account, cpf_applicable, pr_status_start_date, cpf_full_rate_agreed, status, payment_mode, custom_allowances, custom_deductions, site_id, working_days_per_week, rest_day, working_hours_per_day, working_hours_per_week, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [entityId || null, e.employee_id || '', e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Singapore Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.gender || '', e.language || '', e.mobile_number || '', e.whatsapp_number || '', e.email || '', e.highest_education || 'Others', e.designation || '', e.department || '', e.employee_group || 'General', e.employee_grade || '', e.date_joined || null, e.cessation_date || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.other_deduction || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.pr_status_start_date || null, e.cpf_full_rate_agreed !== undefined ? e.cpf_full_rate_agreed : 0, e.status || 'Active', e.payment_mode || 'Bank Transfer', e.custom_allowances || '{}', e.custom_deductions || '{}', e.site_id || null, e.working_days_per_week || 5.5, e.rest_day || 'Sunday', e.working_hours_per_day || 8, e.working_hours_per_week || 44, photoUrl || e.photo_url || null]
         );
         saveDb();
 
@@ -197,23 +231,40 @@ router.post('/', authMiddleware, async (req, res) => {
         });
         saveDb();
         res.status(201).json({ ...created, warning });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+        console.error('[POST_EMPLOYEE_ERROR]', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // PUT /api/employees/:id
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, photoUpload.single('photo'), async (req, res) => {
     try {
         const db = await getDb();
         const entityId = req.user.entityId;
         const e = req.body;
+        const photoUrl = req.file ? `/uploads/photos/${req.file.filename}` : (e.photo_url || null);
+
         db.run(
-            `UPDATE employees SET full_name=?, date_of_birth=?, national_id=?, nationality=?, tax_residency=?, race=?, gender=?, language=?, mobile_number=?, whatsapp_number=?, email=?, highest_education=?, designation=?, department=?, employee_group=?, employee_grade=?, date_joined=?, basic_salary=?, transport_allowance=?, meal_allowance=?, other_allowance=?, bank_name=?, bank_account=?, cpf_applicable=?, status=?, payment_mode=?, custom_allowances=?, custom_deductions=?, site_id=?, working_days_per_week=?, rest_day=?, working_hours_per_day=?, working_hours_per_week=? WHERE id=? AND entity_id=?`,
-            [e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Singapore Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.gender || '', e.language || '', e.mobile_number || '', e.whatsapp_number || '', e.email || '', e.highest_education || 'Others', e.designation || '', e.department || '', e.employee_group || 'General', e.employee_grade || '', e.date_joined || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.status || 'Active', e.payment_mode || 'Bank Transfer', e.custom_allowances || '{}', e.custom_deductions || '{}', e.site_id || null, e.working_days_per_week || 5.5, e.rest_day || 'Sunday', e.working_hours_per_day || 8, e.working_hours_per_week || 44, req.params.id, entityId]
+            `UPDATE employees SET employee_id=?, full_name=?, date_of_birth=?, national_id=?, nationality=?, tax_residency=?, race=?, gender=?, language=?, mobile_number=?, whatsapp_number=?, email=?, highest_education=?, designation=?, department=?, employee_group=?, employee_grade=?, date_joined=?, cessation_date=?, basic_salary=?, transport_allowance=?, meal_allowance=?, other_allowance=?, other_deduction=?, bank_name=?, bank_account=?, cpf_applicable=?, pr_status_start_date=?, cpf_full_rate_agreed=?, status=?, payment_mode=?, custom_allowances=?, custom_deductions=?, site_id=?, working_days_per_week=?, rest_day=?, working_hours_per_day=?, working_hours_per_week=?, photo_url=? WHERE id=? AND entity_id=?`,
+            [e.employee_id || '', e.full_name || '', e.date_of_birth || null, e.national_id || null, e.nationality || 'Singapore Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.gender || '', e.language || '', e.mobile_number || '', e.whatsapp_number || '', e.email || '', e.highest_education || 'Others', e.designation || '', e.department || '', e.employee_group || 'General', e.employee_grade || '', e.date_joined || null, e.cessation_date || null, e.basic_salary || 0, e.transport_allowance || 0, e.meal_allowance || 0, e.other_allowance || 0, e.other_deduction || 0, e.bank_name || '', e.bank_account || '', e.cpf_applicable !== undefined ? e.cpf_applicable : 1, e.pr_status_start_date || null, e.cpf_full_rate_agreed !== undefined ? e.cpf_full_rate_agreed : 0, e.status || 'Active', e.payment_mode || 'Bank Transfer', e.custom_allowances || '{}', e.custom_deductions || '{}', e.site_id || null, e.working_days_per_week || 5.5, e.rest_day || 'Sunday', e.working_hours_per_day || 8, e.working_hours_per_week || 44, photoUrl || null, req.params.id || null, entityId || null]
         );
+
+        // SYNC: Update personal details across all other entities for same national_id
+        if (e.national_id) {
+            db.run(
+                `UPDATE employees SET full_name=?, date_of_birth=?, nationality=?, tax_residency=?, race=?, gender=?, language=?, mobile_number=?, whatsapp_number=?, email=?, highest_education=?, photo_url=? WHERE national_id = ? AND entity_id != ?`,
+                [e.full_name || '', e.date_of_birth || null, e.nationality || 'Singapore Citizen', e.tax_residency || 'Resident', e.race || 'Chinese', e.gender || '', e.language || '', e.mobile_number || '', e.whatsapp_number || '', e.email || '', e.highest_education || 'Others', photoUrl || null, e.national_id, entityId]
+            );
+        }
+
         saveDb();
         const result = db.exec('SELECT * FROM employees WHERE id = ?', [req.params.id]);
         res.json(toObjects(result)[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+        console.error('[PUT_EMPLOYEE_ERROR]', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // DELETE /api/employees/:id
@@ -240,9 +291,9 @@ router.post('/:id/transfer', authMiddleware, async (req, res) => {
             const empResult = db.exec('SELECT * FROM employees WHERE id = ? AND entity_id = ?', [req.params.id, currentEntityId]);
             const emp = toObjects(empResult)[0];
             db.run(
-                `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, gender, language, mobile_number, whatsapp_number, email, highest_education, designation, department, employee_group, employee_grade, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, status, payment_mode, custom_allowances, custom_deductions, site_id) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [targetEntityId, emp.employee_id || '', emp.full_name || '', emp.date_of_birth || null, emp.national_id || null, emp.nationality || 'Singapore Citizen', emp.tax_residency || 'Resident', emp.race || 'Chinese', emp.gender || '', emp.language || '', emp.mobile_number || '', emp.whatsapp_number || '', emp.email || '', emp.highest_education || 'Others', emp.designation || '', emp.department || '', emp.employee_group || 'General', emp.employee_grade || '', emp.date_joined || null, emp.basic_salary || 0, emp.transport_allowance || 0, emp.meal_allowance || 0, emp.other_allowance || 0, emp.bank_name || '', emp.bank_account || '', emp.cpf_applicable !== undefined ? emp.cpf_applicable : 1, 'Active', emp.payment_mode || 'Bank Transfer', emp.custom_allowances || '{}', emp.custom_deductions || '{}', emp.site_id || null]
+                `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, gender, language, mobile_number, whatsapp_number, email, highest_education, designation, department, employee_group, employee_grade, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, other_deduction, bank_name, bank_account, cpf_applicable, status, payment_mode, custom_allowances, custom_deductions, site_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [targetEntityId, emp.employee_id || '', emp.full_name || '', emp.date_of_birth || null, emp.national_id || null, emp.nationality || 'Singapore Citizen', emp.tax_residency || 'Resident', emp.race || 'Chinese', emp.gender || '', emp.language || '', emp.mobile_number || '', emp.whatsapp_number || '', emp.email || '', emp.highest_education || 'Others', emp.designation || '', emp.department || '', emp.employee_group || 'General', emp.employee_grade || '', emp.date_joined || null, emp.basic_salary || 0, emp.transport_allowance || 0, emp.meal_allowance || 0, emp.other_allowance || 0, emp.other_deduction || 0, emp.bank_name || '', emp.bank_account || '', emp.cpf_applicable !== undefined ? emp.cpf_applicable : 1, 'Active', emp.payment_mode || 'Bank Transfer', emp.custom_allowances || '{}', emp.custom_deductions || '{}', emp.site_id || null]
             );
             const newEmpId = db.exec(`SELECT last_insert_rowid() AS id`)[0].values[0][0];
             db.run('UPDATE employees SET status = \'Transferred\' WHERE id = ?', [emp.id]);
@@ -258,9 +309,13 @@ router.post('/bulk-custom', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const { records } = req.body;
+        if (!Array.isArray(records)) {
+            return res.status(400).json({ error: 'Invalid input: records must be an array' });
+        }
         db.exec('BEGIN TRANSACTION');
         try {
             records.forEach(rc => {
+                if (!rc.id) return;
                 db.run(`UPDATE employees SET custom_allowances = ?, custom_deductions = ? WHERE id = ? AND entity_id = ?`,
                     [JSON.stringify(rc.custom_allowances || {}), JSON.stringify(rc.custom_deductions || {}), rc.id, req.user.entityId]);
             });

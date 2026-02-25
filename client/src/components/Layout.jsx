@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import Swal from 'sweetalert2'
 
 const navItems = [
     { to: '/', icon: '📊', label: 'Dashboard' },
@@ -35,9 +36,27 @@ export default function Layout() {
     const navigate = useNavigate()
     const location = useLocation()
 
-    const handleLogout = () => {
-        logout()
-        navigate('/login')
+    const confirmLogout = async () => {
+        const result = await Swal.fire({
+            title: 'Sign Out?',
+            text: 'Are you sure you want to log out of ezyHR?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: 'var(--brand-primary)',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, Sign Out',
+            cancelButtonText: 'Stay Logged In',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (result.isConfirmed) {
+            logout();
+            navigate('/login');
+        }
     }
 
     const closeMobileMenu = () => setMobileMenuOpen(false)
@@ -65,11 +84,16 @@ export default function Layout() {
                 <div className="flex items-center gap-2">
                     <img src="/ezyhr-logo.png" alt="ezyHR Logo" className="h-16 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👥</text></svg>" }} />
                 </div>
-                <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-[var(--text-muted)]">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
-                    </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button onClick={toggleTheme} className="p-2 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-xl bg-[var(--bg-input)] shadow-sm border border-[var(--border-main)] mr-1">
+                        {theme === 'light' ? '🌙' : '☀️'}
+                    </button>
+                    <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-[var(--text-muted)] hover:bg-[var(--bg-input)] rounded-xl transition-colors">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            {mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             {mobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm" onClick={closeMobileMenu} />}
@@ -102,7 +126,7 @@ export default function Layout() {
                                 end={item.to === '/'}
                                 onClick={closeMobileMenu}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
+                                    `flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
                                         ? 'bg-[var(--bg-main)] brand-text shadow-sm'
                                         : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)]'
                                     }`
@@ -122,7 +146,7 @@ export default function Layout() {
                             </div>
                             <button
                                 onClick={() => setShowMaster(!showMaster)}
-                                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors group"
+                                className="w-full flex items-center justify-between px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors group"
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="text-lg w-6 text-center">⚙️</span>
@@ -141,7 +165,7 @@ export default function Layout() {
                                                 to={item.to}
                                                 onClick={closeMobileMenu}
                                                 className={({ isActive }) =>
-                                                    `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                                                    `flex items-center gap-3 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
                                                         ? 'brand-text bg-[var(--bg-main)] shadow-sm'
                                                         : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)]'
                                                     }`
@@ -159,10 +183,10 @@ export default function Layout() {
                 </nav>
 
                 {/* Bottom Section */}
-                <div className="p-4 border-t border-[var(--border-main)] sidebar-theme">
+                <div className="p-4 border-t border-[var(--border-main)] sidebar-theme mt-auto">
                     {/* Entity Switcher */}
                     {entities?.length > 0 && (
-                        <div className="mb-2">
+                        <div className="mb-4">
                             <p className="text-[10px] text-[var(--text-muted)] mb-1 font-bold uppercase tracking-widest pl-1">Entity</p>
                             <div className="relative group">
                                 <select
@@ -181,6 +205,30 @@ export default function Layout() {
                             </div>
                         </div>
                     )}
+
+                    {/* User Profile & Logout */}
+                    <div className="flex items-center justify-between p-2 rounded-2xl bg-[var(--bg-main)]/50 border border-[var(--border-main)]">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-8 h-8 rounded-full bg-[var(--brand-primary)] flex shrink-0 items-center justify-center text-white text-xs font-bold shadow-sm">
+                                {user?.fullName?.charAt(0) || 'A'}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[11px] font-bold text-[var(--text-main)] truncate leading-tight">
+                                    {user?.fullName || 'User'}
+                                </span>
+                                <span className="text-[9px] font-medium text-[var(--text-muted)] truncate capitalize">
+                                    {role?.toLowerCase()}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={confirmLogout}
+                            className="p-1.5 text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                            title="Sign Out"
+                        >
+                            <span className="text-sm">🚪</span>
+                        </button>
+                    </div>
                 </div>
             </aside>
 
@@ -194,30 +242,13 @@ export default function Layout() {
                     </div>
 
                     <div className="flex items-center gap-3 bg-[var(--bg-card)] px-3 py-2 rounded-full shadow-[var(--shadow-main)] border border-[var(--border-main)]">
-                        <div className="relative flex items-center bg-[var(--bg-input)] rounded-full px-4 py-2 focus-within:ring-1 focus-within:ring-[var(--brand-primary)] transition-all mr-2">
-                            <span className="text-[var(--text-muted)] mr-2">🔍</span>
-                            <input type="text" placeholder="Search Keyword" className="bg-transparent border-none outline-none text-sm w-48 focus:w-64 transition-all text-[var(--text-main)] placeholder-[var(--text-muted)]" />
-                            <span className="text-[var(--text-muted)] ml-2 bg-[var(--bg-main)] px-2 py-0.5 rounded text-xs select-none">⌘K</span>
-                        </div>
 
-                        <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)] flex items-center justify-center">
-                            🇺🇸
-                        </button>
-
-                        <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)] hidden lg:block">
-                            <span className="text-lg">⛶</span>
-                        </button>
-
-                        <button onClick={toggleTheme} className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)]">
+                        <button onClick={toggleTheme} className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)]" title="Toggle Dark/Light Mode">
                             {theme === 'light' ? '🌙' : '☀️'}
                         </button>
 
-                        <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors rounded-full hover:bg-[var(--bg-input)]">
-                            <span className="relative text-lg">🔔<span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-[var(--bg-card)]"></span></span>
-                        </button>
-
-                        <div className="pl-4 py-1 ml-1 border-l border-[var(--border-main)] flex items-center gap-3 cursor-pointer group" onClick={handleLogout} title="Logout">
-                            <div className="w-10 h-10 rounded-full overflow-hidden bg-[var(--brand-primary)] flex justify-center items-center text-white font-bold text-base shadow-sm group-hover:shadow-md transition-shadow">
+                        <div className="pl-4 py-1 ml-1 border-l border-[var(--border-main)] flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full overflow-hidden bg-[var(--brand-primary)] flex justify-center items-center text-white font-bold text-base shadow-sm">
                                 {user?.fullName?.charAt(0) || 'A'}
                             </div>
                         </div>

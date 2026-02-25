@@ -1,0 +1,39 @@
+# Global UI/UX & Responsive Audit Plan
+
+A comprehensive overhaul of the HRMS interface to ensure professional branding, full responsiveness, and intuitive navigation.
+
+## Proposed Changes
+
+### 📱 Responsive Layout & Navigation
+#### [MODIFY] [Layout.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/components/Layout.jsx)
+- **Mobile Theme Toggle**: Ensure the Dark/Light mode toggle is visible in the mobile header or sidebar menu.
+- **Mobile Sidebar spacing**: Refine the mobile menu spacing to be as compact as the desktop version.
+
+### 👥 Employees Page Overhaul
+#### [MODIFY] [Employees.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Employees.jsx)
+- **Visibility Fix**: Ensure the "+Add Employee" button is visible and properly aligned across all screen sizes.
+- **Table Simplification**: Remove "Department", "Group", and "Nationality" columns from the main table.
+- **Advanced Filtering**:
+    - Implement dropdown filters for Department, Group, and Nationality above the table.
+    - Ensure filters are adaptive and glassmorphism-styled.
+
+### 🍱 Global Page Audit (Light & Dark Mode)
+- **Audit & Refine**: Systematically check every page for:
+    - Consistent Glassmorphism (`glass-card`, `input-glass`).
+    - Proper background colors in Dark Mode (`var(--bg-main)`, `var(--bg-input)`).
+    - Balanced white-space and typography.
+- **Pages to Audit**:
+    - Dashboard, Payroll, Attendance (Manual & Face), Leave Management, Reports.
+    - All Master Data settings.
+
+## Verification Plan
+
+### Browser Verification (Chrome DevTools)
+- Verify **iPhone 12/14 Pro** viewport for header/toggle visibility.
+- Verify **iPad Pro** and **Desktop (1920x1080)** layout consistency.
+- Test "Add Employee" button visibility on small screens.
+
+### Manual Verification
+- Toggle between Light and Dark modes on every page.
+- Test new filters on the Employees page.
+- Verify scrolling and sticky headers.

@@ -80,7 +80,8 @@ router.post('/run', authMiddleware, async (req, res) => {
         const employees = toObjects(empResult);
 
         if (!employees.length) {
-            return res.status(400).json({ error: 'No active employees found' });
+            console.warn(`[PAYROLL_RUN] No active employees found for Entity: ${entityId}, Group: ${employee_group}`);
+            return res.status(400).json({ error: `No active employees found in group "${employee_group}" for this entity.` });
         }
 
         // Fetch Public Holidays for this month
@@ -110,7 +111,11 @@ router.post('/run', authMiddleware, async (req, res) => {
         );
 
         const runResult = db.exec(`SELECT last_insert_rowid() as id`);
+        if (!runResult.length || !runResult[0].values.length) {
+            throw new Error("Failed to retrieve the ID of the new payroll run.");
+        }
         const runId = runResult[0].values[0][0];
+        console.log(`[PAYROLL_RUN] Created Run ID: ${runId} for Group: ${employee_group}`);
 
         // Fetch entity-level performance multiplier
         const entityResult = db.exec('SELECT performance_multiplier FROM entities WHERE id = ?', [entityId]);
@@ -379,22 +384,38 @@ router.get('/payslip/:id', authMiddleware, async (req, res) => {
 router.delete('/run/:id', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
+        const { id } = req.params;
         const entityId = req.user.entityId;
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
 
-        const runResult = db.exec(`SELECT id FROM payroll_runs WHERE id = ${req.params.id} AND entity_id = ${entityId}`);
-        if (!toObjects(runResult).length) return res.status(404).json({ error: 'Payroll run not found or access denied' });
+        console.log(`[PAYROLL_DELETE] Attempting to delete run ${id} for entity ${entityId}`);
 
-        db.run(`DELETE FROM payslips WHERE payroll_run_id = ${req.params.id}`);
-        db.run(`DELETE FROM payroll_runs WHERE id = ${req.params.id}`);
-        saveDb();
-        res.json({ message: 'Payroll run deleted' });
+        // Ensure the run belongs to the active entity
+        const runRes = db.exec('SELECT id FROM payroll_runs WHERE id = ? AND entity_id = ?', [id, entityId]);
+        if (!runRes.length || !runRes[0].values.length) {
+            console.warn(`[PAYROLL_DELETE] Run ${id} not found or access denied for entity ${entityId}`);
+            return res.status(404).json({ error: 'Payroll run not found or access denied' });
+        }
+
+        db.exec('BEGIN TRANSACTION');
+        try {
+            db.run(`DELETE FROM payslips WHERE payroll_run_id = ?`, [id]);
+            db.run(`DELETE FROM payroll_runs WHERE id = ?`, [id]);
+            db.exec('COMMIT');
+            saveDb();
+            console.log(`[PAYROLL_DELETE] Successfully deleted run ${id}`);
+            res.json({ message: 'Payroll run deleted successfully' });
+        } catch (err) {
+            db.exec('ROLLBACK');
+            console.error(`[PAYROLL_DELETE_ERROR] Transaction failed for run ${id}:`, err);
+            res.status(500).json({ error: 'Failed to delete payroll run: ' + err.message });
+        }
     } catch (err) {
+        console.error(`[PAYROLL_DELETE_ERROR] Outer catch for run ${id}:`, err);
         res.status(500).json({ error: err.message });
     }
 });
 
-module.exports = router;
 const { generateGIROFile } = require('../engine/giro-engine');
 
 // GET /api/payroll/export-giro/:runId
@@ -464,33 +485,5 @@ router.get('/export-cpf/:runId', async (req, res) => {
     }
 });
 
-// DELETE /api/payroll/run/:id
-router.delete('/run/:id', authMiddleware, async (req, res) => {
-    try {
-        const db = await getDb();
-        const { id } = req.params;
-        const entityId = req.user.entityId;
-        if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
-
-        // Ensure the run belongs to the active entity
-        const runRes = await db.exec('SELECT id FROM payroll_runs WHERE id = ? AND entity_id = ?', [id, entityId]);
-        if (!runRes.length || !runRes[0].values.length) {
-            return res.status(404).json({ error: 'Payroll run not found for this entity' });
-        }
-
-        db.exec('BEGIN TRANSACTION');
-        try {
-            db.run(`DELETE FROM payslips WHERE payroll_run_id = ?`, [id]);
-            db.run(`DELETE FROM payroll_runs WHERE id = ?`, [id]);
-            db.exec('COMMIT');
-            saveDb();
-            res.json({ message: 'Payroll run deleted successfully' });
-        } catch (err) {
-            db.exec('ROLLBACK');
-            res.status(500).json({ error: 'Failed to delete payroll run: ' + err.message });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+module.exports = router;
 
