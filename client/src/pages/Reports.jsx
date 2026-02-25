@@ -65,8 +65,13 @@ export default function Reports() {
 
     const handleExportPDF = async () => {
         try {
-            const { jsPDF } = await import('jspdf')
-            const { default: autoTable } = await import('jspdf-autotable')
+            const jspdfModule = await import('jspdf');
+            const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+            const autotableModule = await import('jspdf-autotable');
+            const autoTable = autotableModule.default || autotableModule;
+
+            if (!jsPDF) throw new Error("jsPDF failed to load");
+            if (!autoTable) throw new Error("jspdf-autotable failed to load");
 
             const doc = new jsPDF()
 
@@ -153,8 +158,13 @@ export default function Reports() {
 
     const handleExportItemizedIR8A = async (f) => {
         try {
-            const { jsPDF } = await import('jspdf')
-            const { default: autoTable } = await import('jspdf-autotable')
+            const jspdfModule = await import('jspdf')
+            const jsPDF = jspdfModule.jsPDF || jspdfModule.default
+            const autotableModule = await import('jspdf-autotable')
+            const autoTable = autotableModule.default || autotableModule
+
+            if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
+
             const doc = new jsPDF()
             const payload = JSON.parse(f.data_json);
 
@@ -173,9 +183,10 @@ export default function Reports() {
                 theme: 'grid', styles: { fontSize: 9 }
             });
 
-            doc.text('Income Breakdown', 14, doc.lastAutoTable.finalY + 10);
+            const currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 32)
+            doc.text('Income Breakdown', 14, currentY + 10);
             autoTable(doc, {
-                startY: doc.lastAutoTable.finalY + 12,
+                startY: currentY + 12,
                 body: [
                     ['Gross Salary', formatCurrency(payload.income.gross_salary)],
                     ['Bonus', formatCurrency(payload.income.bonus)],
@@ -211,7 +222,10 @@ export default function Reports() {
 
             doc.save(`IR8A_${payload.employee_details.id_no}_${year}.pdf`);
             toast.success('Itemized IR8A Downloaded');
-        } catch (e) { toast.error('PDF generation failed'); }
+        } catch (e) {
+            console.error('[IR8A_PDF_ERROR]', e);
+            toast.error('PDF generation failed: ' + (e.message || 'Unknown error'));
+        }
     }
 
     return (

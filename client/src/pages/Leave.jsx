@@ -163,8 +163,13 @@ export default function Leave() {
     // --- PDF Export: Summary ---
     const exportSummaryPDF = async () => {
         try {
-            const { jsPDF } = await import('jspdf')
-            const { default: autoTable } = await import('jspdf-autotable')
+            const jspdfModule = await import('jspdf');
+            const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+            const autotableModule = await import('jspdf-autotable');
+            const autoTable = autotableModule.default || autotableModule;
+
+            if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
+
             const doc = new jsPDF('landscape')
 
             // Header Branding Update
@@ -219,14 +224,23 @@ export default function Leave() {
 
             doc.save(`leave_summary_${year}.pdf`)
             toast.success('Summary PDF downloaded')
-        } catch (err) { toast.error('PDF failed: ' + err.message) }
+        } catch (err) {
+            console.error('[LEAVE_SUMMARY_PDF_ERROR]', err)
+            toast.error('PDF failed: ' + (err.message || 'Unknown error'))
+        }
     }
 
     // --- PDF Export: Individual Employee ---
     const exportIndividualPDF = async (empId, data) => {
         try {
-            const { jsPDF } = await import('jspdf')
-            const { default: autoTable } = await import('jspdf-autotable')
+            const jspdfModule = await import('jspdf');
+            const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+            const autotableModule = await import('jspdf-autotable');
+            const autoTable = autotableModule.default || autotableModule;
+
+            if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
+            if (!data) throw new Error("Employee data missing");
+
             const doc = new jsPDF()
 
             // Header Branding Update
@@ -277,7 +291,7 @@ export default function Leave() {
             // Add leave history for this employee
             const empRequests = requests.filter(r => String(r.employee_id) === String(empId))
             if (empRequests.length > 0) {
-                y = doc.lastAutoTable.finalY + 12
+                y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 12
                 doc.setFontSize(12)
                 doc.setTextColor(6, 182, 212)
                 doc.text('Leave History', 14, y)
@@ -315,7 +329,10 @@ export default function Leave() {
 
             doc.save(`leave_record_${data.code}_${year}.pdf`)
             toast.success('Individual PDF downloaded')
-        } catch (err) { toast.error('PDF failed: ' + err.message) }
+        } catch (err) {
+            console.error('[LEAVE_INDIVIDUAL_PDF_ERROR]', err)
+            toast.error('PDF failed: ' + (err.message || 'Unknown error'))
+        }
     }
 
     if (loading) return <div className="card-base h-96 loading-shimmer" />

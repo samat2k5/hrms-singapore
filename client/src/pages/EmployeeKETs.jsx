@@ -172,8 +172,13 @@ export default function EmployeeKETs() {
 
     const handleGeneratePDF = async () => {
         try {
-            const { jsPDF } = await import('jspdf')
-            const { default: autoTable } = await import('jspdf-autotable')
+            const jspdfModule = await import('jspdf');
+            const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+            const autotableModule = await import('jspdf-autotable');
+            const autoTable = autotableModule.default || autotableModule;
+
+            if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
+            if (!ket) throw new Error("KET data missing");
 
             const doc = new jsPDF()
 
@@ -249,7 +254,7 @@ export default function EmployeeKETs() {
             })
 
             autoTable(doc, {
-                startY: doc.lastAutoTable.finalY + 10,
+                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 50) + 10,
                 head: [['Leave & Medical Benefits', 'Value']],
                 body: leaveBody,
                 theme: 'grid',
@@ -265,7 +270,7 @@ export default function EmployeeKETs() {
             ];
 
             autoTable(doc, {
-                startY: doc.lastAutoTable.finalY + 10,
+                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 50) + 10,
                 head: [['Other Terms', 'Value']],
                 body: otherBody,
                 theme: 'grid',
@@ -288,8 +293,8 @@ export default function EmployeeKETs() {
             doc.save(`KET_${employee?.full_name?.replace(/\s+/g, '_') || 'Employee'}.pdf`)
             toast.success('KET PDF Generated!')
         } catch (err) {
-            console.error(err)
-            toast.error('Failed to generate PDF: ' + err.message)
+            console.error('[KET_PDF_ERROR]', err)
+            toast.error('Failed to generate PDF: ' + (err.message || 'Unknown error'))
         }
     }
 

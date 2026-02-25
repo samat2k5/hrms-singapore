@@ -26,11 +26,17 @@ export default function Payslip() {
 
     const handleExportPDF = async () => {
         try {
-            const { jsPDF } = await import('jspdf')
-            const { default: autoTable } = await import('jspdf-autotable')
+            const jspdfModule = await import('jspdf');
+            const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+            const autotableModule = await import('jspdf-autotable');
+            const autoTable = autotableModule.default || autotableModule;
+
+            if (!jsPDF) throw new Error("jsPDF failed to load");
+            if (!autoTable) throw new Error("jspdf-autotable failed to load");
 
             const doc = new jsPDF()
             const ps = payslip
+            if (!ps) throw new Error("Payslip data missing");
 
             // Header Branding Update
             const logo = await loadLogo(ps.logo_url);
@@ -116,7 +122,7 @@ export default function Payslip() {
                 styles: { fontSize: 9 },
             })
 
-            y = doc.lastAutoTable.finalY + 10
+            y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10
 
             const deductionsRows = [
                 ['CPF Employee Contribution', formatCurrency(ps.cpf_employee)],
@@ -149,7 +155,7 @@ export default function Payslip() {
                 styles: { fontSize: 9 },
             })
 
-            y = doc.lastAutoTable.finalY + 10
+            y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10
 
             // CPF Breakdown
             autoTable(doc, {
@@ -167,7 +173,7 @@ export default function Payslip() {
                 styles: { fontSize: 9 },
             })
 
-            y = doc.lastAutoTable.finalY + 10
+            y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10
 
             // Employer contributions
             autoTable(doc, {
@@ -182,7 +188,7 @@ export default function Payslip() {
                 styles: { fontSize: 9 },
             })
 
-            y = doc.lastAutoTable.finalY + 15
+            y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 15
 
             // Net Pay
             doc.setFontSize(14)
@@ -267,7 +273,8 @@ export default function Payslip() {
             doc.save(`payslip_${ps.employee_code}_${ps.period_year}_${ps.period_month}.pdf`)
             toast.success('PDF downloaded')
         } catch (err) {
-            toast.error('PDF export failed: ' + err.message)
+            console.error('[PDF_EXPORT_ERROR]', err);
+            toast.error('PDF export failed: ' + (err.message || 'Unknown error'))
         }
     }
 

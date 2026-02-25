@@ -20,7 +20,7 @@ createRoot(document.getElementById('root')).render(
               toastOptions={{
                 style: {
                   background: 'var(--bg-sidebar)',
-                  color: '#fff',
+                  color: 'var(--text-main)',
                   border: '1px solid var(--border-main)',
                   borderRadius: '16px',
                   fontSize: '14px',
