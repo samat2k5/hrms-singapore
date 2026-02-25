@@ -192,9 +192,10 @@ export default function EmployeeKETs() {
 
             doc.setFontSize(11)
             doc.setTextColor(0)
-            doc.text(`Employer: ${ket.entity_name || employee?.entity_name || activeEntity?.name || 'Company Name'}`, 14, 30)
-            doc.text(`Employee: ${employee?.full_name || ''} (${employee?.employee_id || ''})`, 14, 36)
-            doc.text(`Issue Date: ${ket.issued_date ? formatDate(ket.issued_date) : 'Draft'}`, 14, 42)
+            let yText = 40
+            doc.text(`Employer: ${ket.entity_name || employee?.entity_name || activeEntity?.name || 'Company Name'}`, 14, yText)
+            doc.text(`Employee: ${employee?.full_name || ''} (${employee?.employee_id || ''})`, 14, yText + 6)
+            doc.text(`Issue Date: ${ket.issued_date ? formatDate(ket.issued_date) : 'Draft'}`, 14, yText + 12)
 
             const body = [
                 ['Job Title', ket.job_title || ''],
@@ -245,21 +246,23 @@ export default function EmployeeKETs() {
             ];
 
             autoTable(doc, {
-                startY: 50,
+                startY: 60,
                 head: [['Term Details', 'Value']],
                 body: body,
                 theme: 'grid',
                 headStyles: { fillColor: [15, 23, 42] },
-                styles: { fontSize: 9 }
+                styles: { fontSize: 9 },
+                margin: { bottom: 30 }
             })
 
             autoTable(doc, {
-                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 50) + 10,
+                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
                 head: [['Leave & Medical Benefits', 'Value']],
                 body: leaveBody,
                 theme: 'grid',
                 headStyles: { fillColor: [15, 23, 42] },
-                styles: { fontSize: 9 }
+                styles: { fontSize: 9 },
+                margin: { bottom: 30 }
             })
 
             const otherBody = [
@@ -270,12 +273,13 @@ export default function EmployeeKETs() {
             ];
 
             autoTable(doc, {
-                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 50) + 10,
+                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
                 head: [['Other Terms', 'Value']],
                 body: otherBody,
                 theme: 'grid',
                 headStyles: { fillColor: [15, 23, 42] },
-                styles: { fontSize: 9 }
+                styles: { fontSize: 9 },
+                margin: { bottom: 30 }
             })
 
             // Footer Branding

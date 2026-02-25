@@ -120,6 +120,7 @@ export default function Payslip() {
                 theme: 'grid',
                 headStyles: { fillColor: [6, 182, 212] },
                 styles: { fontSize: 9 },
+                columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 'auto', halign: 'right' } }
             })
 
             y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10
@@ -153,6 +154,7 @@ export default function Payslip() {
                 theme: 'grid',
                 headStyles: { fillColor: [239, 68, 68] },
                 styles: { fontSize: 9 },
+                columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 'auto', halign: 'right' } }
             })
 
             y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10
@@ -171,6 +173,7 @@ export default function Payslip() {
                 theme: 'grid',
                 headStyles: { fillColor: [59, 130, 246] },
                 styles: { fontSize: 9 },
+                columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 'auto', halign: 'right' } }
             })
 
             y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10
@@ -186,6 +189,7 @@ export default function Payslip() {
                 theme: 'grid',
                 headStyles: { fillColor: [139, 92, 246] },
                 styles: { fontSize: 9 },
+                columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 'auto', halign: 'right' } }
             })
 
             y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 15

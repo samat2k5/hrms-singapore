@@ -105,7 +105,20 @@ export default function Reports() {
             }
 
             if (tableData.length) {
-                autoTable(doc, { startY: 35, head: headers, body: tableData, theme: 'grid', headStyles: { fillColor: [6, 182, 212] }, styles: { fontSize: 8 } })
+                const amountCols = tab === 'cpf' ? [2, 3, 4, 5, 6, 7] : tab === 'ir8a' ? [2, 3, 4, 5] : tab === 'sdl' ? [2, 3] : tab === 'shg' ? [3] : [];
+                const colStyles = { 0: { cellWidth: 40 }, 1: { cellWidth: 20 } };
+                amountCols.forEach(c => colStyles[c] = { halign: 'right' });
+
+                autoTable(doc, {
+                    startY: 35,
+                    head: headers,
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [6, 182, 212] },
+                    styles: { fontSize: 8 },
+                    columnStyles: colStyles,
+                    margin: { bottom: 25 }
+                })
             }
 
             // Footer Branding
@@ -195,7 +208,10 @@ export default function Reports() {
                     ['Share Options Gain (A8B)', formatCurrency(payload.income.share_options_gain)],
                     [{ content: 'Total Income', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payload.income.total_income), styles: { fontStyle: 'bold' } }],
                 ],
-                theme: 'grid', styles: { fontSize: 9 }
+                theme: 'grid',
+                styles: { fontSize: 9 },
+                columnStyles: { 0: { cellWidth: 140 }, 1: { halign: 'right' } },
+                margin: { bottom: 30 }
             });
 
             if (payload.appendix_8a) {

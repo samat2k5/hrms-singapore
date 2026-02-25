@@ -178,10 +178,10 @@ export default function Leave() {
 
             doc.setFontSize(16)
             doc.setTextColor(6, 182, 212)
-            doc.text('LEAVE BALANCES SUMMARY', 148, 15, { align: 'center' })
+            doc.text('LEAVE BALANCES SUMMARY', 148, 20, { align: 'center' })
             doc.setFontSize(9)
             doc.setTextColor(100)
-            doc.text(`Year: ${year} | Report Date: ${reportDateTime}`, 148, 22, { align: 'center' })
+            doc.text(`Year: ${year} | Report Date: ${reportDateTime}`, 148, 27, { align: 'center' })
 
             const typeNames = leaveTypes.filter(lt => lt.name !== 'Unpaid Leave').map(lt => lt.name)
             const head = [['#', 'Employee', 'ID', 'Group', ...typeNames.flatMap(t => [t + ' (Ent)', t + ' (Bal)'])]]
@@ -199,15 +199,16 @@ export default function Leave() {
             doc.setFontSize(11)
             doc.setTextColor(0, 0, 0)
             doc.setFont(undefined, 'bold')
-            doc.text(`Leave Balance as of: ${reportDate}`, 14, 28)
+            doc.text(`Leave Balance as of: ${reportDate}`, 14, 38)
 
             autoTable(doc, {
-                startY: 32,
+                startY: 42,
                 head,
                 body,
                 theme: 'grid',
                 headStyles: { fillColor: [6, 182, 212], fontSize: 6 },
                 styles: { fontSize: 6, cellPadding: 1.5 },
+                margin: { bottom: 25 }
             })
 
             // Footer Branding
@@ -249,11 +250,11 @@ export default function Leave() {
 
             doc.setFontSize(16)
             doc.setTextColor(6, 182, 212)
-            doc.text('INDIVIDUAL LEAVE RECORD', 105, 15, { align: 'center' })
+            doc.text('INDIVIDUAL LEAVE RECORD', 105, 20, { align: 'center' })
 
             doc.setFontSize(10)
             doc.setTextColor(0)
-            let y = 28
+            let y = 35
             doc.setFont(undefined, 'bold')
             doc.text('Employee:', 14, y)
             doc.setFont(undefined, 'normal')
@@ -286,6 +287,7 @@ export default function Leave() {
                 theme: 'grid',
                 headStyles: { fillColor: [6, 182, 212] },
                 styles: { fontSize: 9 },
+                margin: { bottom: 30 }
             })
 
             // Add leave history for this employee
@@ -312,6 +314,7 @@ export default function Leave() {
                     theme: 'grid',
                     headStyles: { fillColor: [59, 130, 246] },
                     styles: { fontSize: 8 },
+                    margin: { bottom: 30 }
                 })
             }
 

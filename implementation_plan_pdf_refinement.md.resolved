@@ -1,0 +1,35 @@
+# PDF Layout & Alignment Refinement
+
+This plan addresses visual inconsistencies and overlapping issues in generated PDF reports.
+
+## Proposed Changes
+
+### [MODIFY] [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx)
+- Update all `autoTable` calls (Earnings, Deductions, CPF, Employer Contributions, Attendance) to include:
+  - `columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 'auto', halign: 'right' } }`
+  - This ensures standard "Description" column width and right-aligned "Amount" columns across all sections.
+
+### [MODIFY] [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeKETs.jsx)
+- **Header Fix**: Shift header text (Employer, Employee, Issue Date) further down (starting at Y=40) to clear the logo height.
+- **Top Margin**: Update `startY` for the first table to `60` instead of `50`.
+- **Footer Fix**: Update `autoTable` calls to include `margin: { bottom: 30 }` to prevent overlapping with the footer branding at Y=285.
+
+### [MODIFY] [Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx)
+- **Header Fix**: Adjust individual leave record header positioning to avoid overlapping with the logo.
+- **Margins**: Add `margin: { bottom: 30 }` to all `autoTable` calls in [exportSummaryPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx#163-232) and [exportIndividualPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx#233-337).
+- **Positioning**: Shift table `startY` down to provide more breathing room below the header.
+
+## Verification Plan
+
+### Automated Verification (Browser)
+1. **Payslip PDF**:
+   - Navigate to Payroll -> View finalized run -> Payslip.
+   - Click "Export PDF".
+   - Verify all table amount columns are perfectly aligned and right-justified as per the provided screenshot reference.
+2. **KET PDF**:
+   - Generate KET PDF and verify header text is below the logo and footer text is not cut off by tables.
+3. **Leave PDF**:
+   - Generate Individual Leave PDF and verify similar fixes.
+
+### Manual Verification
+- Review generated PDFs visually to ensure no new regressions in layout or data truncation.
