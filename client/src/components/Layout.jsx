@@ -114,7 +114,7 @@ export default function Layout() {
                     </div>
 
                     {/* Master Data Group */}
-                    {['Admin', 'HR'].includes(role) && (
+                    {['Admin', 'HR', 'Operations Admin'].includes(role) && (
                         <div className="pt-4 mt-4">
                             <div className="px-5 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                                 Settings

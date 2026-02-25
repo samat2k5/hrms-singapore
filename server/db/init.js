@@ -115,9 +115,18 @@ async function getDb() {
     if (rolesCheck[0].values[0][0] === 0) {
       db.run(`INSERT INTO user_roles (name, description, permissions) VALUES (?, ?, ?)`, ['Admin', 'Full system access', JSON.stringify(['attendance:import:cross-entity'])]);
       db.run(`INSERT INTO user_roles (name, description, permissions) VALUES (?, ?, ?)`, ['HR', 'Human resources and payroll management', JSON.stringify(['attendance:import:cross-entity'])]);
+      db.run(`INSERT INTO user_roles (name, description, permissions) VALUES (?, ?, ?)`, ['Operations Admin', 'Admin access to operations only. Restricted from Entity, Users, Roles masters.', JSON.stringify(['attendance:import:cross-entity'])]);
       saveDb();
+    } else {
+      // Check if Operations Admin exists, if not add it
+      const opsAdminCheck = db.exec("SELECT id FROM user_roles WHERE name = 'Operations Admin'");
+      if (!opsAdminCheck.length || !opsAdminCheck[0].values.length) {
+        console.log('[DB] Adding missing Operations Admin role...');
+        db.run(`INSERT INTO user_roles (name, description, permissions) VALUES (?, ?, ?)`, ['Operations Admin', 'Admin access to operations only. Restricted from Entity, Users, Roles masters.', JSON.stringify(['attendance:import:cross-entity'])]);
+        saveDb();
+      }
     }
-  } catch (e) { }
+  } catch (e) { console.error('[DB] User roles check/seed failed:', e.message); }
 
   return db;
 }
@@ -577,7 +586,7 @@ function createSchema(database) {
   `);
 
   database.run(`
-    CREATE TABLE IF NOT EXISTS shift_settings (
+    CREATE TABLE IF NOT EXISTS shift_settings_v2 (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entity_id INTEGER NOT NULL,
       shift_name TEXT NOT NULL,
@@ -606,6 +615,7 @@ function seedData(database) {
 
   database.run(`INSERT INTO user_roles (name, description, permissions) VALUES (?, ?, ?)`, ['Admin', 'Full system access', JSON.stringify(['attendance:import:cross-entity'])]);
   database.run(`INSERT INTO user_roles (name, description, permissions) VALUES (?, ?, ?)`, ['HR', 'Human resources and payroll management', JSON.stringify(['attendance:import:cross-entity'])]);
+  database.run(`INSERT INTO user_roles (name, description, permissions) VALUES (?, ?, ?)`, ['Operations Admin', 'Admin access to operations only. Restricted from Entity, Users, Roles masters.', JSON.stringify(['attendance:import:cross-entity'])]);
 
   database.run(`INSERT INTO users (username, password_hash, full_name) VALUES (?, ?, ?)`, ['system', systemHash, 'System Administrator']);
   database.run(`INSERT INTO user_entity_roles (user_id, entity_id, role, managed_groups) VALUES (?, ?, ?, ?)`, [1, 1, 'Admin', '[]']);
