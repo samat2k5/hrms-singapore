@@ -1,0 +1,33 @@
+# Fix Face Attendance Timezone (SGT)
+
+Currently, the `face-clock` route on the server uses the system's default time, which is UTC. This causes attendance records to be off by 8 hours for Singapore.
+
+## Proposed Changes
+
+### [MODIFY] [attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/attendance.js)
+- Update the `/face-clock` route to calculate the current date and time in SGT (UTC+8).
+- Replace:
+  ```javascript
+  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+  ```
+  With a robust SGT calculation:
+  ```javascript
+  const now = new Date();
+  const sgtOffset = 8 * 60; // Singapore is UTC+8
+  const sgtTime = new Date(now.getTime() + (sgtOffset * 60 * 1000));
+  
+  const today = sgtTime.toISOString().split('T')[0];
+  const timeStr = String(sgtTime.getUTCHours()).padStart(2, '0') + String(sgtTime.getUTCMinutes()).padStart(2, '0');
+  ```
+  > [!NOTE]
+  > Using `getUTCHours()` on the adjusted date ensures we get the "local" hours of the offset date regardless of server system timezone.
+
+## Verification Plan
+
+### Manual Verification
+1. Open the Face Attendance page.
+2. Clock in via face recognition.
+3. Check the "Attendance Logs" or `timesheets` table in the database to ensure the [date](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#86-87) and `in_time`/`out_time` match current Singapore time.
+4. Verify the toast notification shows the correct time if applicable.

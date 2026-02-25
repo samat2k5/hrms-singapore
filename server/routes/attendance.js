@@ -359,9 +359,12 @@ router.post('/face-clock', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Face not recognized' });
         }
 
-        const today = new Date().toISOString().split('T')[0];
         const now = new Date();
-        const timeStr = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+        const sgtOffset = 8 * 60; // Singapore is UTC+8
+        const sgtTime = new Date(now.getTime() + (sgtOffset * 60 * 1000));
+
+        const today = sgtTime.toISOString().split('T')[0];
+        const timeStr = String(sgtTime.getUTCHours()).padStart(2, '0') + String(sgtTime.getUTCMinutes()).padStart(2, '0');
 
         const checkRes = db.exec('SELECT in_time, out_time FROM timesheets WHERE employee_id = ? AND date = ? AND entity_id = ?', [bestMatch.id, today, entityId]);
         const existing = toObjects(checkRes)[0];
