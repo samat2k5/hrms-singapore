@@ -352,13 +352,14 @@ router.get('/payslip/:id', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const result = db.exec(`
-            SELECT p.*, pr.period_year, pr.period_month, pr.run_date, pr.payment_date, be.name as entity_name, be.logo_url 
+            SELECT p.*, pr.period_year, pr.period_month, pr.run_date, pr.payment_date, be.name as entity_name, be.logo_url,
+                   e.email, e.whatsapp_number, e.mobile_number
             FROM payslips p 
             JOIN payroll_runs pr ON p.payroll_run_id = pr.id 
             JOIN employees e ON p.employee_id = e.id
             JOIN entities be ON e.entity_id = be.id
-            WHERE p.id = ?
-        `, [req.params.id]);
+            WHERE p.id = ? AND e.entity_id = ?
+        `, [req.params.id, req.user.entityId]);
         const payslips = toObjects(result);
         if (!payslips.length) return res.status(404).json({ error: 'Payslip not found' });
 
@@ -419,14 +420,15 @@ router.delete('/run/:id', authMiddleware, async (req, res) => {
 const { generateGIROFile } = require('../engine/giro-engine');
 
 // GET /api/payroll/export-giro/:runId
-router.get('/export-giro/:runId', async (req, res) => {
+router.get('/export-giro/:runId', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const runId = req.params.runId;
         const format = req.query.format || 'DBS';
+        const entityId = req.user.entityId;
 
-        const runResult = db.exec(`SELECT * FROM payroll_runs WHERE id = ${runId}`);
-        if (!runResult.length) return res.status(404).json({ error: 'Run not found' });
+        const runResult = db.exec(`SELECT * FROM payroll_runs WHERE id = ? AND entity_id = ?`, [runId, entityId]);
+        if (!runResult.length || !runResult[0].values.length) return res.status(404).json({ error: 'Run not found or access denied' });
         const run = toObjects(runResult)[0];
 
         const slipsResult = db.exec(`
@@ -448,13 +450,14 @@ router.get('/export-giro/:runId', async (req, res) => {
 });
 
 // GET /api/payroll/export-cpf/:runId
-router.get('/export-cpf/:runId', async (req, res) => {
+router.get('/export-cpf/:runId', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const runId = req.params.runId;
+        const entityId = req.user.entityId;
 
-        const runResult = db.exec(`SELECT * FROM payroll_runs WHERE id = ${runId}`);
-        if (!runResult.length) return res.status(404).json({ error: 'Run not found' });
+        const runResult = db.exec(`SELECT * FROM payroll_runs WHERE id = ? AND entity_id = ?`, [runId, entityId]);
+        if (!runResult.length || !runResult[0].values.length) return res.status(404).json({ error: 'Run not found or access denied' });
         const run = toObjects(runResult)[0];
 
         const slipsResult = db.exec(`

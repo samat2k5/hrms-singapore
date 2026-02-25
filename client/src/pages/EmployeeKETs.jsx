@@ -170,130 +170,177 @@ export default function EmployeeKETs() {
         }
     }
 
+    const handleTransmit = async (mode) => {
+        if (!ket) return;
+
+        if (mode === 'whatsapp') {
+            const phone = ket.whatsapp_number || ket.mobile_number || employee?.whatsapp_number || employee?.mobile_number;
+            console.log('[KET_TRANSMIT] WhatsApp Mode - Phone:', phone);
+            if (!phone) {
+                toast.error('WhatsApp/Mobile number not found for this employee');
+                return;
+            }
+            const cleanPhone = phone.replace(/\D/g, '');
+            const message = encodeURIComponent(`Hi ${ket.employee_name || employee?.full_name}, your Key Employment Terms (KET) document is ready. You can view it on the ezyHR Portal.`);
+            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+        } else if (mode === 'email') {
+            const email = ket.email || employee?.email;
+            console.log('[KET_TRANSMIT] Email Mode - Email:', email);
+            if (!email) {
+                toast.error('Employee email not found');
+                return;
+            }
+
+            const tid = toast.loading('Preparing KET and sending email...');
+            try {
+                const doc = await generatePDFDoc();
+                const pdfBase64 = doc.output('datauristring');
+
+                await api.transmitEmail({
+                    employeeId: ket.employee_id,
+                    pdfBase64,
+                    fileName: `KET_${ket.employee_name.replace(/\s+/g, '_')}.pdf`,
+                    subject: `Your Key Employment Terms (KET) - ${activeEntity?.name || 'ezyHR'}`,
+                    message: `Dear ${ket.employee_name},\n\nPlease find your Key Employment Terms (KET) document attached.\n\nRegards,\n${activeEntity?.name || 'ezyHR'} Team`
+                });
+
+                toast.success('KET sent via email successfully', { id: tid });
+            } catch (err) {
+                console.error(err);
+                toast.error('Failed to transmit email: ' + err.message, { id: tid });
+            }
+        }
+    }
+
+    const generatePDFDoc = async () => {
+        const jspdfModule = await import('jspdf');
+        const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+        const autotableModule = await import('jspdf-autotable');
+        const autoTable = autotableModule.default || autotableModule;
+
+        if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
+        if (!ket) throw new Error("KET data missing");
+
+        const doc = new jsPDF()
+
+        // Header Branding Update
+        const logo = await loadLogo(ket.logo_url);
+        doc.addImage(logo, ket.logo_url ? (ket.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 40, 20);
+
+        doc.setFontSize(18)
+        doc.setTextColor(6, 182, 212)
+        doc.text('Key Employment Terms (KET)', 60, 25)
+
+        doc.setFontSize(11)
+        doc.setTextColor(0)
+        let yText = 40
+        doc.text(`Employer: ${ket.entity_name || employee?.entity_name || activeEntity?.name || 'Company Name'}`, 14, yText)
+        doc.text(`Employee: ${employee?.full_name || ''} (${employee?.employee_id || ''})`, 14, yText + 6)
+        doc.text(`Issue Date: ${ket.issued_date ? formatDate(ket.issued_date) : 'Draft'}`, 14, yText + 12)
+
+        const body = [
+            ['Job Title', ket.job_title || ''],
+            ['Main Duties and Responsibilities', ket.main_duties || ''],
+            ['Employment Start Date', ket.employment_start_date ? formatDate(ket.employment_start_date) : ''],
+            ['Employment End Date', ket.employment_end_date ? formatDate(ket.employment_end_date) : 'N.A.'],
+            ['Employment Type', ket.employment_type || ''],
+            ['Daily Working Hours', ket.working_hours_details || `${ket.working_hours_per_day} hours/day`],
+            ['Break During Work', ket.break_hours || '—'],
+            ['Number of Working Days/Week', ket.working_days_per_week?.toString() || ''],
+            ['Rest Day', ket.rest_day || ''],
+            ['Salary Period', ket.salary_period || ''],
+            ['Date(s) of Salary Payment', ket.salary_payment_date || '—'],
+            ['Date(s) of Overtime Payment', ket.overtime_payment_date || '—'],
+            ['Basic Rate of Pay', formatCurrency(ket.basic_salary)],
+            ['Gross Rate of Pay', formatCurrency(ket.gross_rate_of_pay)],
+            ['Overtime Rate of Pay', formatCurrency(ket.overtime_rate)],
+            ['Fixed Allowances', `Transport: ${formatCurrency(ket.fixed_allowances?.transport)} | Meal: ${formatCurrency(ket.fixed_allowances?.meal)}`],
+            ['Other Salary Components', ket.other_salary_components || '—'],
+            ['CPF Contributions Payable', ket.cpf_payable ? 'Yes' : 'No']
+        ];
+
+        let cAllowances = "";
+        let cDeductions = "";
+        try {
+            if (ket.custom_allowances && ket.custom_allowances !== '{}') {
+                const ca = JSON.parse(ket.custom_allowances);
+                Object.keys(ca).forEach(k => {
+                    if (ca[k]) cAllowances += `${k}: ${formatCurrency(ca[k])}\n`;
+                });
+            }
+            if (ket.custom_deductions && ket.custom_deductions !== '{}') {
+                const cd = JSON.parse(ket.custom_deductions);
+                Object.keys(cd).forEach(k => {
+                    if (cd[k]) cDeductions += `${k}: ${formatCurrency(cd[k])}\n`;
+                });
+            }
+        } catch (e) { }
+
+        if (cAllowances) body.push(['Custom Allowances', cAllowances.trim()]);
+        if (cDeductions) body.push(['Custom Deductions', cDeductions.trim()]);
+
+        const leaveBody = [
+            ['Paid Annual Leave', `${ket.annual_leave_days} days/year`],
+            ['Paid Outpatient Sick Leave', `${ket.sick_leave_days} days/year`],
+            ['Paid Hospitalisation Leave', `${ket.hospitalization_days} days/year`],
+            ['Medical Benefits', ket.medical_benefits || '—']
+        ];
+
+        autoTable(doc, {
+            startY: 60,
+            head: [['Term Details', 'Value']],
+            body: body,
+            theme: 'grid',
+            headStyles: { fillColor: [15, 23, 42] },
+            styles: { fontSize: 9 },
+            margin: { bottom: 30 }
+        })
+
+        autoTable(doc, {
+            startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
+            head: [['Leave & Medical Benefits', 'Value']],
+            body: leaveBody,
+            theme: 'grid',
+            headStyles: { fillColor: [15, 23, 42] },
+            styles: { fontSize: 9 },
+            margin: { bottom: 30 }
+        })
+
+        const otherBody = [
+            ['Length of Probation', `${ket.probation_months} months`],
+            ['Probation Start Date', ket.probation_start_date ? formatDate(ket.probation_start_date) : '—'],
+            ['Probation End Date', ket.probation_end_date ? formatDate(ket.probation_end_date) : '—'],
+            ['Notice Period (Termination)', ket.notice_period || '—']
+        ];
+
+        autoTable(doc, {
+            startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
+            head: [['Other Terms', 'Value']],
+            body: otherBody,
+            theme: 'grid',
+            headStyles: { fillColor: [15, 23, 42] },
+            styles: { fontSize: 9 },
+            margin: { bottom: 30 }
+        })
+
+        // Footer Branding
+        doc.setFontSize(7)
+        doc.setTextColor(150)
+        const footerY = 285;
+        try {
+            const ezyLogo = new Image();
+            ezyLogo.src = '/ezyhr-logo.png';
+            doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
+            doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+        } catch (e) { }
+        doc.text('This is a computer-generated KET document. Compliant with Singapore MOM Employment Act requirements.', 105, footerY + 5, { align: 'center' })
+
+        return doc;
+    }
+
     const handleGeneratePDF = async () => {
         try {
-            const jspdfModule = await import('jspdf');
-            const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
-            const autotableModule = await import('jspdf-autotable');
-            const autoTable = autotableModule.default || autotableModule;
-
-            if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
-            if (!ket) throw new Error("KET data missing");
-
-            const doc = new jsPDF()
-
-            // Header Branding Update
-            const logo = await loadLogo(ket.logo_url);
-            doc.addImage(logo, ket.logo_url ? (ket.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 40, 20);
-
-            doc.setFontSize(18)
-            doc.setTextColor(6, 182, 212)
-            doc.text('Key Employment Terms (KET)', 60, 25)
-
-            doc.setFontSize(11)
-            doc.setTextColor(0)
-            let yText = 40
-            doc.text(`Employer: ${ket.entity_name || employee?.entity_name || activeEntity?.name || 'Company Name'}`, 14, yText)
-            doc.text(`Employee: ${employee?.full_name || ''} (${employee?.employee_id || ''})`, 14, yText + 6)
-            doc.text(`Issue Date: ${ket.issued_date ? formatDate(ket.issued_date) : 'Draft'}`, 14, yText + 12)
-
-            const body = [
-                ['Job Title', ket.job_title || ''],
-                ['Main Duties and Responsibilities', ket.main_duties || ''],
-                ['Employment Start Date', ket.employment_start_date ? formatDate(ket.employment_start_date) : ''],
-                ['Employment End Date', ket.employment_end_date ? formatDate(ket.employment_end_date) : 'N.A.'],
-                ['Employment Type', ket.employment_type || ''],
-                ['Daily Working Hours', ket.working_hours_details || `${ket.working_hours_per_day} hours/day`],
-                ['Break During Work', ket.break_hours || '—'],
-                ['Number of Working Days/Week', ket.working_days_per_week?.toString() || ''],
-                ['Rest Day', ket.rest_day || ''],
-                ['Salary Period', ket.salary_period || ''],
-                ['Date(s) of Salary Payment', ket.salary_payment_date || '—'],
-                ['Date(s) of Overtime Payment', ket.overtime_payment_date || '—'],
-                ['Basic Rate of Pay', formatCurrency(ket.basic_salary)],
-                ['Gross Rate of Pay', formatCurrency(ket.gross_rate_of_pay)],
-                ['Overtime Rate of Pay', formatCurrency(ket.overtime_rate)],
-                ['Fixed Allowances', `Transport: ${formatCurrency(ket.fixed_allowances?.transport)} | Meal: ${formatCurrency(ket.fixed_allowances?.meal)}`],
-                ['Other Salary Components', ket.other_salary_components || '—'],
-                ['CPF Contributions Payable', ket.cpf_payable ? 'Yes' : 'No']
-            ];
-
-            let cAllowances = "";
-            let cDeductions = "";
-            try {
-                if (ket.custom_allowances && ket.custom_allowances !== '{}') {
-                    const ca = JSON.parse(ket.custom_allowances);
-                    Object.keys(ca).forEach(k => {
-                        if (ca[k]) cAllowances += `${k}: ${formatCurrency(ca[k])}\n`;
-                    });
-                }
-                if (ket.custom_deductions && ket.custom_deductions !== '{}') {
-                    const cd = JSON.parse(ket.custom_deductions);
-                    Object.keys(cd).forEach(k => {
-                        if (cd[k]) cDeductions += `${k}: ${formatCurrency(cd[k])}\n`;
-                    });
-                }
-            } catch (e) { }
-
-            if (cAllowances) body.push(['Custom Allowances', cAllowances.trim()]);
-            if (cDeductions) body.push(['Custom Deductions', cDeductions.trim()]);
-
-            const leaveBody = [
-                ['Paid Annual Leave', `${ket.annual_leave_days} days/year`],
-                ['Paid Outpatient Sick Leave', `${ket.sick_leave_days} days/year`],
-                ['Paid Hospitalisation Leave', `${ket.hospitalization_days} days/year`],
-                ['Medical Benefits', ket.medical_benefits || '—']
-            ];
-
-            autoTable(doc, {
-                startY: 60,
-                head: [['Term Details', 'Value']],
-                body: body,
-                theme: 'grid',
-                headStyles: { fillColor: [15, 23, 42] },
-                styles: { fontSize: 9 },
-                margin: { bottom: 30 }
-            })
-
-            autoTable(doc, {
-                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
-                head: [['Leave & Medical Benefits', 'Value']],
-                body: leaveBody,
-                theme: 'grid',
-                headStyles: { fillColor: [15, 23, 42] },
-                styles: { fontSize: 9 },
-                margin: { bottom: 30 }
-            })
-
-            const otherBody = [
-                ['Length of Probation', `${ket.probation_months} months`],
-                ['Probation Start Date', ket.probation_start_date ? formatDate(ket.probation_start_date) : '—'],
-                ['Probation End Date', ket.probation_end_date ? formatDate(ket.probation_end_date) : '—'],
-                ['Notice Period (Termination)', ket.notice_period || '—']
-            ];
-
-            autoTable(doc, {
-                startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
-                head: [['Other Terms', 'Value']],
-                body: otherBody,
-                theme: 'grid',
-                headStyles: { fillColor: [15, 23, 42] },
-                styles: { fontSize: 9 },
-                margin: { bottom: 30 }
-            })
-
-            // Footer Branding
-            doc.setFontSize(7)
-            doc.setTextColor(150)
-            const footerY = 285;
-            try {
-                const ezyLogo = new Image();
-                ezyLogo.src = '/ezyhr-logo.png';
-                doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
-                doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
-            } catch (e) { }
-            doc.text('This is a computer-generated KET document. Compliant with Singapore MOM Employment Act requirements.', 105, footerY + 5, { align: 'center' })
-
+            const doc = await generatePDFDoc();
             doc.save(`KET_${employee?.full_name?.replace(/\s+/g, '_') || 'Employee'}.pdf`)
             toast.success('KET PDF Generated!')
         } catch (err) {
@@ -324,7 +371,25 @@ export default function EmployeeKETs() {
                 <div className="flex gap-3">
                     {!editing ? (
                         <>
-                            <button onClick={handleGeneratePDF} className="px-4 py-2 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 text-sm transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)]">📄 Generate PDF</button>
+                            <div className="dropdown dropdown-end">
+                                <button tabIndex={0} className="px-4 py-2 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 text-sm transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)] flex items-center gap-2">
+                                    <span>📤 Transmit</span>
+                                    <span className="text-[10px]">▼</span>
+                                </button>
+                                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow-2xl bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl w-52 mt-2">
+                                    <li>
+                                        <button onClick={() => handleTransmit('email')} className="text-[var(--text-main)] hover:bg-[var(--brand-primary)]/10">
+                                            <span>📧 Send via Email</span>
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button onClick={() => handleTransmit('whatsapp')} className="text-[var(--text-main)] hover:bg-emerald-500/10">
+                                            <span>💬 Share via WhatsApp</span>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                            <button onClick={handleGeneratePDF} className="px-4 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-main)] hover:bg-[var(--bg-input)] text-sm transition-all flex items-center gap-2">📄 Download PDF</button>
                             <button onClick={() => setEditing(true)} className="px-4 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all">✏️ Edit</button>
                             {!ket.issued_date && (
                                 <button onClick={handleIssue} className="btn-primary text-sm">📋 Issue KET</button>

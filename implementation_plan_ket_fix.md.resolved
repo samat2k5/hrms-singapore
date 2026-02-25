@@ -1,0 +1,31 @@
+# System-Wide Entity Context Hardening
+
+The user reported a transmission error for Kittappa Sasikumar. Investigation revealed that multiple individual document retrieval and action routes were missing `entity_id` checks, allowing for cross-entity data access if an ID was known. This fix enforces strict entity isolation across all report and transmission-related routes.
+
+## Proposed Changes
+
+### Backend Hardening
+
+#### [MODIFY] [kets.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/kets.js)
+- Update `GET /api/kets/:employeeId` to join with `employees` and verify `e.entity_id = ?`.
+
+#### [MODIFY] [payroll.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/payroll.js)
+- **`GET /api/payroll/payslip/:id`**: Add `AND e.entity_id = ?` to the SQL query.
+- **`GET /api/payroll/export-giro/:runId`**: Add [authMiddleware](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/middleware/auth.js#6-60) and verify `run.entity_id = ?`.
+- **`GET /api/payroll/export-cpf/:runId`**: Add [authMiddleware](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/middleware/auth.js#6-60) and verify `run.entity_id = ?`.
+
+#### [MODIFY] [leave.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/leave.js)
+- **`GET /api/leave/balances/:employeeId/:year`**: Verify the employee belongs to the active entity before computing balances.
+- **`PUT /api/leave/request/:id/approve`**: Verify the leave request refers to an employee in the active entity.
+- **`PUT /api/leave/request/:id/reject`**: Verify the leave request refers to an employee in the active entity.
+
+## Verification Plan
+
+### Automated Verification
+- **Cross-Entity Exploit Test**: Attempt to access a Payslip, KET, or Leave Balance for an ID belonging to a different entity. Verify `404` or `403` is returned.
+- **Valid Access Test**: Verify that legitimate users can still access and transmit their own entity's documents.
+
+### Manual Verification
+- Log in to Entity 1.
+- Navigate to Kittappa Sasikumar's documents.
+- Verify that WhatsApp and Email transmission now work without "not found" errors, as the correct employee record is strictly matched.

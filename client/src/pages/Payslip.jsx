@@ -24,7 +24,7 @@ export default function Payslip() {
         api.getPayslip(id).then(setPayslip).catch(e => toast.error(e.message)).finally(() => setLoading(false))
     }, [id])
 
-    const handleExportPDF = async () => {
+    const generatePDFDoc = async () => {
         try {
             const jspdfModule = await import('jspdf');
             const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
@@ -274,11 +274,59 @@ export default function Payslip() {
                 })
             }
 
-            doc.save(`payslip_${ps.employee_code}_${ps.period_year}_${ps.period_month}.pdf`)
+            return doc;
+        } catch (err) {
+            console.error('[PDF_GEN_ERROR]', err);
+            throw err;
+        }
+    }
+
+    const handleExportPDF = async () => {
+        try {
+            const doc = await generatePDFDoc();
+            doc.save(`payslip_${payslip.employee_code}_${payslip.period_year}_${payslip.period_month}.pdf`)
             toast.success('PDF downloaded')
         } catch (err) {
-            console.error('[PDF_EXPORT_ERROR]', err);
             toast.error('PDF export failed: ' + (err.message || 'Unknown error'))
+        }
+    }
+
+    const handleTransmit = async (mode) => {
+        if (!payslip) return;
+
+        if (mode === 'whatsapp') {
+            const phone = payslip.whatsapp_number || payslip.mobile_number;
+            if (!phone) {
+                toast.error('WhatsApp/Mobile number not found for this employee');
+                return;
+            }
+            const cleanPhone = phone.replace(/\D/g, '');
+            const message = encodeURIComponent(`Hi ${payslip.employee_name}, your payslip for ${formatMonth(payslip.period_year, payslip.period_month)} is ready. You can view it on the ezyHR Portal.`);
+            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+        } else if (mode === 'email') {
+            if (!payslip.email) {
+                toast.error('Employee email not found');
+                return;
+            }
+
+            const tid = toast.loading('Preparing payslip and sending email...');
+            try {
+                const doc = await generatePDFDoc();
+                const pdfBase64 = doc.output('datauristring');
+
+                await api.transmitEmail({
+                    employeeId: payslip.employee_id,
+                    pdfBase64,
+                    fileName: `Payslip_${formatMonth(payslip.period_year, payslip.period_month).replace(' ', '_')}.pdf`,
+                    subject: `Payslip for ${formatMonth(payslip.period_year, payslip.period_month)}`,
+                    message: `Dear ${payslip.employee_name},\n\nPlease find your itemized payslip for ${formatMonth(payslip.period_year, payslip.period_month)} attached.\n\nRegards,\nezyHR Payroll Team`
+                });
+
+                toast.success('Payslip sent via email successfully', { id: tid });
+            } catch (err) {
+                console.error(err);
+                toast.error('Failed to transmit email: ' + err.message, { id: tid });
+            }
         }
     }
 
@@ -309,7 +357,27 @@ export default function Payslip() {
                         <p className="text-[var(--text-muted)]">{formatMonth(ps.period_year, ps.period_month)}</p>
                     </div>
                 </div>
-                <button onClick={handleExportPDF} className="btn-primary text-sm">📥 Export PDF</button>
+                <div className="flex gap-2">
+                    <div className="dropdown dropdown-end">
+                        <button tabIndex={0} className="btn-primary text-sm flex items-center gap-2">
+                            <span>📤 Transmit</span>
+                            <span className="text-[10px]">▼</span>
+                        </button>
+                        <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow-2xl bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl w-52 mt-2">
+                            <li>
+                                <button onClick={() => handleTransmit('email')} className="text-[var(--text-main)] hover:bg-[var(--brand-primary)]/10">
+                                    <span>📧 Send via Email</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => handleTransmit('whatsapp')} className="text-[var(--text-main)] hover:bg-emerald-500/10">
+                                    <span>💬 Share via WhatsApp</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <button onClick={handleExportPDF} className="btn-secondary text-sm">📥 Download PDF</button>
+                </div>
             </div>
 
             {/* MOM Compliance Badge */}

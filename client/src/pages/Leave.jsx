@@ -232,104 +232,152 @@ export default function Leave() {
     }
 
     // --- PDF Export: Individual Employee ---
-    const exportIndividualPDF = async (empId, data) => {
-        try {
-            const jspdfModule = await import('jspdf');
-            const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
-            const autotableModule = await import('jspdf-autotable');
-            const autoTable = autotableModule.default || autotableModule;
+    const handleTransmit = async (empId, data, mode) => {
+        const emp = employees.find(e => String(e.id) === String(empId));
+        if (!emp) {
+            toast.error('Employee details not found');
+            return;
+        }
 
-            if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
-            if (!data) throw new Error("Employee data missing");
+        if (mode === 'whatsapp') {
+            const phone = emp.whatsapp_number || emp.mobile_number;
+            if (!phone) {
+                toast.error('WhatsApp/Mobile number not found for this employee');
+                return;
+            }
+            const cleanPhone = phone.replace(/\D/g, '');
+            const message = encodeURIComponent(`Hi ${emp.full_name}, your Leave Summary Report for ${year} is ready. You can view it on the ezyHR Portal.`);
+            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+        } else if (mode === 'email') {
+            if (!emp.email) {
+                toast.error('Employee email not found');
+                return;
+            }
 
-            const doc = new jsPDF()
+            const tid = toast.loading('Preparing leave report and sending email...');
+            try {
+                const doc = await generateIndividualPDFDoc(empId, data);
+                const pdfBase64 = doc.output('datauristring');
 
-            // Header Branding Update
-            const logo = await loadLogo(activeEntity?.logo_url);
-            doc.addImage(logo, activeEntity?.logo_url ? (activeEntity.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 40, 20);
+                await api.transmitEmail({
+                    employeeId: emp.id,
+                    pdfBase64,
+                    fileName: `Leave_Report_${emp.full_name.replace(/\s+/g, '_')}_${year}.pdf`,
+                    subject: `Your Leave Summary Report - ${year}`,
+                    message: `Dear ${emp.full_name},\n\nPlease find your Leave Summary Report for the year ${year} attached.\n\nRegards,\nezyHR Team`
+                });
 
-            doc.setFontSize(16)
+                toast.success('Leave report sent via email successfully', { id: tid });
+            } catch (err) {
+                console.error(err);
+                toast.error('Failed to transmit email: ' + err.message, { id: tid });
+            }
+        }
+    }
+
+    const generateIndividualPDFDoc = async (empId, data) => {
+        const jspdfModule = await import('jspdf');
+        const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+        const autotableModule = await import('jspdf-autotable');
+        const autoTable = autotableModule.default || autotableModule;
+
+        if (!jsPDF || !autoTable) throw new Error("PDF libraries failed to load");
+        if (!data) throw new Error("Employee data missing");
+
+        const doc = new jsPDF()
+
+        // Header Branding Update
+        const logo = await loadLogo(activeEntity?.logo_url);
+        doc.addImage(logo, activeEntity?.logo_url ? (activeEntity.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 40, 20);
+
+        doc.setFontSize(16)
+        doc.setTextColor(6, 182, 212)
+        doc.text('INDIVIDUAL LEAVE RECORD', 105, 20, { align: 'center' })
+
+        doc.setFontSize(10)
+        doc.setTextColor(0)
+        let y = 35
+        doc.setFont(undefined, 'bold')
+        doc.text('Employee:', 14, y)
+        doc.setFont(undefined, 'normal')
+        doc.text(`${data.name} (${data.code})`, 50, y)
+
+        y += 7
+        doc.setFont(undefined, 'bold')
+        doc.text('Group:', 14, y)
+        doc.setFont(undefined, 'normal')
+        doc.text(data.group || 'General', 50, y)
+
+        y += 7
+        doc.setFont(undefined, 'bold')
+        doc.text('Year:', 14, y)
+        doc.setFont(undefined, 'normal')
+        doc.text(String(year), 50, y)
+
+        y += 12
+        doc.setFont(undefined, 'bold')
+        doc.text(`Leave Balance as of: ${reportDate}`, 14, y)
+
+        const balanceBody = data.leaves
+            .filter(l => !(l.entitled === 0 && l.leave_type_name === 'Unpaid Leave'))
+            .map(l => [l.leave_type_name, l.entitled, l.earned, l.taken, l.balance])
+
+        autoTable(doc, {
+            startY: y + 5,
+            head: [['Leave Type', 'Entitled', 'Earned', 'Taken', 'Balance']],
+            body: balanceBody,
+            theme: 'grid',
+            headStyles: { fillColor: [6, 182, 212] },
+            styles: { fontSize: 9 },
+            margin: { bottom: 30 }
+        })
+
+        // Add leave history for this employee
+        const empRequests = requests.filter(r => String(r.employee_id) === String(empId))
+        if (empRequests.length > 0) {
+            y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 12
+            doc.setFontSize(12)
             doc.setTextColor(6, 182, 212)
-            doc.text('INDIVIDUAL LEAVE RECORD', 105, 20, { align: 'center' })
+            doc.text('Leave History', 14, y)
 
-            doc.setFontSize(10)
-            doc.setTextColor(0)
-            let y = 35
-            doc.setFont(undefined, 'bold')
-            doc.text('Employee:', 14, y)
-            doc.setFont(undefined, 'normal')
-            doc.text(`${data.name} (${data.code})`, 50, y)
-
-            y += 7
-            doc.setFont(undefined, 'bold')
-            doc.text('Group:', 14, y)
-            doc.setFont(undefined, 'normal')
-            doc.text(data.group || 'General', 50, y)
-
-            y += 7
-            doc.setFont(undefined, 'bold')
-            doc.text('Year:', 14, y)
-            doc.setFont(undefined, 'normal')
-            doc.text(String(year), 50, y)
-
-            y += 12
-            doc.setFont(undefined, 'bold')
-            doc.text(`Leave Balance as of: ${reportDate}`, 14, y)
-
-            const balanceBody = data.leaves
-                .filter(l => !(l.entitled === 0 && l.leave_type_name === 'Unpaid Leave'))
-                .map(l => [l.leave_type_name, l.entitled, l.earned, l.taken, l.balance])
+            const historyBody = empRequests.map(r => [
+                r.leave_type_name,
+                formatDate(r.start_date),
+                formatDate(r.end_date),
+                r.days,
+                r.status,
+                r.reason || '—'
+            ])
 
             autoTable(doc, {
                 startY: y + 5,
-                head: [['Leave Type', 'Entitled', 'Earned', 'Taken', 'Balance']],
-                body: balanceBody,
+                head: [['Type', 'From', 'To', 'Days', 'Status', 'Reason']],
+                body: historyBody,
                 theme: 'grid',
-                headStyles: { fillColor: [6, 182, 212] },
-                styles: { fontSize: 9 },
+                headStyles: { fillColor: [59, 130, 246] },
+                styles: { fontSize: 8 },
                 margin: { bottom: 30 }
             })
+        }
 
-            // Add leave history for this employee
-            const empRequests = requests.filter(r => String(r.employee_id) === String(empId))
-            if (empRequests.length > 0) {
-                y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 12
-                doc.setFontSize(12)
-                doc.setTextColor(6, 182, 212)
-                doc.text('Leave History', 14, y)
+        // Footer Branding
+        doc.setFontSize(7)
+        doc.setTextColor(150)
+        const footerY = 285;
+        try {
+            const ezyLogo = new Image();
+            ezyLogo.src = '/ezyhr-logo.png';
+            doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
+            doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+        } catch (e) { }
+        doc.text(`Report generated on ${reportDateTime} | MOM Compliant Leave Records`, 105, footerY + 5, { align: 'center' })
 
-                const historyBody = empRequests.map(r => [
-                    r.leave_type_name,
-                    formatDate(r.start_date),
-                    formatDate(r.end_date),
-                    r.days,
-                    r.status,
-                    r.reason || '—'
-                ])
+        return doc;
+    }
 
-                autoTable(doc, {
-                    startY: y + 5,
-                    head: [['Type', 'From', 'To', 'Days', 'Status', 'Reason']],
-                    body: historyBody,
-                    theme: 'grid',
-                    headStyles: { fillColor: [59, 130, 246] },
-                    styles: { fontSize: 8 },
-                    margin: { bottom: 30 }
-                })
-            }
-
-            // Footer Branding
-            doc.setFontSize(7)
-            doc.setTextColor(150)
-            const footerY = 285;
-            try {
-                const ezyLogo = new Image();
-                ezyLogo.src = '/ezyhr-logo.png';
-                doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
-                doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
-            } catch (e) { }
-            doc.text(`Report generated on ${reportDateTime} | MOM Compliant Leave Records`, 105, footerY + 5, { align: 'center' })
-
+    const exportIndividualPDF = async (empId, data) => {
+        try {
+            const doc = await generateIndividualPDFDoc(empId, data);
             doc.save(`leave_record_${data.code}_${year}.pdf`)
             toast.success('Individual PDF downloaded')
         } catch (err) {
@@ -437,8 +485,26 @@ export default function Leave() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-[var(--text-muted)]">{year}</span>
+                                        <div className="dropdown dropdown-end">
+                                            <button tabIndex={0} className="text-xs px-2.5 py-1 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/20 transition-colors flex items-center gap-1.5">
+                                                <span>📤 Transmit</span>
+                                                <span className="text-[8px]">▼</span>
+                                            </button>
+                                            <ul tabIndex={0} className="dropdown-content z-[2] menu p-2 shadow-2xl bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl w-48 mt-1">
+                                                <li>
+                                                    <button onClick={() => handleTransmit(empId, data, 'email')} className="text-[var(--text-main)] hover:bg-[var(--brand-primary)]/10 text-xs py-2">
+                                                        <span>📧 Send via Email</span>
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button onClick={() => handleTransmit(empId, data, 'whatsapp')} className="text-[var(--text-main)] hover:bg-emerald-500/10 text-xs py-2">
+                                                        <span>💬 Share via WhatsApp</span>
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
                                         <button onClick={() => exportIndividualPDF(empId, data)}
-                                            className="text-xs px-2.5 py-1 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/20 transition-colors"
+                                            className="text-xs px-2.5 py-1 rounded-lg border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors"
                                             title="Download individual leave record PDF">
                                             📄 PDF
                                         </button>

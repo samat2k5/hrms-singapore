@@ -220,6 +220,9 @@ const api = {
     createUserRole: (data) => request('/user-roles', { method: 'POST', body: data }),
     updateUserRole: (id, data) => request(`/user-roles/${id}`, { method: 'PUT', body: data }),
     deleteUserRole: (id) => request(`/user-roles/${id}`, { method: 'DELETE' }),
+
+    // Transmission
+    transmitEmail: (data) => request('/transmit/email', { method: 'POST', body: data }),
 };
 
 export default api;

@@ -359,7 +359,7 @@ export default function Payroll() {
                                     <th>SDL</th>
                                     <th>SHG</th>
                                     <th>Net Pay</th>
-                                    <th>View</th>
+                                    <th className="sticky right-0 bg-[var(--bg-card)] z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.05)] border-l border-[var(--border-main)] text-center">View</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -406,9 +406,9 @@ export default function Payroll() {
                                             </div>
                                         </td>
                                         <td className="font-semibold text-[var(--brand-primary)]">{formatCurrency(ps.net_pay)}</td>
-                                        <td>
+                                        <td className="sticky right-0 bg-[var(--bg-card)] z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.05)] border-l border-[var(--border-main)] text-center">
                                             <button onClick={() => navigate(`/payroll/payslip/${ps.id}`)}
-                                                className="text-xs px-3 py-1 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/20 transition-colors">
+                                                className="text-xs px-3 py-1 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/20 transition-colors whitespace-nowrap">
                                                 📄 Payslip
                                             </button>
                                         </td>

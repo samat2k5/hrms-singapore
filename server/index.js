@@ -12,6 +12,7 @@ const reportRoutes = require('./routes/reports');
 const documentRoutes = require('./routes/documents');
 const entityRoutes = require('./routes/entities');
 const attendanceRoutes = require('./routes/attendance');
+const transmitRoutes = require('./routes/transmit');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -55,6 +56,7 @@ app.use('/api/shift-settings', require('./routes/shift_settings'));
 app.use('/api/holidays', require('./routes/holidays'));
 app.use('/api/timesheets', require('./routes/timesheets'));
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/transmit', transmitRoutes);
 app.use('/api/iras', require('./routes/iras'));
 
 // Health check

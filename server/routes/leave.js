@@ -30,7 +30,8 @@ async function computeDynamicBalances(db, employeeId, yearString) {
     const year = parseInt(yearString, 10);
     // 1. Get raw balances
     const balResult = db.exec(`
-        SELECT lb.*, lt.name as leave_type_name, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, e.employee_grade, e.entity_id as entity_id, en.logo_url
+        SELECT lb.*, lt.name as leave_type_name, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, e.employee_grade, e.entity_id as entity_id, en.logo_url,
+               e.email, e.whatsapp_number, e.mobile_number
         FROM leave_balances lb
         JOIN leave_types lt ON lb.leave_type_id = lt.id
         JOIN employees e ON lb.employee_id = e.id
@@ -160,6 +161,14 @@ router.get('/balances/:employeeId/:year', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const year = parseInt(req.params.year, 10);
+        const entityId = req.user.entityId;
+
+        // Verify employee belongs to this entity
+        const empRes = db.exec('SELECT id FROM employees WHERE id = ? AND entity_id = ?', [req.params.employeeId, entityId]);
+        if (!empRes.length || !empRes[0].values.length) {
+            return res.status(404).json({ error: 'Employee not found or access denied' });
+        }
+
         const balances = await computeDynamicBalances(db, req.params.employeeId, year);
         res.json(balances);
     } catch (err) {
@@ -272,10 +281,15 @@ router.put('/request/:id/approve', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
 
-        // Get the request
-        const reqResult = db.exec('SELECT * FROM leave_requests WHERE id = ?', [req.params.id]);
+        // Get the request and verify entity
+        const reqResult = db.exec(`
+            SELECT lr.*, e.entity_id 
+            FROM leave_requests lr 
+            JOIN employees e ON lr.employee_id = e.id 
+            WHERE lr.id = ? AND e.entity_id = ?
+        `, [req.params.id, req.user.entityId]);
         const requests = toObjects(reqResult);
-        if (!requests.length) return res.status(404).json({ error: 'Request not found' });
+        if (!requests.length) return res.status(404).json({ error: 'Request not found or access denied' });
 
         const lr = requests[0];
         if (lr.status !== 'Pending') return res.status(400).json({ error: 'Request is not pending' });
@@ -301,6 +315,16 @@ router.put('/request/:id/approve', authMiddleware, async (req, res) => {
 router.put('/request/:id/reject', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
+        const entityId = req.user.entityId;
+
+        // Verify entity ownership
+        const reqResult = db.exec(`
+            SELECT lr.id FROM leave_requests lr 
+            JOIN employees e ON lr.employee_id = e.id 
+            WHERE lr.id = ? AND e.entity_id = ?
+        `, [req.params.id, entityId]);
+        if (!reqResult.length || !reqResult[0].values.length) return res.status(404).json({ error: 'Request not found or access denied' });
+
         db.run('UPDATE leave_requests SET status = \'Rejected\' WHERE id = ?', [req.params.id]);
         saveDb();
         res.json({ message: 'Leave rejected' });

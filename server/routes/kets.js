@@ -19,12 +19,13 @@ router.get('/:employeeId', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const result = db.exec(`
-            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name, en.logo_url
+            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name, en.logo_url,
+                   e.email, e.whatsapp_number, e.mobile_number
             FROM employee_kets k 
             JOIN employees e ON k.employee_id = e.id 
             LEFT JOIN entities en ON e.entity_id = en.id
-            WHERE k.employee_id = ?
-        `, [req.params.employeeId]);
+            WHERE k.employee_id = ? AND e.entity_id = ?
+        `, [req.params.employeeId, req.user.entityId]);
         const kets = toObjects(result);
         if (!kets.length) return res.status(404).json({ error: 'KETs not found' });
 
@@ -132,12 +133,13 @@ router.put('/:employeeId', authMiddleware, async (req, res) => {
 
         // Re-fetch the updated KET with all joined data to return to frontend
         const result = db.exec(`
-            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name, en.logo_url
+            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name, en.logo_url,
+                   e.email, e.whatsapp_number, e.mobile_number
             FROM employee_kets k 
             JOIN employees e ON k.employee_id = e.id 
             LEFT JOIN entities en ON e.entity_id = en.id
-            WHERE k.employee_id = ?
-        `, [empId]);
+            WHERE k.employee_id = ? AND e.entity_id = ?
+        `, [empId, req.user.entityId]);
 
         const kets = toObjects(result);
         if (!kets.length) return res.status(404).json({ error: 'KETs not found after update' });
