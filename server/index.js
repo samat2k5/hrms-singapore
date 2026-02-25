@@ -17,6 +17,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -65,6 +69,12 @@ app.get('/api/health', (req, res) => {
 // React Catch-all route for single-page application routing
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
+
+// JSON 404 for any other /api routes
+app.use('/api', (req, res) => {
+    console.log(`[404_JSON] ${req.method} ${req.url}`);
+    res.status(404).json({ error: `Route ${req.method} ${req.url} not found` });
 });
 
 // Initialize DB and start server

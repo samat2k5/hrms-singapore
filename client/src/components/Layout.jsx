@@ -8,6 +8,7 @@ const navItems = [
     { to: '/employees', icon: '👥', label: 'Employee' },
     { to: '/leave', icon: '🌴', label: 'Leaves' },
     { to: '/attendance', icon: '📅', label: 'Attendance' },
+    { to: '/attendance/face', icon: '👤', label: 'Face Attendance' },
     { to: '/payroll', icon: '💰', label: 'Payroll' },
     { to: '/reports', icon: '📋', label: 'Reports' },
 ]

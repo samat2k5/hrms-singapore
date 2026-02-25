@@ -39,10 +39,16 @@ async function request(endpoint, options = {}) {
         throw new Error('Unauthorized');
     }
 
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-    return data;
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        return data;
+    } else {
+        const text = await res.text();
+        if (!res.ok) throw new Error(`Server returned error ${res.status}: ${text.slice(0, 100)}...`);
+        return text;
+    }
 }
 
 const api = {
@@ -59,6 +65,7 @@ const api = {
     transferEmployee: (id, targetEntityId) => request(`/employees/${id}/transfer`, { method: 'POST', body: JSON.stringify({ targetEntityId }) }),
     updateBulkCustomModifiers: (records) => request('/employees/bulk-custom', { method: 'POST', body: JSON.stringify({ records }) }),
     importEmployees: (formData) => request('/employees/bulk-import', { method: 'POST', body: formData }),
+    updateEmployeeFace: (id, descriptor) => request(`/employees/${id}/face`, { method: 'PUT', body: JSON.stringify({ descriptor }) }),
 
     // Attendance
     uploadAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
@@ -102,6 +109,7 @@ const api = {
     // Attendance Import
     importAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
     getAttendanceHistory: () => request('/attendance/history'),
+    clockInFace: (descriptor) => request('/attendance/face-clock', { method: 'POST', body: JSON.stringify({ descriptor }) }),
 
     // Payroll
     getPayrollRuns: () => request('/payroll/runs'),

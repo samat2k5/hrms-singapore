@@ -33,6 +33,19 @@ async function getDb() {
       }
     } catch (e) { console.error('[DB] Entities migration failed:', e.message); }
 
+    // Employee Face Descriptor Migration
+    try {
+      const check = db.exec("PRAGMA table_info(employees)");
+      if (check.length > 0) {
+        const columns = check[0].values.map(v => v[1]);
+        if (!columns.includes('face_descriptor')) {
+          console.log('[DB] Migrating employees: Adding face_descriptor...');
+          db.run(`ALTER TABLE employees ADD COLUMN face_descriptor TEXT`);
+          saveDb();
+        }
+      }
+    } catch (e) { console.error('[DB] Employee face migration failed:', e.message); }
+
     // MOM Alignment Migrations
     try {
       const check = db.exec("PRAGMA table_info(employee_kets)");
@@ -284,6 +297,7 @@ function createSchema(database) {
       working_days_per_week REAL DEFAULT 5.5,
       rest_day TEXT DEFAULT 'Sunday',
       status TEXT DEFAULT 'Active',
+      face_descriptor TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(entity_id) REFERENCES entities(id),
       UNIQUE(entity_id, employee_id)

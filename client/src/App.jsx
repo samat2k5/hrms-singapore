@@ -23,6 +23,8 @@ import UserRoles from './pages/UserRoles'
 import Customers from './pages/Customers'
 import Sites from './pages/Sites'
 import ShiftSettings from './pages/ShiftSettings'
+import FaceRegistration from './pages/FaceRegistration'
+import FaceAttendance from './pages/FaceAttendance'
 
 import { useEffect, useState } from 'react'
 
@@ -80,9 +82,11 @@ export default function App() {
         <Route path="employees/edit/:id" element={<EmployeeForm />} />
         <Route path="employees/:id/kets" element={<EmployeeKETs />} />
         <Route path="employees/:id/documents" element={<EmployeeDocuments />} />
+        <Route path="employees/:id/face" element={<FaceRegistration />} />
         <Route path="leave" element={<Leave />} />
         <Route path="leave-policies" element={<LeavePolicies />} />
         <Route path="attendance" element={<Attendance />} />
+        <Route path="attendance/face" element={<FaceAttendance />} />
         <Route path="payroll" element={<Payroll />} />
         <Route path="payroll/payslip/:id" element={<Payslip />} />
         <Route path="reports" element={<Reports />} />
