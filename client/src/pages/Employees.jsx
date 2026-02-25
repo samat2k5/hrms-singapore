@@ -40,6 +40,17 @@ const Employees = () => {
         navigate(`/employees/edit/${emp.id}`);
     };
 
+    const handleResetFace = async (emp) => {
+        if (!window.confirm(`Are you sure you want to reset biometric face data for ${emp.full_name}?`)) return;
+        try {
+            await api.resetEmployeeFace(emp.id);
+            toast.success('Biometric data reset successfully');
+            loadEmployees();
+        } catch (err) {
+            toast.error(err.message || 'Failed to reset biometric data');
+        }
+    };
+
     const openTransferModal = (emp) => {
         const targetEntityId = prompt('Enter target Entity ID to transfer:');
         if (!targetEntityId) return;
@@ -125,6 +136,9 @@ const Employees = () => {
                                             <button onClick={() => navigate(`/employees/${emp.id}/kets`)} className="w-8 h-8 flex items-center justify-center border border-[var(--border-main)] bg-[var(--bg-input)] rounded-lg hover:bg-[var(--brand-primary)] hover:text-white transition-all shadow-sm" title="KETs">📋</button>
                                             <button onClick={() => navigate(`/employees/${emp.id}/documents`)} className="w-8 h-8 flex items-center justify-center border border-[var(--border-main)] bg-[var(--bg-input)] rounded-lg hover:bg-[var(--brand-primary)] hover:text-white transition-all shadow-sm" title="Documents">🪪</button>
                                             <button onClick={() => navigate(`/employees/${emp.id}/face`)} className="w-8 h-8 flex items-center justify-center border border-[var(--border-main)] bg-[var(--bg-input)] rounded-lg hover:bg-[var(--brand-primary)] hover:text-white transition-all shadow-sm" title="Face Enrollment">👤</button>
+                                            {emp.face_descriptor && (
+                                                <button onClick={() => handleResetFace(emp)} className="w-8 h-8 flex items-center justify-center border border-[var(--border-main)] bg-[var(--bg-input)] rounded-lg hover:bg-orange-500 hover:text-white transition-all shadow-sm text-orange-500" title="Reset Face Data">🔄</button>
+                                            )}
                                             <button onClick={() => handleEdit(emp)} className="w-8 h-8 flex items-center justify-center border border-[var(--border-main)] bg-[var(--bg-input)] rounded-lg hover:bg-[var(--brand-primary)] hover:text-white transition-all shadow-sm" title="Edit">✏️</button>
                                             {emp.status === 'Active' && (
                                                 <button onClick={() => openTransferModal(emp)} className="w-8 h-8 flex items-center justify-center border border-[var(--border-main)] bg-[var(--bg-input)] rounded-lg hover:bg-[var(--brand-primary)] hover:text-white transition-all shadow-sm" title="Transfer">↗️</button>

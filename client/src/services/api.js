@@ -66,6 +66,7 @@ const api = {
     updateBulkCustomModifiers: (records) => request('/employees/bulk-custom', { method: 'POST', body: JSON.stringify({ records }) }),
     importEmployees: (formData) => request('/employees/bulk-import', { method: 'POST', body: formData }),
     updateEmployeeFace: (id, descriptor) => request(`/employees/${id}/face`, { method: 'PUT', body: JSON.stringify({ descriptor }) }),
+    resetEmployeeFace: (id) => request(`/employees/${id}/face`, { method: 'DELETE' }),
 
     // Attendance
     uploadAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
@@ -108,7 +109,6 @@ const api = {
 
     // Attendance Import
     importAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
-    getAttendanceHistory: () => request('/attendance/history'),
     clockInFace: (descriptor) => request('/attendance/face-clock', { method: 'POST', body: JSON.stringify({ descriptor }) }),
 
     // Payroll
@@ -187,7 +187,7 @@ const api = {
     updateEmployeeGroup: (id, data) => request(`/employee-groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteEmployeeGroup: (id) => request(`/employee-groups/${id}`, { method: 'DELETE' }),
 
-    getEmployeeGrades: () => request('/employee-grades'),
+    getEmployeeGrades: () => request('/employee-groups'),
     createEmployeeGrade: (data) => request('/employee-grades', { method: 'POST', body: JSON.stringify(data) }),
     updateEmployeeGrade: (id, data) => request(`/employee-grades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteEmployeeGrade: (id) => request(`/employee-grades/${id}`, { method: 'DELETE' }),

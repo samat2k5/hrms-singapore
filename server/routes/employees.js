@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Helper to convert sql.js result to array of objects
 function toObjects(result) {
-    if (!result.length) return [];
+    if (!result || !result.length) return [];
     const { columns, values } = result[0];
     return values.map(row => {
         const obj = {};
@@ -60,19 +60,67 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
-// PUT /api/employees/:id/face - MOVED ABOVE /:id TO PREVENT SHADOWING
+// PUT /api/employees/:id/face - Biometric Enrollment with Uniqueness Check
 router.put('/:id/face', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const { descriptor } = req.body;
+        const employeeId = req.params.id;
+        const entityId = req.user.entityId;
+
         if (!descriptor) return res.status(400).json({ error: 'Missing descriptor' });
 
-        console.log(`[FACE_REG] Saving face for employee ${req.params.id}`);
-        db.run('UPDATE employees SET face_descriptor = ? WHERE id = ?', [JSON.stringify(descriptor), req.params.id]);
+        // Anti-Duplication Check: Compare against all employees in the SAME entity
+        const empsRes = db.exec('SELECT id, full_name, face_descriptor FROM employees WHERE entity_id = ? AND face_descriptor IS NOT NULL', [entityId]);
+        const emps = toObjects(empsRes);
+
+        console.log(`[FACE_REG] Checking uniqueness for employee ${employeeId} against ${emps.length} records`);
+
+        const calculateDistance = (d1, d2) => Math.sqrt(d1.reduce((sum, val, i) => sum + Math.pow(val - d2[i], 2), 0));
+
+        for (const emp of emps) {
+            // Skip the employee we are currently enrolling (allow re-enrollment for same person)
+            if (String(emp.id) === String(employeeId)) continue;
+
+            try {
+                const empDescriptor = JSON.parse(emp.face_descriptor);
+                const distance = calculateDistance(descriptor, empDescriptor);
+
+                // Logging for shared distance debugging
+                if (distance < 0.8) {
+                    console.log(`   - Potential match found with ${emp.full_name}, distance: ${distance.toFixed(4)}`);
+                }
+
+                if (distance < 0.6) { // Threshold for identifying same person
+                    console.warn(`[FACE_REG] REJECTED: Face matches ${emp.full_name} (dist: ${distance.toFixed(4)})`);
+                    return res.status(400).json({ error: `Face is already enrolled for ${emp.full_name}` });
+                }
+            } catch (e) { }
+        }
+
+        console.log(`[FACE_REG] SUCCESS: Saving face for employee ${employeeId}`);
+        db.run('UPDATE employees SET face_descriptor = ? WHERE id = ?', [JSON.stringify(descriptor), employeeId]);
         saveDb();
         res.json({ message: 'Face descriptor saved' });
     } catch (err) {
         console.error('[FACE_REG_ERROR]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/employees/:id/face - Nullify Biometric Data
+router.delete('/:id/face', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const employeeId = req.params.id;
+        const entityId = req.user.entityId;
+
+        console.log(`[FACE_RESET] Nullifying face for employee ${employeeId}`);
+        db.run('UPDATE employees SET face_descriptor = NULL WHERE id = ? AND entity_id = ?', [employeeId, entityId]);
+        saveDb();
+        res.json({ message: 'Face biometric data reset successfully' });
+    } catch (err) {
+        console.error('[FACE_RESET_ERROR]', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -194,7 +242,7 @@ router.post('/:id/transfer', authMiddleware, async (req, res) => {
             db.run(
                 `INSERT INTO employees (entity_id, employee_id, full_name, date_of_birth, national_id, nationality, tax_residency, race, gender, language, mobile_number, whatsapp_number, email, highest_education, designation, department, employee_group, employee_grade, date_joined, basic_salary, transport_allowance, meal_allowance, other_allowance, bank_name, bank_account, cpf_applicable, status, payment_mode, custom_allowances, custom_deductions, site_id) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [targetEntityId, emp.employee_id || '', emp.full_name || '', emp.date_of_birth || null, emp.national_id || null, emp.nationality || 'Citizen', emp.tax_residency || 'Resident', emp.race || 'Chinese', emp.gender || '', emp.language || '', emp.mobile_number || '', emp.whatsapp_number || '', emp.email || '', emp.highest_education || 'Others', emp.designation || '', emp.department || '', emp.employee_group || 'General', emp.employee_grade || '', emp.date_joined || null, emp.basic_salary || 0, emp.transport_allowance || 0, emp.meal_allowance || 0, emp.other_allowance || 0, emp.bank_name || '', emp.bank_account || '', emp.cpf_applicable !== undefined ? emp.cpf_applicable : 1, 'Active', emp.payment_mode || 'Bank Transfer', emp.custom_allowances || '{}', emp.custom_deductions || '{}', emp.site_id || null]
+                [targetEntityId, emp.employee_id || '', emp.full_name || '', emp.date_of_birth || null, emp.national_id || null, emp.nationality || 'Singapore Citizen', emp.tax_residency || 'Resident', emp.race || 'Chinese', emp.gender || '', emp.language || '', emp.mobile_number || '', emp.whatsapp_number || '', emp.email || '', emp.highest_education || 'Others', emp.designation || '', emp.department || '', emp.employee_group || 'General', emp.employee_grade || '', emp.date_joined || null, emp.basic_salary || 0, emp.transport_allowance || 0, emp.meal_allowance || 0, emp.other_allowance || 0, emp.bank_name || '', emp.bank_account || '', emp.cpf_applicable !== undefined ? emp.cpf_applicable : 1, 'Active', emp.payment_mode || 'Bank Transfer', emp.custom_allowances || '{}', emp.custom_deductions || '{}', emp.site_id || null]
             );
             const newEmpId = db.exec(`SELECT last_insert_rowid() AS id`)[0].values[0][0];
             db.run('UPDATE employees SET status = \'Transferred\' WHERE id = ?', [emp.id]);
@@ -234,7 +282,6 @@ router.post('/bulk-import', authMiddleware, upload.single('file'), async (req, r
         db.exec('BEGIN TRANSACTION');
         try {
             for (const row of data) {
-                // Simplified import logic for brevity, keeping core functionality
                 const e = {
                     employee_id: String(row['Employee ID'] || ''),
                     full_name: row['Full Name'] || '',
