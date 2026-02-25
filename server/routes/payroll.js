@@ -90,6 +90,18 @@ router.post('/run', authMiddleware, async (req, res) => {
         );
         const holidays = toObjects(holidayResult);
 
+        // Fetch master shift settings for this entity (used for OT rate calculation)
+        const shiftSettingsResult = db.exec(
+            'SELECT * FROM shift_settings WHERE entity_id = ?',
+            [entityId]
+        );
+        const shiftSettingsList = toObjects(shiftSettingsResult);
+        // Build a map: shift_name (lowercase) -> settings
+        const shiftSettingsMap = {};
+        shiftSettingsList.forEach(ss => {
+            shiftSettingsMap[ss.shift_name.toLowerCase()] = ss;
+        });
+
         // Create payroll run
         const runDate = new Date().toISOString().split('T')[0];
         db.run(
@@ -99,6 +111,10 @@ router.post('/run', authMiddleware, async (req, res) => {
 
         const runResult = db.exec(`SELECT last_insert_rowid() as id`);
         const runId = runResult[0].values[0][0];
+
+        // Fetch entity-level performance multiplier
+        const entityResult = db.exec('SELECT performance_multiplier FROM entities WHERE id = ?', [entityId]);
+        const entityPerfMultiplier = toObjects(entityResult)[0]?.performance_multiplier || 0;
 
         let totalGross = 0, totalCPFEmployee = 0, totalCPFEmployer = 0, totalSDL = 0, totalSHG = 0, totalNet = 0;
 
@@ -123,17 +139,16 @@ router.post('/run', authMiddleware, async (req, res) => {
             // Get OT hours and Penalties for this month from timesheets
             const otResult = db.exec(
                 `SELECT 
-                    COALESCE(SUM(ot_hours), 0) as total_ot, 
-                    COALESCE(SUM(ot_1_5_hours), 0) as total_ot_1_5, 
-                    COALESCE(SUM(ot_2_0_hours), 0) as total_ot_2_0,
-                    COALESCE(SUM(late_mins), 0) as total_late,
-                    COALESCE(SUM(early_out_mins), 0) as total_early_out,
-                    COALESCE(SUM(performance_credit), 0) as total_perf_credit
+                    SUM(ot_hours) as total_ot, 
+                    SUM(ot_1_5_hours) as total_ot_1_5, 
+                    SUM(ot_2_0_hours) as total_ot_2_0,
+                    SUM(late_mins) as total_late,
+                    SUM(early_out_mins) as total_early_out,
+                    SUM(performance_credit) as total_perf_credit
                 FROM timesheets 
                 WHERE employee_id = ? 
-                AND strftime('%Y', date) = ? 
-                AND strftime('%m', date) = ?`,
-                [emp.id, String(year), String(month).padStart(2, '0')]
+                AND date LIKE ?`,
+                [emp.id, `${year}-${String(month).padStart(2, '0')}-%`]
             );
             const otData = toObjects(otResult)[0];
             const otHours = otData.total_ot || 0;
@@ -143,23 +158,13 @@ router.post('/run', authMiddleware, async (req, res) => {
             const earlyOutMins = otData.total_early_out || 0;
             const perfCredits = otData.total_perf_credit || 0;
 
-            // Get Site Performance Multiplier
-            let perfMultiplier = 1.0;
-            if (emp.site_id) {
-                const siteConfigResult = db.exec(`SELECT performance_multiplier FROM site_working_hours WHERE site_id = ? LIMIT 1`, [emp.site_id]);
-                const siteConfig = toObjects(siteConfigResult)[0];
-                if (siteConfig && siteConfig.performance_multiplier !== undefined) {
-                    perfMultiplier = parseFloat(siteConfig.performance_multiplier);
-                }
-            }
+            console.log(`[Payroll Debug] Emp: ${emp.full_name}, Month: ${year}-${month}, OT1.5: ${ot15Hours}, OT2.0: ${ot20Hours}, Perf: ${perfCredits}`);
 
-            // MOM standard overtime rate formula: 1.5 * Hourly Rate
-            // Hourly Rate = (12 * Basic Salary) / (52 * Working Hours Per Week)
-            // Fetch working hours from KETs if available, fallback to MOM standard 44 hours
+            // MOM Overtime Rate: (12 * basic) / (52 * weekly_hours) * 1.5
+            // Use employee's KETs working_hours if set, otherwise find their primary shift from timesheets
             let workingHoursPerWeek = emp.working_hours_per_week || 44;
-            const hoursPerDay = emp.working_hours_per_day || 8; // Default
+            const hoursPerDay = emp.working_hours_per_day || 8;
 
-            // Handle string values for working days (e.g. from the dropdown)
             let daysPerWeek = 5.5;
             const rawDays = emp.working_days_per_week;
             if (typeof rawDays === 'string') {
@@ -168,7 +173,35 @@ router.post('/run', authMiddleware, async (req, res) => {
                 daysPerWeek = rawDays;
             }
 
-            workingHoursPerWeek = hoursPerDay * daysPerWeek;
+            // Determine the employee's primary shift for this month
+            const primaryShiftResult = db.exec(
+                `SELECT shift, COUNT(*) as cnt FROM timesheets 
+                 WHERE employee_id = ? AND strftime('%Y', date) = ? AND strftime('%m', date) = ? 
+                 AND shift IS NOT NULL AND shift != ''
+                 GROUP BY shift ORDER BY cnt DESC LIMIT 1`,
+                [emp.id, String(year), String(month).padStart(2, '0')]
+            );
+            const primaryShiftData = toObjects(primaryShiftResult)[0];
+            const primaryShiftName = (primaryShiftData?.shift || 'day').toLowerCase();
+
+            // Try to use shift config hours if available
+            const shiftConfig = shiftSettingsMap[primaryShiftName];
+            let shiftHoursPerDay = hoursPerDay; // fallback to KET value
+            if (shiftConfig) {
+                // Calculate hours from shift start/end time
+                const [sh, sm] = (shiftConfig.start_time || '08:00').split(':').map(Number);
+                const [eh, em] = (shiftConfig.end_time || '17:00').split(':').map(Number);
+                const lunchMins = shiftConfig.lunch_break_mins || 0;
+                const dinnerMins = shiftConfig.dinner_break_mins || 0;
+                const midnightMins = shiftConfig.midnight_break_mins || 0;
+                const totalBreakMins = lunchMins + dinnerMins + midnightMins;
+                let rawMins = (eh * 60 + em) - (sh * 60 + sm);
+                if (rawMins <= 0) rawMins += 24 * 60; // Overnight shift
+                shiftHoursPerDay = Math.round(((rawMins - totalBreakMins) / 60) * 100) / 100;
+                if (shiftHoursPerDay <= 0) shiftHoursPerDay = 8;
+            }
+
+            workingHoursPerWeek = shiftHoursPerDay * daysPerWeek;
             const restDay = emp.rest_day || 'Sunday';
             const dayMap = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
             const restDayIdx = dayMap[restDay] !== undefined ? dayMap[restDay] : 0;
@@ -215,8 +248,9 @@ router.post('/run', authMiddleware, async (req, res) => {
 
             let overtimeRate = 0;
             if (emp.basic_salary && emp.basic_salary > 0) {
+                // MOM-compliant formula: (12 * monthly basic) / (52 * weekly hours) = hourly base rate
                 const hourlyRate = (12 * emp.basic_salary) / (52 * workingHoursPerWeek);
-                overtimeRate = hourlyRate * 1.5;
+                overtimeRate = hourlyRate * 1.5; // 1.5x multiplier stored as the 'rate' used for OT 1.5x column
             }
 
             const payslip = processEmployeePayroll(emp, {
@@ -230,8 +264,9 @@ router.post('/run', authMiddleware, async (req, res) => {
                 ot15Hours: ot15Hours,
                 ot20Hours: ot20Hours,
                 overtimeRate: overtimeRate,
+                // Performance credits reinstated as monetary pay
                 performanceCredits: perfCredits,
-                performanceMultiplier: perfMultiplier,
+                performanceMultiplier: entityPerfMultiplier,
                 year: year
             });
 
@@ -312,7 +347,7 @@ router.get('/payslip/:id', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const result = db.exec(`
-            SELECT p.*, pr.period_year, pr.period_month, pr.run_date, pr.payment_date, be.name as entity_name 
+            SELECT p.*, pr.period_year, pr.period_month, pr.run_date, pr.payment_date, be.name as entity_name, be.logo_url 
             FROM payslips p 
             JOIN payroll_runs pr ON p.payroll_run_id = pr.id 
             JOIN employees e ON p.employee_id = e.id

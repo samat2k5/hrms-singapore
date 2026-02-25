@@ -19,7 +19,7 @@ router.get('/:employeeId', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const result = db.exec(`
-            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name
+            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name, en.logo_url
             FROM employee_kets k 
             JOIN employees e ON k.employee_id = e.id 
             LEFT JOIN entities en ON e.entity_id = en.id
@@ -132,7 +132,7 @@ router.put('/:employeeId', authMiddleware, async (req, res) => {
 
         // Re-fetch the updated KET with all joined data to return to frontend
         const result = db.exec(`
-            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name
+            SELECT k.*, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, en.name as entity_name, en.logo_url
             FROM employee_kets k 
             JOIN employees e ON k.employee_id = e.id 
             LEFT JOIN entities en ON e.entity_id = en.id

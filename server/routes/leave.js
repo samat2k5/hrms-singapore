@@ -26,13 +26,15 @@ router.get('/types', authMiddleware, async (req, res) => {
 });
 
 // Helper to compute dynamically prorated MOM leaves and Grade Policies
-async function computeDynamicBalances(db, employeeId, year) {
+async function computeDynamicBalances(db, employeeId, yearString) {
+    const year = parseInt(yearString, 10);
     // 1. Get raw balances
     const balResult = db.exec(`
-        SELECT lb.*, lt.name as leave_type_name, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, e.employee_grade
+        SELECT lb.*, lt.name as leave_type_name, e.full_name as employee_name, e.employee_id as employee_code, e.date_joined, e.employee_grade, e.entity_id as entity_id, en.logo_url
         FROM leave_balances lb
         JOIN leave_types lt ON lb.leave_type_id = lt.id
         JOIN employees e ON lb.employee_id = e.id
+        LEFT JOIN entities en ON e.entity_id = en.id
         WHERE lb.employee_id = ? AND lb.year = ? AND e.status = 'Active'
         ORDER BY lt.id
     `, [employeeId, year]);
@@ -91,8 +93,8 @@ async function computeDynamicBalances(db, employeeId, year) {
     if (yearRefDate.getDate() < dateJoined.getDate()) totalCompletedMonthsTillDate--;
     totalCompletedMonthsTillDate = Math.max(0, totalCompletedMonthsTillDate);
 
-    // Fetch Grade Policies
-    const polResult = db.exec('SELECT * FROM leave_policies WHERE employee_grade = ?', [emp.employee_grade]);
+    // Fetch Grade Policies for THIS entity only
+    const polResult = db.exec('SELECT * FROM leave_policies WHERE employee_grade = ? AND entity_id = ?', [emp.employee_grade, emp.entity_id]);
     const policies = toObjects(polResult);
 
     balances = balances.map(lb => {
@@ -125,8 +127,8 @@ async function computeDynamicBalances(db, employeeId, year) {
             if (totalCompletedMonthsTillDate < 3) {
                 earned = 0; // Strictly 0 earned before probation completes
             }
-        } else if (lb.leave_type_name === 'Sick Leave') {
-            // Sick leave Proration logic based on MOM
+        } else if (lb.leave_type_name === 'Medical Leave') {
+            // Medical leave Proration logic based on MOM
             if (totalCompletedMonthsTillDate < 3) earned = 0;
             else if (totalCompletedMonthsTillDate === 3) earned = 5;
             else if (totalCompletedMonthsTillDate === 4) earned = 8;
@@ -157,7 +159,8 @@ async function computeDynamicBalances(db, employeeId, year) {
 router.get('/balances/:employeeId/:year', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const balances = await computeDynamicBalances(db, req.params.employeeId, req.params.year);
+        const year = parseInt(req.params.year, 10);
+        const balances = await computeDynamicBalances(db, req.params.employeeId, year);
         res.json(balances);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -168,14 +171,32 @@ router.get('/balances/:employeeId/:year', authMiddleware, async (req, res) => {
 router.get('/balances-all/:year', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const empResult = db.exec(`SELECT id FROM employees WHERE status = 'Active'`);
+        const entityId = req.user.entityId;
+        const role = req.user.role;
+        const groups = req.user.managedGroups || [];
+        if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
+
+        let sql = `SELECT id FROM employees WHERE entity_id = ? AND status = 'Active'`;
+        const params = [entityId];
+
+        // RBAC: HR only see their groups
+        if (String(role).toUpperCase() === 'HR') {
+            if (groups.length === 0) return res.json([]);
+            const placeholders = groups.map(() => '?').join(',');
+            sql += ` AND employee_group IN (${placeholders})`;
+            params.push(...groups);
+        }
+
+        const empResult = db.exec(sql, params);
         const employees = toObjects(empResult);
 
         let allBalances = [];
+        const year = parseInt(req.params.year, 10);
         for (const emp of employees) {
-            const bals = await computeDynamicBalances(db, emp.id, req.params.year);
+            const bals = await computeDynamicBalances(db, emp.id, year);
             allBalances = allBalances.concat(bals);
         }
+        console.log(`[DEBUG] GET /balances-all - Returning ${allBalances.length} total balance records`);
         res.json(allBalances);
     } catch (err) {
         console.error('Error GET /balances-all/:year', err);
@@ -187,9 +208,29 @@ router.get('/balances-all/:year', authMiddleware, async (req, res) => {
 router.get('/requests', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const result = db.exec(
-            `SELECT lr.*, lt.name as leave_type_name, e.full_name as employee_name, e.employee_id as employee_code FROM leave_requests lr JOIN leave_types lt ON lr.leave_type_id = lt.id JOIN employees e ON lr.employee_id = e.id ORDER BY lr.created_at DESC`
-        );
+        const entityId = req.user.entityId;
+        const role = req.user.role;
+        const groups = req.user.managedGroups || [];
+        if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
+
+        let sql = `SELECT lr.*, lt.name as leave_type_name, e.full_name as employee_name, e.employee_id as employee_code, e.entity_id as entity_id 
+             FROM leave_requests lr 
+             JOIN leave_types lt ON lr.leave_type_id = lt.id 
+             JOIN employees e ON lr.employee_id = e.id 
+             WHERE e.entity_id = ?`;
+        const params = [entityId];
+
+        // RBAC: HR only see their groups
+        if (String(role).toUpperCase() === 'HR') {
+            if (groups.length === 0) return res.json([]);
+            const placeholders = groups.map(() => '?').join(',');
+            sql += ` AND e.employee_group IN (${placeholders})`;
+            params.push(...groups);
+        }
+
+        sql += ` ORDER BY lr.created_at DESC`;
+
+        const result = db.exec(sql, params);
         res.json(toObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });

@@ -22,6 +22,7 @@ import Users from './pages/Users'
 import UserRoles from './pages/UserRoles'
 import Customers from './pages/Customers'
 import Sites from './pages/Sites'
+import ShiftSettings from './pages/ShiftSettings'
 
 import { useEffect, useState } from 'react'
 
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="employee-groups" element={<EmployeeGroups />} />
         <Route path="employee-grades" element={<EmployeeGrades />} />
         <Route path="holidays" element={<Holidays />} />
+        <Route path="shift-settings" element={<ShiftSettings />} />
         <Route path="employees" element={<Employees />} />
         <Route path="employees/add" element={<EmployeeForm />} />
         <Route path="employees/edit/:id" element={<EmployeeForm />} />

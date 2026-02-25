@@ -18,9 +18,23 @@ function toObjects(result) {
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const entityId = req.user.entityId;
+        // Support entityId override via query param (used by Attendance page cross-entity)
+        const entityId = req.query.entityId || req.user.entityId;
+        const { year, month } = req.query;
 
-        const result = db.exec('SELECT * FROM holidays WHERE entity_id = ? ORDER BY date ASC', [entityId]);
+        let sql = 'SELECT * FROM holidays WHERE entity_id = ?';
+        const params = [entityId];
+
+        if (year && month) {
+            const paddedMonth = String(month).padStart(2, '0');
+            sql += ` AND date LIKE '${year}-${paddedMonth}-%'`;
+        } else if (year) {
+            sql += ` AND date LIKE '${year}-%'`;
+        }
+
+        sql += ' ORDER BY date ASC';
+
+        const result = db.exec(sql, params);
         res.json(toObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });

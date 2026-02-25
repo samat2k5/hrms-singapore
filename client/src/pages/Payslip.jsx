@@ -4,6 +4,16 @@ import toast from 'react-hot-toast'
 import api from '../services/api'
 import { formatCurrency, formatDate, formatMonth } from '../utils/formatters'
 
+const loadLogo = (url) => {
+    return new Promise((resolve) => {
+        if (!url) return resolve('/ezyhr-logo.png');
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve('/ezyhr-logo.png');
+        img.src = url;
+    });
+};
+
 export default function Payslip() {
     const { id } = useParams()
     const navigate = useNavigate()
@@ -22,14 +32,9 @@ export default function Payslip() {
             const doc = new jsPDF()
             const ps = payslip
 
-            // Header
-            try {
-                const img = new Image();
-                img.src = '/ezyhr-logo.png';
-                doc.addImage(img, 'PNG', 14, 10, 40, 20);
-            } catch (e) {
-                console.error('Logo failed to load for PDF', e);
-            }
+            // Header Branding Update
+            const logo = await loadLogo(ps.logo_url);
+            doc.addImage(logo, ps.logo_url ? (ps.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 40, 20);
 
             doc.setFontSize(18)
             doc.setTextColor(6, 182, 212)
@@ -185,10 +190,17 @@ export default function Payslip() {
             doc.setTextColor(6, 182, 212)
             doc.text(`NET PAY: ${formatCurrency(ps.net_pay)}`, 105, y, { align: 'center' })
 
-            // Footer
+            // Footer Branding
             doc.setFontSize(7)
             doc.setTextColor(150)
-            doc.text('This is a computer-generated payslip. Compliant with Singapore MOM Employment Act itemized payslip requirements.', 105, 285, { align: 'center' })
+            const footerY = 285;
+            try {
+                const ezyLogo = new Image();
+                ezyLogo.src = '/ezyhr-logo.png';
+                doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
+                doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+            } catch (e) { }
+            doc.text('This is a computer-generated payslip. Compliant with Singapore MOM Employment Act itemized payslip requirements.', 105, footerY + 5, { align: 'center' })
 
             // Timesheet Appended Page
             if (ps.timesheets && ps.timesheets.length > 0) {
@@ -207,14 +219,16 @@ export default function Payslip() {
                     t.shift || '',
                     t.in_time || '',
                     t.out_time || '',
+                    (t.normal_hours > 0 ? t.normal_hours : '-'),
                     (t.ot_1_5_hours > 0 ? t.ot_1_5_hours : '-'),
                     (t.ot_2_0_hours > 0 ? t.ot_2_0_hours : '-'),
+                    (t.ph_hours > 0 ? t.ph_hours : '-'),
                     t.remarks || ''
                 ]);
 
                 autoTable(doc, {
                     startY: 45,
-                    head: [['Date', 'Shift', 'In', 'Out', 'OT 1.5x', 'OT 2.0x', 'Remarks']],
+                    head: [['Date', 'Shift', 'In', 'Out', 'Basic', 'OT 1.5x', 'OT 2.0x', 'PH', 'Remarks']],
                     body: tsBody,
                     theme: 'grid',
                     headStyles: { fillColor: [15, 23, 42] },
@@ -381,8 +395,10 @@ export default function Payslip() {
                                         <th>Shift</th>
                                         <th>In</th>
                                         <th>Out</th>
+                                        <th>Basic hrs</th>
                                         <th>OT 1.5x</th>
                                         <th>OT 2.0x</th>
+                                        <th>PH hrs</th>
                                         <th>Remarks</th>
                                     </tr>
                                 </thead>
@@ -393,8 +409,10 @@ export default function Payslip() {
                                             <td className="text-[var(--text-main)]">{t.shift || ''}</td>
                                             <td className="text-emerald-400">{t.in_time || ''}</td>
                                             <td className="text-amber-400">{t.out_time || ''}</td>
+                                            <td className="text-indigo-400">{t.normal_hours > 0 ? t.normal_hours : '-'}</td>
                                             <td className="text-[var(--brand-primary)]">{t.ot_1_5_hours > 0 ? t.ot_1_5_hours : '-'}</td>
                                             <td className="text-purple-400">{t.ot_2_0_hours > 0 ? t.ot_2_0_hours : '-'}</td>
+                                            <td className="text-amber-500">{t.ph_hours > 0 ? t.ph_hours : '-'}</td>
                                             <td className="text-[var(--text-muted)]">{t.remarks || ''}</td>
                                         </tr>
                                     ))}

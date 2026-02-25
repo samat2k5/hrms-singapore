@@ -350,6 +350,7 @@ export default function Payroll() {
                                     <th>Employee</th>
                                     <th>Basic</th>
                                     <th>Allowances</th>
+                                    <th>OT Pay ($)</th>
                                     <th>Perf. Allow ($)</th>
                                     <th>Att. Pen ($)</th>
                                     <th>Gross</th>
@@ -372,6 +373,11 @@ export default function Payroll() {
                                         </td>
                                         <td>{formatCurrency(ps.basic_salary)}</td>
                                         <td>{formatCurrency(ps.total_allowances)}</td>
+                                        <td>
+                                            <span className={ps.overtime_pay > 0 ? "text-amber-400 font-medium" : "text-[var(--text-muted)]"}>
+                                                {formatCurrency(ps.overtime_pay)}
+                                            </span>
+                                        </td>
                                         <td>
                                             <span className={ps.performance_allowance > 0 ? "text-emerald-400 font-medium" : "text-[var(--text-muted)]"}>
                                                 {formatCurrency(ps.performance_allowance)}

@@ -5,6 +5,16 @@ import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { formatDate, formatCurrency } from '../utils/formatters'
 
+const loadLogo = (url) => {
+    return new Promise((resolve) => {
+        if (!url) return resolve('/ezyhr-logo.png');
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve('/ezyhr-logo.png');
+        img.src = url;
+    });
+};
+
 const Field = ({ label, name, type = 'text', options, disabled, span2, form, setForm, editing, employee, formatCurrency, value: customValue, onChange: customOnChange }) => {
     const value = customValue !== undefined ? customValue : form[name];
 
@@ -166,9 +176,14 @@ export default function EmployeeKETs() {
             const { default: autoTable } = await import('jspdf-autotable')
 
             const doc = new jsPDF()
+
+            // Header Branding Update
+            const logo = await loadLogo(ket.logo_url);
+            doc.addImage(logo, ket.logo_url ? (ket.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 40, 20);
+
             doc.setFontSize(18)
             doc.setTextColor(6, 182, 212)
-            doc.text('Key Employment Terms (KET)', 14, 20)
+            doc.text('Key Employment Terms (KET)', 60, 25)
 
             doc.setFontSize(11)
             doc.setTextColor(0)
@@ -257,6 +272,18 @@ export default function EmployeeKETs() {
                 headStyles: { fillColor: [15, 23, 42] },
                 styles: { fontSize: 9 }
             })
+
+            // Footer Branding
+            doc.setFontSize(7)
+            doc.setTextColor(150)
+            const footerY = 285;
+            try {
+                const ezyLogo = new Image();
+                ezyLogo.src = '/ezyhr-logo.png';
+                doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
+                doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+            } catch (e) { }
+            doc.text('This is a computer-generated KET document. Compliant with Singapore MOM Employment Act requirements.', 105, footerY + 5, { align: 'center' })
 
             doc.save(`KET_${employee?.full_name?.replace(/\s+/g, '_') || 'Employee'}.pdf`)
             toast.success('KET PDF Generated!')

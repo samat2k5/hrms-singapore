@@ -19,6 +19,7 @@ const masterItems = [
     { to: '/departments', icon: '📁', label: 'Departments', adminOnly: false },
     { to: '/employee-groups', icon: '👥', label: 'Groups', adminOnly: false },
     { to: '/employee-grades', icon: '⭐', label: 'Grades', adminOnly: false },
+    { to: '/shift-settings', icon: '🕒', label: 'Shift Configs', adminOnly: false },
     { to: '/holidays', icon: '🏖️', label: 'Holidays', adminOnly: false },
     { to: '/leave-policies', icon: '📜', label: 'Leave Policies', adminOnly: true },
     { to: '/users', icon: '👤', label: 'Users', adminOnly: true },

@@ -51,7 +51,7 @@ const api = {
         request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
 
     // Employees
-    getEmployees: () => request('/employees'),
+    getEmployees: (entityId) => request(`/employees${entityId ? `?entityId=${entityId}` : ''}`),
     getEmployee: (id) => request(`/employees/${id}`),
     createEmployee: (data) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
     updateEmployee: (id, data) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -63,8 +63,10 @@ const api = {
     // Attendance
     uploadAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
     getAttendanceHistory: () => request('/attendance/history'),
-    getMonthlyTimesheets: (employeeId, year, month) => request(`/attendance/monthly?employeeId=${employeeId}&year=${year}&month=${month}`),
-    saveMonthlyTimesheets: (employeeId, records) => request('/attendance/monthly', { method: 'POST', body: JSON.stringify({ employeeId, records }) }),
+    getMonthlyTimesheets: (employeeId, year, month, entityId) =>
+        request(`/attendance/monthly?employeeId=${employeeId}&year=${year}&month=${month}${entityId ? `&entityId=${entityId}` : ''}`),
+    saveMonthlyTimesheets: (employeeId, records, entityId) =>
+        request('/attendance/monthly', { method: 'POST', body: JSON.stringify({ employeeId, records, entityId }) }),
 
     // KETs
     getKETs: (employeeId) => request(`/kets/${employeeId}`),
@@ -84,6 +86,14 @@ const api = {
     getLeavePolicies: () => request('/leave-policies'),
     saveLeavePolicy: (data) => request('/leave-policies', { method: 'POST', body: JSON.stringify(data) }),
     deleteLeavePolicy: (id) => request(`/leave-policies/${id}`, { method: 'DELETE' }),
+
+    // Shift Settings
+    getShiftSettings: () => request('/shift-settings'),
+    saveShiftSetting: (data) =>
+        data.id
+            ? request(`/shift-settings/${data.id}`, { method: 'PUT', body: JSON.stringify(data) })
+            : request('/shift-settings', { method: 'POST', body: JSON.stringify(data) }),
+    deleteShiftSetting: (id) => request(`/shift-settings/${id}`, { method: 'DELETE' }),
 
     // Timesheets
     uploadTimesheet: (formData) => request('/timesheets/upload', { method: 'POST', body: formData }),
@@ -175,7 +185,19 @@ const api = {
     deleteEmployeeGrade: (id) => request(`/employee-grades/${id}`, { method: 'DELETE' }),
 
     // Holidays
-    getHolidays: () => request('/holidays'),
+    getHolidays: (year, month, entityId) => {
+        let query = '';
+        if (year) query += `year=${year}`;
+        if (month) {
+            if (query) query += '&';
+            query += `month=${month}`;
+        }
+        if (entityId) {
+            if (query) query += '&';
+            query += `entityId=${entityId}`;
+        }
+        return request(`/holidays${query ? `?${query}` : ''}`);
+    },
     createHoliday: (data) => request('/holidays', { method: 'POST', body: JSON.stringify(data) }),
     updateHoliday: (id, data) => request(`/holidays/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteHoliday: (id) => request(`/holidays/${id}`, { method: 'DELETE' }),

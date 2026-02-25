@@ -39,10 +39,10 @@ router.post('/', authMiddleware, async (req, res) => {
     if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
-        const { name, uen, address, contact_number, website, email_domains } = req.body;
+        const { name, uen, address, contact_number, website, email_domains, logo_url, performance_multiplier } = req.body;
 
         // Insert Entity
-        db.run('INSERT INTO entities (name, uen, address, contact_number, website, email_domains) VALUES (?, ?, ?, ?, ?, ?)', [name, uen, address || '', contact_number || '', website || '', email_domains || '']);
+        db.run('INSERT INTO entities (name, uen, address, contact_number, website, email_domains, logo_url, performance_multiplier) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [name, uen, address || '', contact_number || '', website || '', email_domains || '', logo_url || '', performance_multiplier || 0]);
 
         // Get inserted ID
         const result = db.exec('SELECT last_insert_rowid() AS id');
@@ -66,8 +66,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
-        const { name, uen, address, contact_number, website, email_domains } = req.body;
-        db.run('UPDATE entities SET name = ?, uen = ?, address = ?, contact_number = ?, website = ?, email_domains = ? WHERE id = ?', [name, uen, address || '', contact_number || '', website || '', email_domains || '', req.params.id]);
+        const { name, uen, address, contact_number, website, email_domains, logo_url, performance_multiplier } = req.body;
+        db.run('UPDATE entities SET name = ?, uen = ?, address = ?, contact_number = ?, website = ?, email_domains = ?, logo_url = ?, performance_multiplier = ? WHERE id = ?', [name, uen, address || '', contact_number || '', website || '', email_domains || '', logo_url || '', performance_multiplier || 0, req.params.id]);
         saveDb();
         res.json({ message: 'Entity updated successfully' });
     } catch (err) {

@@ -23,14 +23,25 @@ function toObjects(result) {
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const entityId = req.user.entityId;
+        let entityId = req.query.entityId || req.user.entityId;
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
+
+        const userId = req.user.id;
+        const authSql = `SELECT uer.entity_id FROM user_entity_roles uer WHERE uer.user_id = ? AND uer.entity_id = ?`;
+        const authRes = db.exec(authSql, [userId, entityId]);
+        if (authRes.length === 0) {
+            const roleSql = `SELECT role FROM user_entity_roles WHERE user_id = ? AND role = 'Admin' LIMIT 1`;
+            const roleRes = db.exec(roleSql, [userId]);
+            if (roleRes.length === 0) {
+                return res.status(403).json({ error: 'Not authorized for this entity' });
+            }
+        }
 
         let query = 'SELECT * FROM employees WHERE entity_id = ?';
         const params = [entityId];
 
         // RBAC enforcement
-        if (req.user.role === 'HR') {
+        if (String(req.user.role).toUpperCase() === 'HR') {
             const groups = req.user.managedGroups || [];
             if (groups.length === 0) {
                 return res.json([]); // HR with no groups sees no one
@@ -44,7 +55,9 @@ router.get('/', authMiddleware, async (req, res) => {
 
         query += ' ORDER BY employee_id';
         const result = db.exec(query, params);
-        res.json(toObjects(result));
+        const emps = toObjects(result);
+        console.log(`[DEBUG] GET /employees - Return: ${emps.length} employees`);
+        res.json(emps);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -57,10 +70,10 @@ router.get('/:id', authMiddleware, async (req, res) => {
         const entityId = req.user.entityId;
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
 
-        let query = 'SELECT e.*, en.name as entity_name FROM employees e JOIN entities en ON e.entity_id = en.id WHERE e.id = ? AND e.entity_id = ?';
+        let query = 'SELECT e.*, en.name as entity_name, en.logo_url FROM employees e JOIN entities en ON e.entity_id = en.id WHERE e.id = ? AND e.entity_id = ?';
         const params = [req.params.id, entityId];
 
-        if (req.user.role === 'HR') {
+        if (String(req.user.role).toUpperCase() === 'HR') {
             const groups = req.user.managedGroups || [];
             if (groups.length === 0) return res.status(403).json({ error: 'Access denied' });
 
@@ -357,22 +370,53 @@ router.post('/bulk-import', authMiddleware, upload.single('file'), async (req, r
 
         try {
             for (const row of data) {
+                // --- Helper: Convert Excel serial date to ISO string ---
+                const parseExcelDate = (val) => {
+                    if (!val) return null;
+                    if (typeof val === 'number') {
+                        // Excel serial date: days since 1900-01-01 (with the 1900 leap year bug)
+                        const date = new Date((val - 25569) * 86400000);
+                        return date.toISOString().split('T')[0];
+                    }
+                    // Already a string date
+                    return String(val);
+                };
+
+                // --- Helper: Normalize nationality ---
+                const normalizeNationality = (val) => {
+                    if (!val) return 'Citizen';
+                    const upper = String(val).toUpperCase().trim();
+                    if (['SINGAPOREAN', 'SINGAPORE CITIZEN', 'SC', 'CITIZEN'].includes(upper)) return 'Citizen';
+                    if (['SPR', 'PR', 'SINGAPORE PR', 'PERMANENT RESIDENT'].includes(upper)) return 'PR';
+                    return 'Foreigner';
+                };
+
+                // --- Helper: Normalize gender ---
+                const normalizeGender = (val) => {
+                    if (!val) return '';
+                    const upper = String(val).toUpperCase().trim();
+                    if (upper === 'MALE' || upper === 'M') return 'Male';
+                    if (upper === 'FEMALE' || upper === 'F') return 'Female';
+                    return String(val);
+                };
+
                 // Map common Excel header variations to database fields
                 const e = {
                     employee_id: String(row['Employee ID'] || row['Employee No'] || row['ID'] || ''),
                     full_name: row['Full Name'] || row['Name'] || '',
                     national_id: row['National ID'] || row['NRIC/FIN'] || '',
-                    nationality: row['Nationality'] || 'Citizen',
-                    gender: row['Gender'] || '',
-                    date_of_birth: row['Date of Birth'] || row['DOB'] || null,
-                    date_joined: row['Date Joined'] || row['Joining Date'] || null,
-                    designation: row['Designation'] || row['Job Title'] || '',
-                    employee_group: row['Group'] || row['Employee Group'] || 'General',
+                    nationality: normalizeNationality(row['Nationality']),
+                    gender: normalizeGender(row['Gender']),
+                    date_of_birth: parseExcelDate(row['Date of Birth'] || row['DOB']),
+                    date_joined: parseExcelDate(row['Date Joined'] || row['Joining Date']),
+                    designation: row['Designation'] || row['DESIGNATION'] || row['Job Title'] || '',
+                    employee_group: row['Group'] || row['GROUP ID'] || row['Employee Group'] || 'General',
                     basic_salary: parseFloat(row['Basic Salary'] || 0),
                     email: row['Email'] || '',
                     mobile_number: String(row['Mobile'] || row['Phone'] || ''),
                     bank_name: row['Bank Name'] || '',
                     bank_account: String(row['Bank Account'] || ''),
+                    // Future: row['Department'] || row['DEPT'] could map to a department field
                 };
 
                 if (!e.full_name || !e.employee_id) {

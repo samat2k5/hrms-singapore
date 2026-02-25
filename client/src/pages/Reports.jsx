@@ -2,8 +2,20 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 import { formatCurrency, formatMonth } from '../utils/formatters'
+import { useAuth } from '../context/AuthContext'
+
+const loadLogo = (url) => {
+    return new Promise((resolve) => {
+        if (!url) return resolve('/ezyhr-logo.png');
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve('/ezyhr-logo.png');
+        img.src = url;
+    });
+};
 
 export default function Reports() {
+    const { activeEntity } = useAuth()
     const [tab, setTab] = useState('cpf')
     const [year, setYear] = useState(new Date().getFullYear())
     const [month, setMonth] = useState(new Date().getMonth() + 1)
@@ -57,6 +69,11 @@ export default function Reports() {
             const { default: autoTable } = await import('jspdf-autotable')
 
             const doc = new jsPDF()
+
+            // Header Branding Update
+            const logo = await loadLogo(activeEntity?.logo_url);
+            doc.addImage(logo, activeEntity?.logo_url ? (activeEntity.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 40, 20);
+
             doc.setFontSize(16)
             doc.setTextColor(6, 182, 212)
             doc.text(tabs.find(t => t.key === tab).label.replace(/[^\w\s]/g, '').trim(), 105, 20, { align: 'center' })
@@ -85,6 +102,18 @@ export default function Reports() {
             if (tableData.length) {
                 autoTable(doc, { startY: 35, head: headers, body: tableData, theme: 'grid', headStyles: { fillColor: [6, 182, 212] }, styles: { fontSize: 8 } })
             }
+
+            // Footer Branding
+            doc.setFontSize(7)
+            doc.setTextColor(150)
+            const footerY = 285;
+            try {
+                const ezyLogo = new Image();
+                ezyLogo.src = '/ezyhr-logo.png';
+                doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
+                doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+            } catch (e) { }
+            doc.text('This is a computer-generated statutory report. Compliant with Singapore regulations.', 105, footerY + 5, { align: 'center' })
 
             doc.save(`${tab}_report_${year}_${month}.pdf`)
             toast.success('PDF downloaded')

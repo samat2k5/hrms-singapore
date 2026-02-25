@@ -1,0 +1,33 @@
+### [Detailed Hours Tracking]
+
+The user requested to include "normal hrs / 1.5x OT hrs / 2x OT hrs" in the Attendance grid.
+
+#### [MODIFY] [init.js](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/server/db/init.js)
+- Add a migration to add `normal_hours` column to `timesheets`.
+
+#### [MODIFY] [attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/server/routes/attendance.js)
+- Update GET `/monthly` to return `normal_hours`, `ot_1_5_hours`, and `ot_2_0_hours`.
+- Update POST `/monthly` to save these fields.
+
+### [Attendance UI UX Enhancements]
+
+Improving grid visibility and space management.
+
+#### [MODIFY] [Attendance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Attendance.jsx)
+- Move "Batch Import" into a collapsible panel (Accordion) above the grid.
+- Expand "Monthly Grid Override" to full width (`w-full` instead of `lg:col-span-3`).
+- Add weekend highlighting (Sat/Sun) to rows.
+- Style the "Totals" row for higher visual distinction.
+- Improve input field clarity and spacing for hour columns.
+- Ensure sticky positioning for table headers and filter bar.
+
+## Verification Plan
+
+### Manual Verification
+- Navigate to the **Attendance** page.
+- Select an employee and load their monthly matrix.
+- Verify that a new "Perf. Credit" column is visible.
+- Enter a value (e.g., `1.0`) into the field for a specific day.
+- Click "Save Changes".
+- Reload the matrix and verify the value persists.
+- (Optional) Run payroll for that month and verify the credit is reflected in the "Perf. Allow ($)" column on the Payroll page.

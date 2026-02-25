@@ -1,0 +1,182 @@
+# Task: Brand application with ezyhr-logo.png
+
+- [x] Research and identify branding locations
+- [x] Create implementation plan
+- [x] Debug Entity Leakage issue in Leave dashboard
+    - [x] Verify backend isolation in [server/routes/leave.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/leave.js)
+    - [x] Reinstate frontend safety filters in [client/src/pages/Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx)
+    - [x] Add diagnostic server logging for entity context
+    - [x] Remove temporary debug scripts UI and PDF
+    - [x] Verify Dashboard (branding from Layout)
+- [x] Implement entity filtering in [server/routes/leave.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/leave.js) [Leave Page Entity Filter and Date Label](task://4affa4e7-fee0-419d-a165-0fdeabf1fbbe/Leave%20Page%20Entity%20Filter%20and%20Date%20Label)
+- [x] Add "Leave Balance as of: [Date]" label to PDF exports in `Leave.jsx` [Leave Page Entity Filter and Date Label](task://4affa4e7-fee0-419d-a165-0fdeabf1fbbe/Leave%20Page%20Entity%20Filter%20and%20Date%20Label)
+- [x] Sticky headers and filter bar positioning
+- [x] Refine "Monthly Grid Override" layout (Title one row, Filters below)
+- [x] Fix "floating" grid header alignment
+- [x] Fix dropdown menu styling for dark/light mode alignment
+- [ ] Explain "Apply Monthly Matrix" function to the user
+- [x] Update date display format to `DD-MM-YYYY` in Attendance grid
+- [x] Add `ph_hours` to `timesheets` database table
+- [x] Implement Public Holiday highlighting in attendance grid
+- [x] Add "PH Hrs" column to the matrix and update totals
+- [x] Restore 2026 Public Holidays master data
+- [x] Verify entity filtering by switching between entities in the UI [Leave Page Entity Filter and Date Label](task://4affa4e7-fee0-419d-a165-0fdeabf1fbbe/Leave%20Page%20Entity%20Filter%20and%20Date%20Label)
+- [x] Fix cross-entity data leak in Leave management [Leave Page Entity Filter and Date Label](task://4affa4e7-fee0-419d-a165-0fdeabf1fbbe/Leave%20Page%20Entity%20Filter%20and%20Date%20Label)
+- [x] Enforce RBAC Group filtering for HR users on Leaves page [Leave Page Entity Filter and Date Label](task://4affa4e7-fee0-419d-a165-0fdeabf1fbbe/Leave%20Page%20Entity%20Filter%20and%20Date%20Label)
+- [x] Analyze employee import header matching for HES, HOM, and HE files [Analyzing Employee Import Header Matching](task://4affa4e7-fee0-419d-a165-0fdeabf1fbbe/Analyzing%20Employee%20Import%20Header%20Matching)
+- [x] Fix sites matrix header background [Fixing Sites Matrix Header Background](task://4affa4e7-fee0-419d-a165-0fdeabf1fbbe/Fixing%20Sites%20Matrix%20Header%20Background) 4)
+- [x] Verify branding changes
+- [x] Resize branding logos for better visibility (Round 1)
+- [x] Increase logo sizes even further (Round 2)
+- [x] Final Aggressive Branding & Tagline (Round 3)
+- [x] Final Size & Alignment Refinement (Round 4)
+- [x] Final Spacing Refinement (Round 5)
+- [x] Re-apply cropped logo from root to public directory
+- [x] Reduce logo sizes by 40% (Round 6)
+- [x] Update Default Credentials
+- [x] SPR Graduated CPF Rates Implementation
+- [x] Nationality & Language Updates
+- [x] MOM Payroll Formulations
+    - [x] Logic to calculate working days in a month (excluding PH and Rest Days)
+    - [x] Update payroll-engine.js to use dynamic daily rate
+    - [x] Update payroll.js route to provide context (PH, Rest Days)
+    - [x] Update UI to ensure work-week settings are clear
+    - [x] Verify unpaid leave deduction for a specific month
+- [x] MOM & Employment Act Compliance
+    - [x] Update CPF Ordinary Wage Ceiling to $8,000 (Jan 2026)
+    - [x] Implement Gross Rate of Pay formulation for leave/deductions
+    - [x] Add check for 72-hour monthly OT limit
+    - [x] Implement 50% deduction cap logic
+    - [x] Update leave entitlements (Paternity, Shared Parental)
+    - [x] Verify KETs against MOM requirements
+- [x] MOM Rate Calculations
+    - [x] Add `working_hours_per_week` field (default 44)
+    - [x] Implement UI auto-calculation for Daily/Hourly Basic Rates
+    - [x] Implement UI auto-calculation for 1.5x and 2.0x OT Rates
+    - [x] Update payroll route to use stored `working_hours_per_week`
+    - [x] Migration to add `working_hours_per_week` column
+- [x] MOM Public Holiday Compliance
+    - [x] Update payroll-engine to calculate Extra PH Pay
+    - [x] Update payroll route to detect PH on Off-Days
+    - [x] Integrate Timesheet detection for "Worked on PH"
+    - [x] Implement toggle/logic for "Leave Credit" vs "Pay in Lieu" for Off-Day PH
+- [x] IRAS Compliance 2026
+
+## Statutory Board Compliance 2026 (CPF, SHG, SDL)
+
+- [x] Update CPF Engine for 2026 Rates & OW Ceiling (S$8,000)
+- [x] Update SINDA 2026 Contribution Rates
+- [x] Refactor Engines for Multi-Year Support (2025 vs 2026)
+- [x] Verify Statutory Calculations via Script
+- [x] End-to-End Payroll Verification in UI
+
+## Payroll GIRO Transmission Compliance
+
+- [x] Create `giro-engine.js` with DBS, OCBC, UOB, and APS formats
+- [x] Update Payroll route for multi-format GIRO export
+- [x] Add GIRO Format Selector to Reports UI
+- [x] Verify GIRO file structures via script
+
+## Advanced Site Matrix Configuration
+
+- [x] Add OT Meal Breaks and Lateness/Early-Exit penalties to DB schema
+- [x] Update Sites API to support new matrix fields
+- [x] Fix critical date calculation type-coercion bug (`year + 1`) in [leave.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/leave.js) [NEW]
+- [x] Fix `Sick Leave` vs `Medical Leave` naming mismatch in proration logic [NEW]
+- [x] Remove redundant frontend entity filter in `Leave.jsx` to favor backend isolation [NEW]
+- [x] Verify fix with diagnostic scripts and logging [NEW]
+- [x] Implement new configuration inputs in Sites UI
+- [x] Verify attendance logic handles new thresholds
+- [x] Implement configurable Penalty Blocks (e.g., 15m, 1h)
+    - [x] Add penalty block columns to `site_working_hours`
+    - [x] Update Sites UI with Penalty Block settings
+    - [x] Update [attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/attendance.js) to apply rounding logic
+    - [x] Update [payroll-engine.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/payroll-engine.js) if necessary (though rounding should happen at source)
+    - [x] Align `iras_forms` schema and seed Appendices tables
+    - [x] Implement Benefits-in-Kind (A8A) & Share Options (A8B) management
+    - [x] Implement AIS-API 2.0 JSON Generator
+    - [x] Implement Itemized IR8A/A8A/A8B PDF Export
+    - [x] Performance Hour Credit System
+    - [x] Add `performance_credit` column to `timesheets`
+    - [x] Update [attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/attendance.js) to import performance credits
+    - [x] Update [payroll-engine.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/payroll-engine.js) with reward calculation logic
+    - [x] Update [payroll.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/payroll.js) to process monthly credits
+    - [x] Update `Sites.jsx`, [Payroll.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payroll.jsx), [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx) UI
+    - [x] Verify performance credit calculations
+    - [x] Update Payslip UI to show Performance Allowance
+- [x] Implement Multi-Entity Attendance Batch Import (Admin & HR)
+    - [x] Initialize `attendance:import:cross-entity` permission for Admin & HR roles in [db/init.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/db/init.js)
+    - [x] Modify [server/routes/attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/attendance.js) to resolve authorized entities and check permissions for any role
+    - [x] Update lookup maps (employees, site hours) for all authorized entities
+    - [x] Create diagnostic script to verify cross-entity import for both Admin and HR
+    - [x] Assess `Piping Time sheet with new 01-01-2026.xlsx` for compatibility (headers found: perfcredit)
+    - [x] Manual verification via script and logic review
+- [x] Improve Monthly Grid Override UI
+    - [x] Add employee filter (text search) to Attendance page
+    - [x] Investigate and resolve auto-filling of basic hours issue
+    - [x] Integrate Global Default Shifts (Day 8am-5pm, Night 8pm-5am) as fallbacks when site configurations are missing.
+    - [x] Verify UI improvements
+- [x] Implement Multi-File Attendance Batch Import with Confirmation
+    - [x] Update backend `/import` route to handle multiple files and `dryRun` mode
+    - [x] Update frontend to support multi-file selection and listing
+    - [x] Implement "Scan & Preview" logic to show file/record counts
+    - [x] Add confirmation dialog/step before final processing
+    - [x] Improve error reporting for batch imports (including flexible date parsing fix)
+    - [x] Verify functionality with test files (Manual User Verification)
+- [x] Resolve date format and missing employee issues
+    - [x] Fixed date regex to support `9-1-2026` style formats
+    - [x] Added support for Excel serial dates (e.g., `46023` for `2026-01-01`)
+    - [x] Added support for slanted separators and day-text (e.g., `11/01/2025 SUNDAY`)
+    - [x] Verified missing employees `R60`, `T79`, `U89`, `V86`, `P80` (Not found in DB)
+- [x] Improve Attendance UI for manual overrides
+    - [x] Add Entity selector to Attendance page
+    - [x] Update API service to support explicit entity filtering
+    - [x] Update backend `/monthly` routes for multi-entity support
+    - [x] Verify manual override workflow across entities
+- [x] Integrate Performance Credit viewing and editing
+    - [x] Update implementation plan & get approval
+    - [x] Add "Perf. Credit" column to Attendance UI matrix
+    - [x] Update backend POST `/monthly` to handle performance credit
+    - [x] Verify credits are reflected in Attendance grid and Payroll results
+- [x] Detailed Hours Tracking (Normal, 1.5x, 2x OT)
+    - [x] Add `normal_hours` column to `timesheets`
+    - [x] Update backend to handle detailed hours fields
+    - [x] Add detailed hours columns to Attendance matrix UI
+    - [x] Add Totals row/section to Attendance matrix UI
+    - [x] Verify detailed hours persist and are used in payroll (if applicable)
+- [/] Attendance UI UX Refactoring
+    - [ ] Add `showImport` state and toggle button
+    - [ ] Move "Batch Import" into collapsible panel
+    - [ ] Expand manual override grid to full width
+    - [ ] Implement weekend highlighting and row hover effects
+    - [ ] Enhance "Totals" row visual distinction
+    - [ ] Verify UX improvements in browser
+
+## Customizable Global Shift Fallbacks (Master Settings)
+
+- [x] Database Schema Updates
+  - [x] Create `shift_settings` table via self-healing migration in [init.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/db/init.js)
+  - [x] Add columns: `entity_id`, `shift_name`, timings, and penalty blocks.
+  - [x] Seed default "Day" and "Night" records for existing entities.
+- [x] Backend updates ([shift_settings.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/shift_settings.js) and [attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/attendance.js))
+  - [x] Create CRUD routes in [server/routes/shift_settings.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/shift_settings.js)
+  - [x] Register new route in [server/index.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/index.js)
+  - [x] Update [attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/attendance.js) to utilize the entity's distinct global shift lookups instead of hardcoded rules
+- [x] Frontend Updates ([ShiftSettings.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/ShiftSettings.jsx))
+  - [x] Build UI under "Master Setup" to configure Global Shifts
+  - [x] Provide table listing and active "Add/Edit" modal for shift timings
+  - [x] Add menu item to `Sidebar.jsx`
+- [ ] Manual Verification
+  - [ ] User to verify Master Settings UI is accessible at `/shift-settings`.
+  - [ ] User to verify Entity settings persist to SQLite successfully.
+- [ ] Break Durations (Lunch, Dinner, Midnight)
+  - [ ] Add `lunch_break_mins`, `dinner_break_mins`, `midnight_break_mins` columns to `shift_settings`
+  - [ ] Update [shift_settings.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/shift_settings.js) API to support these new fields
+  - [ ] Update [ShiftSettings.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/ShiftSettings.jsx) UI to allow users to input break durations
+  - [ ] (Future) Update [attendance.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/attendance.js) engine to subtract default meal break durations from `normal_hours` and `ot_hours` when importing.
+- [x] Performance Allowance Reward Fix
+    - [x] Add `performance_multiplier` to `entities` table in [init.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/db/init.js)
+    - [x] Revert zeroing out `performanceCredits` in [payroll.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/payroll.js)
+    - [x] Update [payroll.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/payroll.js) to fetch entity-level multiplier
+    - [x] Verify `payroll-engine` uses multiplier correctly (Code review)
+    - [x] Verify [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx) displays allowance correctly (Code review)

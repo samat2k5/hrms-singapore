@@ -12,7 +12,7 @@ export default function Entities() {
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [itemToDelete, setItemToDelete] = useState(null)
     const [editing, setEditing] = useState(null)
-    const [form, setForm] = useState({ name: '', uen: '', address: '', contact_number: '', website: '', email_domains: '' })
+    const [form, setForm] = useState({ name: '', uen: '', address: '', contact_number: '', website: '', email_domains: '', performance_multiplier: 0, logo_url: '' })
 
     const canEdit = role === 'Admin'
 
@@ -40,7 +40,7 @@ export default function Entities() {
 
     const handleAdd = () => {
         setEditing(null)
-        setForm({ name: '', uen: '', address: '', contact_number: '', website: '', email_domains: '' })
+        setForm({ name: '', uen: '', address: '', contact_number: '', website: '', email_domains: '', performance_multiplier: 0, logo_url: '' })
         setShowModal(true)
     }
 
@@ -108,6 +108,7 @@ export default function Entities() {
                             <tr>
                                 <th>Name</th>
                                 <th>UEN</th>
+                                <th>Perf. Multiplier</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -116,6 +117,7 @@ export default function Entities() {
                                 <tr key={item.id}>
                                     <td className="font-medium text-[var(--text-main)]">{item.name}</td>
                                     <td>{item.uen}</td>
+                                    <td>{item.performance_multiplier || 0}</td>
                                     <td>
                                         {canEdit && (
                                             <div className="flex gap-2">
@@ -165,6 +167,17 @@ export default function Entities() {
                                 </div>
 
                                 <div>
+                                    <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Perf. Multiplier (Reward Credits)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={form.performance_multiplier || 0}
+                                        onChange={e => setForm({ ...form, performance_multiplier: parseFloat(e.target.value) || 0 })}
+                                        className="input-base w-full"
+                                    />
+                                </div>
+
+                                <div>
                                     <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Contact Number</label>
                                     <input
                                         type="text"
@@ -204,6 +217,18 @@ export default function Entities() {
                                         placeholder="gmail.com, company.com"
                                     />
                                     <p className="text-[10px] text-[var(--text-muted)] mt-1">These domains will be suggested in the Employee form.</p>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">Logo URL (External Image Link)</label>
+                                    <input
+                                        type="url"
+                                        value={form.logo_url || ''}
+                                        onChange={e => setForm({ ...form, logo_url: e.target.value })}
+                                        className="input-base w-full"
+                                        placeholder="https://example.com/logo.png"
+                                    />
+                                    <p className="text-[10px] text-[var(--text-muted)] mt-1">This logo will appear at the top of KETs and Payslips.</p>
                                 </div>
                             </div>
 
