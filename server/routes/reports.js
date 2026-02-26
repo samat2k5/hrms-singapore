@@ -18,7 +18,6 @@ function toObjects(result) {
 router.get('/dashboard', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-
         const entityId = req.user.entityId;
         if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
 
@@ -127,6 +126,136 @@ router.get('/shg/:year/:month', authMiddleware, async (req, res) => {
         });
 
         res.json({ period: `${month}/${year}`, employees: data, byFund });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/reports/employee-master — Comprehensive Employee List
+router.get('/employee-master', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const entityId = req.user.entityId;
+        if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
+
+        const result = db.exec(`
+            SELECT e.*, en.name as entity_name, 
+                   ek.job_title, ek.employment_start_date, ek.basic_salary as ket_basic,
+                   ek.fixed_allowances, ek.working_days_per_week as ket_days,
+                   ek.rest_day as ket_rest_day, ek.working_hours_per_day as ket_hours
+            FROM employees e 
+            JOIN entities en ON e.entity_id = en.id
+            LEFT JOIN employee_kets ek ON e.id = ek.employee_id
+            WHERE e.entity_id = ? AND e.status = 'Active'
+            ORDER BY e.employee_id
+        `, [entityId]);
+
+        const data = toObjects(result);
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/reports/doc-expiry — Tracking WP/Passport expiry
+router.get('/doc-expiry', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const entityId = req.user.entityId;
+        const ninetyDaysOut = new Date();
+        ninetyDaysOut.setDate(ninetyDaysOut.getDate() + 90);
+        const dateStr = ninetyDaysOut.toISOString().split('T')[0];
+
+        const result = db.exec(`
+            SELECT id, employee_id, full_name, nationality, 
+                   cessation_date, pr_status_start_date
+            FROM employees 
+            WHERE entity_id = ? AND status = 'Active'
+            AND ((cessation_date IS NOT NULL AND cessation_date <= ?) OR (pr_status_start_date IS NOT NULL AND pr_status_start_date <= ?))
+        `, [entityId, dateStr, dateStr]);
+
+        res.json(toObjects(result));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/reports/summary/:year/:month — Entity-wide Total Summary
+router.get('/summary/:year/:month', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { year, month } = req.params;
+        const entityId = req.user.entityId;
+
+        const result = db.exec(`
+            SELECT 
+                COUNT(*) as headcount,
+                SUM(gross_pay) as total_gross,
+                SUM(cpf_employee) as total_cpf_ee,
+                SUM(cpf_employer) as total_cpf_er,
+                SUM(sdl) as total_sdl,
+                SUM(shg_deduction) as total_shg,
+                SUM(net_pay) as total_net,
+                SUM(basic_salary) as total_basic,
+                SUM(ot_1_5_pay + ot_2_0_pay + ph_worked_pay + ph_off_day_pay) as total_ot,
+                SUM(total_allowances) as total_allowances,
+                SUM(attendance_deduction + unpaid_leave_deduction + other_deductions) as total_standard_deductions
+            FROM payslips p 
+            JOIN payroll_runs pr ON p.payroll_run_id = pr.id 
+            WHERE pr.entity_id = ? AND pr.period_year = ? AND pr.period_month = ?
+        `, [entityId, year, month]);
+
+        const summary = toObjects(result)[0] || {};
+        res.json({ period: `${month}/${year}`, ...summary });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/reports/consolidated/:year/:month — Group/Dept aggregation
+router.get('/consolidated/:year/:month', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { year, month } = req.params;
+        const entityId = req.user.entityId;
+
+        const result = db.exec(`
+            SELECT 
+                employee_group,
+                COUNT(*) as headcount,
+                SUM(gross_pay) as total_gross,
+                SUM(cpf_employee) as total_cpf_ee,
+                SUM(cpf_employer) as total_cpf_er,
+                SUM(net_pay) as total_net,
+                SUM(attendance_deduction + unpaid_leave_deduction + other_deductions) as total_deductions
+            FROM payslips p 
+            JOIN payroll_runs pr ON p.payroll_run_id = pr.id 
+            WHERE pr.entity_id = ? AND pr.period_year = ? AND pr.period_month = ?
+            GROUP BY employee_group
+        `, [entityId, year, month]);
+
+        res.json({ period: `${month}/${year}`, groups: toObjects(result) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/reports/run-payslips/:runId — Batch collection for Master PDF
+router.get('/run-payslips/:runId', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { runId } = req.params;
+        const entityId = req.user.entityId;
+
+        const result = db.exec(`
+            SELECT p.*, e.employee_id as emp_code, en.name as entity_name, en.logo_url
+            FROM payslips p 
+            JOIN employees e ON p.employee_id = e.id 
+            JOIN entities en ON e.entity_id = en.id
+            WHERE p.payroll_run_id = ? AND en.id = ?
+        `, [runId, entityId]);
+
+        res.json(toObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

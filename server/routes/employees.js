@@ -338,15 +338,62 @@ router.post('/bulk-import', authMiddleware, upload.single('file'), async (req, r
         try {
             for (const row of data) {
                 const e = {
-                    employee_id: String(row['Employee ID'] || ''),
-                    full_name: row['Full Name'] || '',
-                    national_id: row['National ID'] || '',
-                    nationality: row['Nationality'] || 'Citizen',
-                    basic_salary: parseFloat(row['Basic Salary'] || 0),
+                    employee_id: String(row['Employee ID'] || row['employee_id'] || ''),
+                    full_name: row['Full Name'] || row['full_name'] || '',
+                    national_id: row['National ID'] || row['national_id'] || '',
+                    nationality: row['Nationality'] || row['nationality'] || 'Citizen',
+                    basic_salary: parseFloat(row['Basic Salary'] || row['basic_salary'] || 0),
+                    employee_group: row['Employee Group'] || row['employee_group'] || 'General',
+                    gender: row['Gender'] || row['gender'] || '',
+                    date_of_birth: row['Date of Birth'] || row['date_of_birth'] || '',
+                    phone: row['Phone'] || row['phone'] || '',
+                    email: row['Email'] || row['email'] || '',
+                    address: row['Address'] || row['address'] || '',
+                    bank_name: row['Bank Name'] || row['bank_name'] || '',
+                    bank_account: row['Bank Account'] || row['bank_account'] || '',
+                    working_days_per_week: parseFloat(row['Working Days/Week'] || row['working_days_per_week'] || 5.5),
+                    rest_day: row['Rest Day'] || row['rest_day'] || 'Sunday',
+                    working_hours_per_day: parseFloat(row['Working Hours/Day'] || row['working_hours_per_day'] || 8),
+                    working_hours_per_week: parseFloat(row['Working Hours/Week'] || row['working_hours_per_week'] || 44),
+                    other_deduction: parseFloat(row['Other Deduction'] || row['other_deduction'] || 0),
+                    status: row['Status'] || row['status'] || 'Active',
+                    cessation_date: row['Cessation Date'] || row['cessation_date'] || null,
+                    pr_status_start_date: row['PR Start Date'] || row['pr_status_start_date'] || null,
                 };
                 if (!e.full_name || !e.employee_id) { results.skipped++; continue; }
-                db.run(`INSERT INTO employees (entity_id, employee_id, full_name, national_id, nationality, basic_salary, status) VALUES (?, ?, ?, ?, ?, ?, 'Active')`,
-                    [req.user.entityId, e.employee_id, e.full_name, e.national_id, e.nationality, e.basic_salary]);
+
+                // Use REPLACE INTO or check for existence? 
+                // Let's use a check to avoid duplicates or optionally update
+                const existing = db.exec('SELECT id FROM employees WHERE entity_id = ? AND employee_id = ?', [req.user.entityId, e.employee_id]);
+
+                if (existing.length > 0 && existing[0].values.length > 0) {
+                    const id = existing[0].values[0][0];
+                    db.run(`UPDATE employees SET 
+                        full_name = ?, national_id = ?, nationality = ?, basic_salary = ?, 
+                        employee_group = ?, gender = ?, date_of_birth = ?, phone = ?, email = ?, address = ?, 
+                        bank_name = ?, bank_account = ?, working_days_per_week = ?, rest_day = ?, 
+                        working_hours_per_day = ?, working_hours_per_week = ?, other_deduction = ?, 
+                        status = ?, cessation_date = ?, pr_status_start_date = ?
+                        WHERE id = ?`,
+                        [e.full_name, e.national_id, e.nationality, e.basic_salary,
+                        e.employee_group, e.gender, e.date_of_birth, e.phone, e.email, e.address,
+                        e.bank_name, e.bank_account, e.working_days_per_week, e.rest_day,
+                        e.working_hours_per_day, e.working_hours_per_week, e.other_deduction,
+                        e.status, e.cessation_date, e.pr_status_start_date, id]);
+                } else {
+                    db.run(`INSERT INTO employees (
+                        entity_id, employee_id, full_name, national_id, nationality, basic_salary, 
+                        employee_group, gender, date_of_birth, phone, email, address, 
+                        bank_name, bank_account, working_days_per_week, rest_day, 
+                        working_hours_per_day, working_hours_per_week, other_deduction, 
+                        status, cessation_date, pr_status_start_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [req.user.entityId, e.employee_id, e.full_name, e.national_id, e.nationality, e.basic_salary,
+                        e.employee_group, e.gender, e.date_of_birth, e.phone, e.email, e.address,
+                        e.bank_name, e.bank_account, e.working_days_per_week, e.rest_day,
+                        e.working_hours_per_day, e.working_hours_per_week, e.other_deduction,
+                        e.status, e.cessation_date, e.pr_status_start_date]);
+                }
                 results.processed++;
             }
             db.exec('COMMIT');

@@ -12,6 +12,7 @@ const navItems = [
     { to: '/attendance/face', icon: '👤', label: 'Face Attendance' },
     { to: '/payroll', icon: '💰', label: 'Payroll' },
     { to: '/reports', icon: '📋', label: 'Reports' },
+    { to: '/iras', icon: '🏛️', label: 'IRAS Compliance' },
 ]
 
 const masterItems = [
@@ -68,6 +69,7 @@ export default function Layout() {
         if (path.startsWith('/leave')) return 'Leave Management';
         if (path.startsWith('/payroll')) return 'Payroll';
         if (path.startsWith('/attendance')) return 'Attendance';
+        if (path.startsWith('/iras')) return 'IRAS';
         const pathName = path.split('/')[1];
         if (pathName) {
             return pathName.charAt(0).toUpperCase() + pathName.slice(1).replace('-', ' ');

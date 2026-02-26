@@ -19,6 +19,31 @@ function toObjects(result) {
     try {
         const db = await getDb();
         try { db.run(`ALTER TABLE employees ADD COLUMN cessation_date DATE`); } catch (e) { }
+
+        // Migrate iras_forms schema if needed
+        try {
+            const info = db.exec("PRAGMA table_info(iras_forms)");
+            if (info.length) {
+                const cols = info[0].values.map(v => v[1]);
+                if (!cols.includes('year') && cols.includes('year_of_assessment')) {
+                    db.run('ALTER TABLE iras_forms ADD COLUMN year INTEGER');
+                    db.run('UPDATE iras_forms SET year = year_of_assessment WHERE year IS NULL');
+                }
+                if (!cols.includes('data_json') && cols.includes('form_data')) {
+                    db.run('ALTER TABLE iras_forms ADD COLUMN data_json TEXT');
+                    db.run("UPDATE iras_forms SET data_json = form_data WHERE data_json IS NULL");
+                }
+                if (!cols.includes('status')) {
+                    db.run("ALTER TABLE iras_forms ADD COLUMN status TEXT DEFAULT 'Generated'");
+                    db.run("UPDATE iras_forms SET status = CASE WHEN is_amendment = 1 THEN 'Amended' ELSE 'Generated' END WHERE status IS NULL");
+                }
+                if (!cols.includes('version')) {
+                    db.run('ALTER TABLE iras_forms ADD COLUMN version INTEGER DEFAULT 1');
+                }
+                console.log('[DB] IRAS forms migration complete');
+            }
+        } catch (e) { console.log('[DB] IRAS migration skipped:', e.message); }
+
         saveDb();
     } catch (e) { }
 })();
@@ -269,4 +294,40 @@ router.delete('/shares/:id', authMiddleware, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// AUDIT LOGS
+router.get('/audit-logs', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const entityId = req.user.entityId;
+        if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
+        const result = db.exec(
+            'SELECT * FROM submission_logs WHERE entity_id = ? ORDER BY timestamp DESC LIMIT 100',
+            [entityId]
+        );
+        res.json(toObjects(result));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// CPF EXCESS CHECK
+router.get('/cpf-excess', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const entityId = req.user.entityId;
+        if (!entityId) return res.status(400).json({ error: 'Missing entity context' });
+        // Employees whose annual ordinary wages exceed the CPF ceiling
+        const currentYear = new Date().getFullYear();
+        const result = db.exec(`
+            SELECT e.id, e.employee_id, e.full_name, SUM(p.basic_salary) as annual_ow
+            FROM payslips p
+            JOIN payroll_runs pr ON p.payroll_run_id = pr.id
+            JOIN employees e ON p.employee_id = e.id
+            WHERE pr.entity_id = ? AND pr.period_year = ?
+            GROUP BY p.employee_id
+            HAVING annual_ow > 102000
+        `, [entityId, currentYear]);
+        res.json(toObjects(result));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;
+

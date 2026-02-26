@@ -1,0 +1,36 @@
+# Enhanced Reporting System Walkthrough
+
+This document outlines the powerful new reporting capabilities and bulk data management features implemented in the HRMS Singapore platform.
+
+## 📋 Comprehensive New Reports
+
+The **Reports** page now features a suite of high-fidelity analytical tools:
+
+- **Payroll Summary**: Provides entity-wide totals for Headcount, Gross Pay, Net Pay, CPF (EE/ER), SDL, SHG, and standard deductions (Absence/Unpaid).
+- **Consolidated Report**: Groups payroll figures by **Employee Group**, allowing for departmental or workforce segment analysis.
+- **Employee Master**: A full export of the employee database, including personal, bank, and KET details.
+- **Document Expiry**: Automatically tracks Work Permits and PR status milestones, alerting users to expiries within the next 90 days.
+
+## 🍏 Data Portability & Bulk Import
+
+To ensure full data portability, the **Bulk Import** functionality has been upgraded:
+
+- **40+ Fields Supported**: Now handles comprehensive data including bank accounts, KET terms, and individual-level `other_deductions`.
+- **Import/Export Parity**: The Excel Master export is designed to be easily modified and re-imported, making large-scale data updates seamless.
+- **Smart Mapping**: Automatically handles both human-readable Excel headers (e.g., "Basic Salary") and developer-style column names.
+
+## 📕 Master Payslip PDF
+
+A new "Master PDF" feature allows for the generation of all payslips for a specific payroll run into a single, multi-page document.
+
+- **One-Click Batching**: Generates a unified PDF from the current payroll period with entity branding.
+- **Itemized Layout**: Includes detailed breakdowns for earnings and deductions as per MOM requirements.
+
+## 🛠️ Technical Improvements
+
+- **Deduction Persistence**: Enhanced the payroll engine to correctly persist and report on `other_deductions` set at the employee level.
+- **Excel Library Integrated**: Installed and integrated `xlsx` (SheetJS) on the frontend for high-performance spreadsheet generation.
+- **SQL Optimization**: Validated all reporting queries to handle large datasets across joined tables (Employees, KETS, Entities).
+
+---
+*Powered by ezyHR | The Future of Payroll*

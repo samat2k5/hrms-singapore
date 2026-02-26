@@ -1,0 +1,144 @@
+openapi: 3.0.0
+info:
+  title: ezyHR Mobile Attendance API
+  description: APIs for mobile face recognition attendance clocking.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    entityIdHeader:
+      type: apiKey
+      in: header
+      name: Entity-Id
+
+security:
+  - bearerAuth: []
+  - entityIdHeader: []
+
+paths:
+  /employees:
+    get:
+      summary: List Employees
+      description: Returns a list of employees for the active entity.
+      tags:
+        - Employees
+      responses:
+        '200':
+          description: A list of employees.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Employee'
+        '401':
+          description: Unauthorized inside.
+        '403':
+          description: Forbidden (RBAC).
+
+  /employees/{id}/face:
+    put:
+      summary: Register Face Biometric
+      description: Enrolls the employee's face descriptor for recognition.
+      tags:
+        - Biometrics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descriptor:
+                  type: array
+                  items:
+                    type: number
+                  description: "128-float vector from face-api.js or similar."
+      responses:
+        '200':
+          description: Face enrolled successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Face already exists or invalid data.
+
+  /attendance/face-clock:
+    post:
+      summary: Face Recognition Clock In/Out
+      description: Matches a face descriptor against the entity database and records attendance.
+      tags:
+        - Attendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descriptor:
+                  type: array
+                  items:
+                    type: number
+                  description: "Face descriptor vector."
+      responses:
+        '200':
+          description: Successfully clocked in or out.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  action:
+                    type: string
+                    enum: [In, Out]
+                  employee:
+                    $ref: '#/components/schemas/Employee'
+        '404':
+          description: Face not recognized.
+        '400':
+          description: Already clocked in and out today.
+
+components:
+  schemas:
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+        employee_id:
+          type: string
+          description: "Internal employee code."
+        full_name:
+          type: string
+        designation:
+          type: string
+        department:
+          type: string
+        employee_group:
+          type: string
+        photo_url:
+          type: string
+        face_descriptor:
+          type: string
+          nullable: true
+          description: "JSON string of the face vector."

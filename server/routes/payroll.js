@@ -276,8 +276,8 @@ router.post('/run', authMiddleware, async (req, res) => {
                 ot15Hours: ot15Hours,
                 ot20Hours: ot20Hours,
                 overtimeRate: overtimeRate,
-                momHourlyRate: overtimeRate / 1.5,  // MOM base hourly rate: (12 * basic) / (52 * contractual_weekly_hours)
-                // Performance credits reinstated as monetary pay
+                momHourlyRate: overtimeRate / 1.5,
+                otherDeductions: emp.other_deduction || 0,
                 performanceCredits: perfCredits,
                 performanceMultiplier: entityPerfMultiplier,
                 year: year

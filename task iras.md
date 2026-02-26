@@ -1,0 +1,83 @@
+# Global UI Audit Tasks
+
+- [x] Fix Layout Visibility Problems
+    - [x] Make Theme Toggle visible on mobile header
+    - [x] Fix "+Add Employee" visibility in `Employees.jsx`
+- [x] Employees Page Redesign
+    - [x] Remove Department, Group, Nationality columns
+    - [x] Add functional filters for Dept/Group/Nationality
+- [x] Refine Sidebar and Signout
+    - [x] Tighten Sidebar Spacing
+    - [x] Move Signout to Sidebar with Confirmation
+- [x] Comprehensive Page Audit (Refine & Polish)
+    - [x] Dashboard & Reports
+    - [x] Payroll & Leaves
+    - [x] Attendance (Both views)
+    - [x] All Master Data Pages
+- [x] Final Responsive Check & Feedback
+
+# Feature Enhancements
+
+- [x] Implement Multi-Entity Profile Synchronization
+    - [x] Plan automated synchronization strategy
+    - [x] Update `PUT` route in [employees.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/employees.js) for cross-entity updates
+    - [x] Update `POST` route in [employees.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/employees.js) to pre-fill from existing records
+    - [x] Verify synchronization logic with Employee 2007
+- [x] Fix Data Persistence & API Layer
+    - [x] Identify and patch [FormData](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/IRASCompliance.jsx#185-188) stringification bug in [api.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js)
+    - [x] Locate and repair corrupted Employee 2007 record in Entity 5
+    - [x] Verify data stability across entities
+- [x] Debug Payroll Issues
+    - [x] Investigate deletion failure
+    - [x] Investigate processing failure
+    - [x] Consolidate duplicate payroll routes
+    - [x] Verify fixes for delete and process
+- [x] Improve Payslip & PDF Layout
+    - [x] Calculate and display attendance totals in UI
+    - [x] Calculate and display attendance totals in PDF
+    - [x] Fix PDF layout overlapping (Logos/Header/Footer)
+    - [x] Conditionally show timesheet section
+    - [x] Fix "reading 'data'" error in PDF export
+- [x] Extend PDF Hardening to Leave & KET modules
+- [x] Refine PDF Layout & Alignment
+- [x] Fix Face Attendance Timezone
+- [x] Implement PDF Transmission (WhatsApp/Email)
+- [x] Payroll OT & Performance Fixes
+    - [x] Fix OT double-counting bug
+    - [x] Fix OT rate calculation (44h contractual)
+    - [x] Fix Performance Credit rate (MOM base rate)
+
+# Payroll Enhancements & New Features (Current)
+
+- [x] Payroll Calculation & Display Updates <!-- id: 12 -->
+    - [x] Round performance credit to nearest $5 or $10 <!-- id: 13 -->
+    - [x] Split OT 1.5x, OT 2.0x, and PH into separate columns (plus aggregated total) in results table <!-- id: 14 -->
+- [x] PDF Enhancements & Optimization <!-- id: 15 -->
+    - [x] Update brand footer to "Powered by ezyHR | The Future of Payroll" + Logo on all printables <!-- id: 16 -->
+    - [x] Enhance Detailed Timesheet PDF (widths, alignments) <!-- id: 17 -->
+    - [x] Optimize all PDFs to fit 1 page where possible (Payslip, KET, Leave) <!-- id: 18 -->
+    - [x] Optimize PDF file sizes <!-- id: 19 -->
+- [x] Advanced System Features <!-- id: 20 -->
+    - [x] Implement Period Locks to restrict changes after finalization <!-- id: 21 -->
+    - [x] Implement User Session & Password Management <!-- id: 22 -->
+    - [x] Clarify master data architecture (Shared vs Individual) <!-- id: 23 -->
+- [x] Mobile App API Support <!-- id: 24 -->
+    - [x] Create Swagger/OpenAPI documentation for Face Recognition Attendance <!-- id: 25 -->
+    - [x] Document Employee Listing API <!-- id: 26 -->
+    - [x] Document Face Registration API <!-- id: 27 -->
+    - [x] Document Attendance Marking API <!-- id: 28 -->
+- [x] Reporting System Enhancements <!-- id: 29 -->
+    - [x] Implement Comprehensive Employee Master (Export/Import compatible) <!-- id: 30 -->
+    - [x] Implement Payroll Summary Report (Entity-wide totals) <!-- id: 35 -->
+    - [x] Implement Document Expiry Report (90-day tracking) <!-- id: 31 -->
+    - [x] Implement Consolidated Payroll Report (By Group/Dept) <!-- id: 32 -->
+    - [x] Implement Entity-wise Master Payslip PDF (Batch Export) <!-- id: 33 -->
+    - [x] Upgrade Bulk Import to support all employee fields <!-- id: 34 -->
+- [x] IRAS Compliance Page <!-- id: 36 -->
+    - [x] Create dedicated [IRASCompliance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/IRASCompliance.jsx) with full feature set <!-- id: 37 -->
+    - [x] Add route in [App.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/App.jsx) and nav link in [Layout.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/components/Layout.jsx) <!-- id: 38 -->
+    - [x] Generate & Amend IR8A forms <!-- id: 39 -->
+    - [x] BIK & Share Options management <!-- id: 40 -->
+    - [x] AIS JSON export download <!-- id: 41 -->
+    - [x] Cessation/IR21 checks <!-- id: 42 -->
+    - [x] Audit log viewer <!-- id: 43 -->

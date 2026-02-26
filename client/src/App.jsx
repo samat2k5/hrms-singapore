@@ -18,6 +18,7 @@ import Attendance from './pages/Attendance'
 import Payroll from './pages/Payroll'
 import Payslip from './pages/Payslip'
 import Reports from './pages/Reports'
+import IRASCompliance from './pages/IRASCompliance'
 import Users from './pages/Users'
 import UserRoles from './pages/UserRoles'
 import Customers from './pages/Customers'
@@ -90,6 +91,7 @@ export default function App() {
         <Route path="payroll" element={<Payroll />} />
         <Route path="payroll/payslip/:id" element={<Payslip />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="iras" element={<IRASCompliance />} />
         <Route path="users" element={<Users />} />
         <Route path="user-roles" element={<UserRoles />} />
         <Route path="customers" element={<Customers />} />

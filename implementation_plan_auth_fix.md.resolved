@@ -1,0 +1,29 @@
+# Hardening Auth Middleware for Entity Context
+
+This plan addresses the "Missing entity context" error reported by the user when calling `GET /api/employees`. We will make the [authMiddleware](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/middleware/auth.js#6-60) more robust by allowing `entityId` via query strings and automatically defaulting to a user's primary entity if only one exists.
+
+## User Review Required
+
+> [!NOTE]
+> If a user belongs to multiple entities, they MUST still specify the `Entity-Id` header or query param. This change only provides an "auto-default" for users with exactly one entity (typical for most users).
+
+## Proposed Changes
+
+### [Component] Backend Auth Middleware
+
+#### [MODIFY] [auth.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/middleware/auth.js)
+- Update [authMiddleware](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/middleware/auth.js#6-60) to check `req.query.entityId` as a fallback for the header.
+- Add logic to fetch all entities the user belongs to if no context is provided.
+- If the user has exactly one entity, use it as the default context.
+
+## Verification Plan
+
+### Automated Tests
+- Create a test script `test_auth_robustness.js` that:
+  1. Requests `/api/employees` without `Entity-Id` header for a user with 1 entity. (Should succeed)
+  2. Requests `/api/employees` with `?entityId=X`. (Should succeed)
+  3. Requests `/api/employees` without header for a user with NO entity. (Should fail with clear error)
+- Run the test script using `node test_auth_robustness.js`.
+
+### Manual Verification
+- Test `GET /api/employees` via a terminal `curl` or [fetch](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx#42-70) call without the header.

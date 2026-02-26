@@ -138,6 +138,11 @@ const api = {
     getIR8AReport: (year) => request(`/reports/ir8a/${year}`),
     getSDLReport: (year, month) => request(`/reports/sdl/${year}/${month}`),
     getSHGReport: (year, month) => request(`/reports/shg/${year}/${month}`),
+    getEmployeeMaster: () => request('/reports/employee-master'),
+    getDocExpiry: () => request('/reports/doc-expiry'),
+    getPayrollSummary: (year, month) => request(`/reports/summary/${year}/${month}`),
+    getConsolidatedPayroll: (year, month) => request(`/reports/consolidated/${year}/${month}`),
+    getRunPayslips: (runId) => request(`/reports/run-payslips/${runId}`),
 
     // IRAS Compliance
     getIRASForms: (year) => request(`/iras/forms/${year}`),
@@ -224,6 +229,20 @@ const api = {
     // Transmission
     transmitEmail: (data) => request('/transmit/email', { method: 'POST', body: data }),
     translate: (text, targetLanguage) => request('/translate', { method: 'POST', body: { text, targetLanguage } }),
+
+    // IRAS Compliance
+    getIRASForms: (year) => request(`/iras/forms/${year}`),
+    generateIR8A: (year) => request(`/iras/generate/${year}`, { method: 'POST' }),
+    amendIR8A: (year, empId) => request(`/iras/amend/${year}/${empId}`, { method: 'POST' }),
+    getIRASCessation: () => request('/iras/cessation-check'),
+    exportAISJson: (year) => request(`/iras/export-ais-json/${year}`),
+    getIRASBenefits: (empId, year) => request(`/iras/benefits/${empId}/${year}`),
+    addIRASBenefit: (data) => request('/iras/benefits', { method: 'POST', body: data }),
+    deleteIRASBenefit: (id) => request(`/iras/benefits/${id}`, { method: 'DELETE' }),
+    getIRASShares: (empId, year) => request(`/iras/shares/${empId}/${year}`),
+    addIRASShare: (data) => request('/iras/shares', { method: 'POST', body: data }),
+    deleteIRASShare: (id) => request(`/iras/shares/${id}`, { method: 'DELETE' }),
+    getIRASLogs: () => request('/iras/audit-logs'),
 };
 
 export default api;

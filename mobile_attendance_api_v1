@@ -1,0 +1,284 @@
+openapi: 3.0.0
+info:
+  title: ezyHR Mobile Attendance API
+  description: |
+    APIs for mobile face recognition attendance clocking.
+    
+    ## Entity Context
+    All employee/attendance endpoints require an entity context. You can provide it in **3 ways**:
+    1. `Entity-Id` header (recommended for web apps)
+    2. `?entityId=` query parameter (recommended for mobile apps)
+    3. Automatic — if the user has access to exactly **one** entity, it is auto-detected
+  version: 1.1.0
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    EntityIdHeader:
+      name: Entity-Id
+      in: header
+      required: false
+      schema:
+        type: integer
+      description: "Entity ID for context. Optional if user has only one entity."
+    EntityIdQuery:
+      name: entityId
+      in: query
+      required: false
+      schema:
+        type: integer
+      description: "Alternative to Entity-Id header. Useful for mobile/Swagger testing."
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      summary: Authenticate User
+      description: Returns a JWT token for subsequent API calls.
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: "system"
+                password:
+                  type: string
+                  example: "manager"
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: "JWT Bearer token (valid 8 hours)."
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      fullName:
+                        type: string
+                      role:
+                        type: string
+        '401':
+          description: Invalid credentials.
+
+  /entities:
+    get:
+      summary: List Entities
+      description: |
+        Returns all entities the authenticated user has access to.
+        Use this to populate a entity/company selector in the mobile app.
+        The `id` from the response should be passed as `Entity-Id` header or `?entityId` query param to other endpoints.
+      tags:
+        - Entities
+      responses:
+        '200':
+          description: A list of entities with the user's role in each.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entity'
+        '401':
+          description: Unauthorized.
+
+  /employees:
+    get:
+      summary: List Employees
+      description: |
+        Returns a list of employees for the active entity.
+        Entity context can be provided via `Entity-Id` header, `?entityId` query param,
+        or is auto-detected for single-entity users.
+      tags:
+        - Employees
+      parameters:
+        - $ref: '#/components/parameters/EntityIdHeader'
+        - $ref: '#/components/parameters/EntityIdQuery'
+      responses:
+        '200':
+          description: A list of employees.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Employee'
+        '400':
+          description: Missing entity context (multi-entity user without specifying entity).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden (RBAC).
+
+  /employees/{id}/face:
+    put:
+      summary: Register Face Biometric
+      description: Enrolls the employee's face descriptor for recognition.
+      tags:
+        - Biometrics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/EntityIdHeader'
+        - $ref: '#/components/parameters/EntityIdQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descriptor:
+                  type: array
+                  items:
+                    type: number
+                  description: "128-float vector from face-api.js or similar."
+      responses:
+        '200':
+          description: Face enrolled successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Face already exists or invalid data.
+
+    delete:
+      summary: Reset Face Biometric
+      description: Removes the employee's enrolled face descriptor.
+      tags:
+        - Biometrics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/EntityIdHeader'
+        - $ref: '#/components/parameters/EntityIdQuery'
+      responses:
+        '200':
+          description: Face descriptor removed.
+
+  /attendance/face-clock:
+    post:
+      summary: Face Recognition Clock In/Out
+      description: Matches a face descriptor against the entity database and records attendance.
+      tags:
+        - Attendance
+      parameters:
+        - $ref: '#/components/parameters/EntityIdHeader'
+        - $ref: '#/components/parameters/EntityIdQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descriptor:
+                  type: array
+                  items:
+                    type: number
+                  description: "Face descriptor vector."
+      responses:
+        '200':
+          description: Successfully clocked in or out.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  action:
+                    type: string
+                    enum: [In, Out]
+                  employee:
+                    $ref: '#/components/schemas/Employee'
+        '404':
+          description: Face not recognized.
+        '400':
+          description: Already clocked in and out today.
+
+  schemas:
+    Entity:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: "Company/entity name."
+        uen:
+          type: string
+          description: "Unique Entity Number (Singapore registration)."
+        address:
+          type: string
+        contact_number:
+          type: string
+        website:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        role:
+          type: string
+          description: "The authenticated user's role in this entity (Admin, HR, etc)."
+        managed_groups:
+          type: string
+          description: "JSON array of employee groups this user manages."
+
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+        employee_id:
+          type: string
+          description: "Internal employee code."
+        full_name:
+          type: string
+        designation:
+          type: string
+        department:
+          type: string
+        employee_group:
+          type: string
+        photo_url:
+          type: string
+        face_descriptor:
+          type: string
+          nullable: true
+          description: "JSON string of the face vector."

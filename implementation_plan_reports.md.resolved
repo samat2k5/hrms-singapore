@@ -1,0 +1,50 @@
+# Implementation Plan - Reporting Enhancements
+
+Implement a set of critical reports and master data views as requested by the user.
+
+## Proposed Changes
+
+### [Backend] Reporting & Import Routes
+#### [MODIFY] [reports.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/reports.js)
+- **`GET /api/reports/employee-master`**: Join `employees`, `employee_kets`, and `entities` to provide a comprehensive flattened dataset of all employees.
+- **`GET /api/reports/doc-expiry`**: Filter employees where document-related dates (Work Permit Expiry, Passport Expiry) are within the next 90 days.
+- **`GET /api/reports/summary/:year/:month`**: High-level entity summary (Total Headcount, Gross, CPF, SDL, SHG, Deductions, Net Pay) for the period.
+- **`GET /api/reports/consolidated/:year/:month`**: Aggregate sums (Basic, Allowances, OT, CPF, Net Pay) grouped by `employee_group` or `department` for a specific month.
+- **`GET /api/reports/run-payslips/:runId`**: Fetch full payslip details for all employees in a specific run to support batch PDF generation.
+
+#### [MODIFY] [employees.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/employees.js)
+- **`POST /api/employees/bulk-import`**: Upgrade to support 40+ fields (all columns in the `employees` table) to allow full master data restoration.
+
+### [Frontend] Reporting UI
+#### [MODIFY] [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx)
+- **New Navigation Tabs**: Add "Payroll Summary", "Employee Master", "Doc Expiry", "Consolidated Payroll".
+- **Excel Export**: Use `xlsx` library on frontend to generate a comprehensive "Employee Master" Excel file with headers matching the import format.
+- **Master PDF Feature**:
+    - Add an "Entity Master PDF" button.
+    - Logic: Iteratively request full payslip data for the selected period and generate a single multi-page PDF using `jsPDF`.
+
+#### [MODIFY] [api.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js)
+- Add functions: `getEmployeeMaster()`, `getDocExpiry()`, `getConsolidatedPayroll(year, month)`, `getRunPayslips(runId)`.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Create `test_reporting_api.js` to:
+    - Verify `employee-master` returns non-empty array with expected keys.
+    - Verify `doc-expiry` logic correctly filters dates.
+    - Verify `consolidated` totals match sum of individual payslips in mock data.
+
+### Manual Verification
+1.  **Employee Master**:
+    - Open "Employee Master" tab.
+    - Verify personal, bank, and KET details are visible.
+    - Click "Export PDF" and check layout.
+2.  **Document Expiry**:
+    - Edit an employee to have a "Work Permit Expiry" in 2 months.
+    - Check the "Doc Expiry" report and verify they appear.
+3.  **Entity Master PDF**:
+    - select January 2026.
+    - Click "Export Master Payslips".
+    - Verify the resulting PDF has one page per employee with the brand footer.
