@@ -1,0 +1,29 @@
+# Implementation Plan: Payroll OT Calculation & Breakdown Fix
+
+The goal is to resolve the discrepancy where the gross pay sum in the payroll summary doesn't appear to match its individual columns, and to ensure a full breakdown of all OT and Public Holiday (PH) payments is visible in the detailed view.
+
+## User Review Required
+
+> [!IMPORTANT]
+> I will be grouping **Public Holiday (PH) payments** into the "OT Pay" column in the summary table to ensure the Gross Pay matches the sum of visible columns. In the detailed view, these will remain separate for clarity.
+
+## Proposed Changes
+
+### Payroll Summary Table
+#### [MODIFY] [Payroll.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payroll.jsx)
+- Update column header "OT Pay ($)" to "OT & PH Pay ($)" to be more descriptive.
+- Update the cell value to display the sum of `overtime_pay`, `ph_worked_pay`, and `ph_off_day_pay`.
+
+### Detailed Payslip View & PDF
+#### [MODIFY] [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx)
+- **Fix Logic**: Remove the conditional hiding of standard overtime. If `standard_ot_pay` (derived from `overtime_pay - (ot15 + ot20)`) is non-zero, it should be displayed alongside 1.5x and 2.0x.
+- **Full Display**: Ensure `ph_worked_pay` and `ph_off_day_pay` are always listed in the UI and PDF if they contain values.
+- **PDF Alignment**: Standardize the formatting in the generated PDF to match the UI improvements.
+
+## Verification Plan
+
+### Automated/Manual Verification
+1. **Initialize Payroll**: Run payroll for a month with known OT and PH work (e.g., January 2026).
+2. **Verify Summary Table**: Check that (Basic + Allowances + OT & PH Pay + Perf. Allow - Penalties) equals Gross Pay.
+3. **Verify Detailed View**: Open the detailed view for an employee with multiple OT types. Ensure all components (1.5x, 2.0x, Additional OT, PH Pay) are listed individually.
+4. **Verify PDF**: Download the PDF and confirm the same breakdown is present and accurately sums to Gross Pay.

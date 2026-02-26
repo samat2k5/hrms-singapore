@@ -1,0 +1,31 @@
+# Plan: Fixing Performance Credit Rounding
+
+The performance credit rounding logic is correctly implemented in [server/engine/payroll-engine.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/payroll-engine.js), but it is not active because the running server process has not been restarted.
+
+## Proposed Changes
+
+### [Component Name]
+#### [MODIFY] [payroll-engine.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/payroll-engine.js)
+- Keep the current rounding logic: `const performanceAllowance = Math.round(rawPerformanceAllowance / 5) * 5;`.
+- I have already added a debug log `server/engine/rounding_debug.log` to track this.
+
+## User Action Required
+> [!IMPORTANT]
+> **Restart the Backend Server**: You must stop the current node server (the terminal running `node index.js` in the `server` folder) and start it again.
+>
+> 1. Go to the terminal where you started the server.
+> 2. Press `Ctrl + C` to stop it.
+> 3. Run `node index.js` again (or however you usually start it).
+> 4. **Delete and Re-Run** the January 2026 payroll.
+
+## Verification Plan
+
+### Automated Tests
+- I will check the `server/engine/rounding_debug.log` after you re-run the payroll to confirm the engine is successfully logging rounded values.
+
+### Manual Verification
+- Verify the "PERF." column in the Payroll Results table:
+  - `$108.76` should become `$110.00`
+  - `$34.41` should become `$35.00`
+  - `$19.73` should become `$20.00`
+  - `$25.77` should become `$25.00`

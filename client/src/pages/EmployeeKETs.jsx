@@ -15,54 +15,70 @@ const loadLogo = (url) => {
     });
 };
 
-const Field = ({ label, name, type = 'text', options, disabled, span2, form, setForm, editing, employee, formatCurrency, value: customValue, onChange: customOnChange }) => {
+const Field = ({ label, name, type = 'text', options, disabled, span2, form, setForm, editing, employee, formatCurrency, value: customValue, onChange: customOnChange, onTranslate }) => {
     const value = customValue !== undefined ? customValue : form[name];
 
     return (
         <div className={span2 ? 'md:col-span-2' : ''}>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">{label}</label>
+            <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{label}</label>
+                {editing && onTranslate && !disabled && (
+                    <button
+                        onClick={() => onTranslate(name)}
+                        className="text-[10px] text-[var(--brand-primary)] hover:underline flex items-center gap-1"
+                        title="Translate to mother tongue"
+                    >
+                        ✨ Translate
+                    </button>
+                )}
+            </div>
             {!editing || disabled ? (
-                <p className="text-sm text-[var(--text-main)] py-2">
+                <div className="text-sm text-[var(--text-main)] py-2">
                     {type === 'currency' ? formatCurrency(value) :
                         type === 'checkbox' ? (value ? 'Yes' : 'No') :
-                            ((value !== undefined && value !== null && value !== '') ? value : (employee?.[name] || '—'))}
-                </p>
-            ) : type === 'checkbox' ? (
-                <div className="flex items-center gap-2 py-2">
-                    <input
-                        type="checkbox"
-                        checked={!!value}
-                        onChange={e => customOnChange ? customOnChange(e.target.checked) : setForm({ ...form, [name]: e.target.checked })}
-                        className="w-4 h-4 rounded border-[var(--border-main)] bg-[var(--bg-input)]"
-                    />
-                    <span className="text-sm text-[var(--text-main)]">{label}</span>
+                            type === 'date' ? formatDate(value) :
+                                (value || employee?.[name] || '—')}
                 </div>
-            ) : options ? (
-                <select
-                    value={value || ''}
-                    onChange={e => customOnChange ? customOnChange(e.target.value) : setForm({ ...form, [name]: e.target.value })}
-                    className="select-base text-sm"
-                >
-                    {options.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-            ) : type === 'textarea' ? (
-                <textarea
-                    value={value || ''}
-                    onChange={e => customOnChange ? customOnChange(e.target.value) : setForm({ ...form, [name]: e.target.value })}
-                    className="input-base text-sm min-h-[80px]"
-                />
             ) : (
-                <input
-                    type={type === 'currency' ? 'number' : type}
-                    value={value ?? ''}
-                    onChange={e => {
-                        const val = (type === 'currency' || type === 'number') ? parseFloat(e.target.value) || 0 : e.target.value;
-                        if (customOnChange) customOnChange(val);
-                        else setForm({ ...form, [name]: val });
-                    }}
-                    className="input-base text-sm"
-                    step={type === 'currency' || type === 'number' ? '0.01' : undefined}
-                />
+                <div className="space-y-2">
+                    {type === 'checkbox' ? (
+                        <div className="flex items-center gap-2 py-2">
+                            <input
+                                type="checkbox"
+                                checked={!!value}
+                                onChange={e => customOnChange ? customOnChange(e.target.checked) : setForm({ ...form, [name]: e.target.checked })}
+                                className="w-4 h-4 rounded border-[var(--border-main)] bg-[var(--bg-input)]"
+                            />
+                            <span className="text-sm text-[var(--text-main)]">{label}</span>
+                        </div>
+                    ) : options ? (
+                        <select
+                            value={value || ''}
+                            onChange={e => customOnChange ? customOnChange(e.target.value) : setForm({ ...form, [name]: e.target.value })}
+                            className="select-base text-sm"
+                        >
+                            {options.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                    ) : type === 'textarea' ? (
+                        <textarea
+                            value={value || ''}
+                            onChange={e => customOnChange ? customOnChange(e.target.value) : setForm({ ...form, [name]: e.target.value })}
+                            className="input-base text-sm min-h-[80px]"
+                        />
+                    ) : (
+                        <input
+                            type={type === 'currency' ? 'number' : type}
+                            value={value ?? ''}
+                            onChange={e => {
+                                const val = (type === 'currency' || type === 'number') ? parseFloat(e.target.value) || 0 : e.target.value;
+                                if (customOnChange) customOnChange(val);
+                                else setForm({ ...form, [name]: val });
+                            }}
+                            className="input-base text-sm"
+                            step={type === 'currency' || type === 'number' ? '0.01' : undefined}
+                        />
+                    )}
+                </div>
             )}
         </div>
     )
@@ -170,6 +186,43 @@ export default function EmployeeKETs() {
         }
     }
 
+    const handleTranslateField = async (fieldName) => {
+        const textToTranslate = form[fieldName];
+        if (!textToTranslate) return;
+        const targetLanguage = employee?.language || 'Tamil';
+
+        const tid = toast.loading(`Translating to ${targetLanguage}...`);
+        try {
+            const res = await api.translate(textToTranslate, targetLanguage);
+            setForm(prev => ({ ...prev, [`${fieldName}_tr`]: res.translated }));
+            toast.success('Translated!', { id: tid });
+        } catch (err) {
+            toast.error('Translation failed: ' + err.message, { id: tid });
+        }
+    }
+
+    const handleTranslateAll = async () => {
+        const targetLanguage = form.target_language || employee?.language || 'Tamil';
+        if (targetLanguage === 'English') return toast.error('Please select a target language (non-English)');
+
+        const fields = ['job_title', 'main_duties', 'medical_benefits', 'notice_period', 'other_salary_components'];
+        const tid = toast.loading(`Auto-translating mandatory fields to ${targetLanguage}...`);
+
+        try {
+            const newTranslations = {};
+            for (const f of fields) {
+                if (form[f]) {
+                    const res = await api.translate(form[f], targetLanguage);
+                    newTranslations[`${f}_tr`] = res.translated;
+                }
+            }
+            setForm(prev => ({ ...prev, ...newTranslations, target_language: targetLanguage }));
+            toast.success('Bulk translation complete!', { id: tid });
+        } catch (err) {
+            toast.error('Bulk translation failed', { id: tid });
+        }
+    }
+
     const handleTransmit = async (mode) => {
         if (!ket) return;
 
@@ -238,25 +291,26 @@ export default function EmployeeKETs() {
         doc.text(`Employee: ${employee?.full_name || ''} (${employee?.employee_id || ''})`, 14, yText + 6)
         doc.text(`Issue Date: ${ket.issued_date ? formatDate(ket.issued_date) : 'Draft'}`, 14, yText + 12)
 
+        const getDualText = (enKey) => {
+            return ket[enKey] || '';
+        };
+
         const body = [
-            ['Job Title', ket.job_title || ''],
-            ['Main Duties and Responsibilities', ket.main_duties || ''],
-            ['Employment Start Date', ket.employment_start_date ? formatDate(ket.employment_start_date) : ''],
-            ['Employment End Date', ket.employment_end_date ? formatDate(ket.employment_end_date) : 'N.A.'],
+            ['Job Title', getDualText('job_title')],
+            ['Main Duties and Responsibilities', getDualText('main_duties')],
+            ['Employment Start Date', ket.employment_start_date && ket.employment_start_date !== '1970-01-01' ? formatDate(ket.employment_start_date) : '-'],
             ['Employment Type', ket.employment_type || ''],
-            ['Daily Working Hours', ket.working_hours_details || `${ket.working_hours_per_day} hours/day`],
-            ['Break During Work', ket.break_hours || '—'],
-            ['Number of Working Days/Week', ket.working_days_per_week?.toString() || ''],
+            ['Contract Duration', ket.contract_duration || ''],
+            ['Working Hours per Day', `${ket.working_hours_per_day} hours/day`],
+            ['Working Days per Week', ket.working_days_per_week?.toString() || ''],
             ['Rest Day', ket.rest_day || ''],
             ['Salary Period', ket.salary_period || ''],
             ['Date(s) of Salary Payment', ket.salary_payment_date || '—'],
-            ['Date(s) of Overtime Payment', ket.overtime_payment_date || '—'],
-            ['Basic Rate of Pay', formatCurrency(ket.basic_salary)],
-            ['Gross Rate of Pay', formatCurrency(ket.gross_rate_of_pay)],
-            ['Overtime Rate of Pay', formatCurrency(ket.overtime_rate)],
-            ['Fixed Allowances', `Transport: ${formatCurrency(ket.fixed_allowances?.transport)} | Meal: ${formatCurrency(ket.fixed_allowances?.meal)}`],
-            ['Other Salary Components', ket.other_salary_components || '—'],
-            ['CPF Contributions Payable', ket.cpf_payable ? 'Yes' : 'No']
+            ['Basic Salary', formatCurrency(ket.basic_salary)],
+            ['Overtime Rate', formatCurrency(ket.overtime_rate)],
+            ['Other Salary Components', getDualText('other_salary_components')],
+            ['Medical Benefits', getDualText('medical_benefits')],
+            ['Notice Period', getDualText('notice_period')],
         ];
 
         let cAllowances = "";
@@ -283,7 +337,7 @@ export default function EmployeeKETs() {
             ['Paid Annual Leave', `${ket.annual_leave_days} days/year`],
             ['Paid Outpatient Sick Leave', `${ket.sick_leave_days} days/year`],
             ['Paid Hospitalisation Leave', `${ket.hospitalization_days} days/year`],
-            ['Medical Benefits', ket.medical_benefits || '—']
+            ['Medical Benefits', getDualText('medical_benefits', 'medical_benefits_tr')]
         ];
 
         autoTable(doc, {
@@ -292,35 +346,35 @@ export default function EmployeeKETs() {
             body: body,
             theme: 'grid',
             headStyles: { fillColor: [15, 23, 42] },
-            styles: { fontSize: 9 },
-            margin: { bottom: 30 }
+            styles: { fontSize: 8.5, cellPadding: 2 },
+            margin: { bottom: 25 }
         })
 
         autoTable(doc, {
-            startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
+            startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 8,
             head: [['Leave & Medical Benefits', 'Value']],
             body: leaveBody,
             theme: 'grid',
             headStyles: { fillColor: [15, 23, 42] },
-            styles: { fontSize: 9 },
-            margin: { bottom: 30 }
+            styles: { fontSize: 8.5, cellPadding: 2 },
+            margin: { bottom: 25 }
         })
 
         const otherBody = [
             ['Length of Probation', `${ket.probation_months} months`],
             ['Probation Start Date', ket.probation_start_date ? formatDate(ket.probation_start_date) : '—'],
             ['Probation End Date', ket.probation_end_date ? formatDate(ket.probation_end_date) : '—'],
-            ['Notice Period (Termination)', ket.notice_period || '—']
+            ['Notice Period (Termination)', getDualText('notice_period', 'notice_period_tr')]
         ];
 
         autoTable(doc, {
-            startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 10,
+            startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 8,
             head: [['Other Terms', 'Value']],
             body: otherBody,
             theme: 'grid',
             headStyles: { fillColor: [15, 23, 42] },
-            styles: { fontSize: 9 },
-            margin: { bottom: 30 }
+            styles: { fontSize: 8.5, cellPadding: 2 },
+            margin: { bottom: 25 }
         })
 
         // Footer Branding
@@ -331,7 +385,7 @@ export default function EmployeeKETs() {
             const ezyLogo = new Image();
             ezyLogo.src = '/ezyhr-logo.png';
             doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
-            doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+            doc.text('Powered by ezyHR | The Future of Payroll', 28, footerY);
         } catch (e) { }
         doc.text('This is a computer-generated KET document. Compliant with Singapore MOM Employment Act requirements.', 105, footerY + 5, { align: 'center' })
 
@@ -355,7 +409,7 @@ export default function EmployeeKETs() {
     const allowances = form.fixed_allowances || {}
     const deductions = form.fixed_deductions || {}
 
-    const fieldProps = { form, setForm, editing, employee, formatCurrency };
+    const fieldProps = { form, setForm, editing, employee, formatCurrency, onTranslate: handleTranslateField };
 
     return (
         <div className="space-y-6">

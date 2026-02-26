@@ -1,0 +1,68 @@
+# Payroll Enhancements & Advanced Features Plan
+
+Address various user requests for payroll accuracy, UI improvements, PDF branding/optimization, and system security.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Performance Credit Rounding**: I will implement rounding to the **nearest $5**. For example, $12.49 becomes $10.00, $12.50 becomes $15.00. Please confirm if you preferred a different logic for "nearest $5 or $10".
+>
+> **Period Locks**: Once a payroll run is set to **"Locked"** or **"Finalized"**, the system will prevent deletion or re-processing to ensure data integrity.
+
+## Proposed Changes
+
+### 1. Payroll Logic & UI
+#### [MODIFY] [payroll-engine.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/payroll-engine.js)
+- Update `performanceAllowance` calculation to round to the nearest $5.
+- Formula: `Math.round(performanceAllowance / 5) * 5`.
+
+#### [MODIFY] [Payroll.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payroll.jsx)
+- Split "OT & PH Pay ($)" column into:
+    - **OT 1.5x ($)**
+    - **OT 2.0x ($)**
+    - **PH Pay ($)** (Combines Worked and Off-Day pay)
+
+---
+
+### 2. PDF Branding & Optimization
+#### [MODIFY] [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx)
+#### [MODIFY] [Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx)
+#### [MODIFY] [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeKETs.jsx)
+#### [MODIFY] [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx)
+- Update branding text to `"Powered by ezyHR | The Future of Payroll"`.
+- Enhance "Detailed Timesheet Attendance" (Payslip PDF):
+    - Center-align numeric columns (In/Out/Hours).
+    - Optimize column widths for readability.
+- PDF Optimization:
+    - Reduce default font size for tables from 9pt to 8pt where narrow fit is needed.
+    - Tighten margins to ensure content fits on 1 page (excluding detailed attachments).
+    - Ensure logo is compressed in `jspdf`.
+
+---
+
+### 3. System Features (Backend & UI)
+#### [MODIFY] [Payroll.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payroll.jsx)
+- Add a "Lock Period" button/toggle for finalized runs.
+- Disable "Delete" and "Process" actions for locked runs.
+
+#### [NEW] [auth.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/auth.js)
+- Add `/api/auth/change-password` endpoint.
+
+---
+
+### 4. Technical Explanation (Master Data)
+- **Shared Masters (System-level)**: [Users](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#162-164), `User Roles`, `Leave Types`. These define the global identity and configuration framework common to all businesses.
+- **Individual Masters (Entity-level)**: [Employees](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Employees.jsx#7-299), [Departments](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#173-174), [Groups](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#190-191), [Holidays](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#200-214), `Payroll Runs`. These allow each enterprise to have its own isolated data, logic, and compliance records.
+
+## Verification Plan
+
+### Automated Tests
+- N/A (UI and Logic validation via manual steps)
+
+### Manual Verification
+1. **Rounding**: Process a payroll with performance credits and verify the allowance is a multiple of 5.
+2. **Column Split**: Open the Payroll Results table and confirm OT 1.5x, OT 2.0x, and PH Pay are in separate columns.
+3. **PDF Branding**: Download a Payslip, KET, and Leave report; verify the new footer text and logo.
+4. **Timesheet Alignment**: Inspect the detailed timesheet page in the Payslip PDF for centered columns.
+5. **Period Lock**: Lock a payroll run and verify that the "Delete" button is disabled/hidden.
+6. **Password Change**: Test the password change API (via Postman or a temporary UI toggle).

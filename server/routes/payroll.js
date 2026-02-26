@@ -156,9 +156,12 @@ router.post('/run', authMiddleware, async (req, res) => {
                 [emp.id, `${year}-${String(month).padStart(2, '0')}-%`]
             );
             const otData = toObjects(otResult)[0];
-            const otHours = otData.total_ot || 0;
+            const totalOtHours = otData.total_ot || 0;
             const ot15Hours = otData.total_ot_1_5 || 0;
             const ot20Hours = otData.total_ot_2_0 || 0;
+            // Standard (unclassified) OT = total minus already-categorised hours.
+            // Prevents double-counting when ot_hours stores the grand total inclusive of 1.5x/2.0x.
+            const otHours = Math.max(0, totalOtHours - ot15Hours - ot20Hours);
             const lateMins = otData.total_late || 0;
             const earlyOutMins = otData.total_early_out || 0;
             const perfCredits = otData.total_perf_credit || 0;
@@ -166,8 +169,9 @@ router.post('/run', authMiddleware, async (req, res) => {
             console.log(`[Payroll Debug] Emp: ${emp.full_name}, Month: ${year}-${month}, OT1.5: ${ot15Hours}, OT2.0: ${ot20Hours}, Perf: ${perfCredits}`);
 
             // MOM Overtime Rate: (12 * basic) / (52 * weekly_hours) * 1.5
-            // Use employee's KETs working_hours if set, otherwise find their primary shift from timesheets
-            let workingHoursPerWeek = emp.working_hours_per_week || 44;
+            // MUST use CONTRACTUAL weekly hours from KET — NOT shift actual hours.
+            // Ref: MOM Employment Act, Section 38 & Seventh Schedule.
+            let contractualWeeklyHours = emp.working_hours_per_week || 44;
             const hoursPerDay = emp.working_hours_per_day || 8;
 
             let daysPerWeek = 5.5;
@@ -178,7 +182,12 @@ router.post('/run', authMiddleware, async (req, res) => {
                 daysPerWeek = rawDays;
             }
 
-            // Determine the employee's primary shift for this month
+            // If contractual weekly hours not explicitly set, derive from KET days × hours
+            if (!emp.working_hours_per_week && hoursPerDay && daysPerWeek) {
+                contractualWeeklyHours = hoursPerDay * daysPerWeek;
+            }
+
+            // Determine the employee's primary shift for attendance/deduction context only
             const primaryShiftResult = db.exec(
                 `SELECT shift, COUNT(*) as cnt FROM timesheets 
                  WHERE employee_id = ? AND strftime('%Y', date) = ? AND strftime('%m', date) = ? 
@@ -189,11 +198,10 @@ router.post('/run', authMiddleware, async (req, res) => {
             const primaryShiftData = toObjects(primaryShiftResult)[0];
             const primaryShiftName = (primaryShiftData?.shift || 'day').toLowerCase();
 
-            // Try to use shift config hours if available
+            // Shift hours used ONLY for attendance deduction calculation (not OT rate)
             const shiftConfig = shiftSettingsMap[primaryShiftName];
-            let shiftHoursPerDay = hoursPerDay; // fallback to KET value
+            let shiftHoursPerDay = hoursPerDay;
             if (shiftConfig) {
-                // Calculate hours from shift start/end time
                 const [sh, sm] = (shiftConfig.start_time || '08:00').split(':').map(Number);
                 const [eh, em] = (shiftConfig.end_time || '17:00').split(':').map(Number);
                 const lunchMins = shiftConfig.lunch_break_mins || 0;
@@ -201,12 +209,11 @@ router.post('/run', authMiddleware, async (req, res) => {
                 const midnightMins = shiftConfig.midnight_break_mins || 0;
                 const totalBreakMins = lunchMins + dinnerMins + midnightMins;
                 let rawMins = (eh * 60 + em) - (sh * 60 + sm);
-                if (rawMins <= 0) rawMins += 24 * 60; // Overnight shift
+                if (rawMins <= 0) rawMins += 24 * 60;
                 shiftHoursPerDay = Math.round(((rawMins - totalBreakMins) / 60) * 100) / 100;
                 if (shiftHoursPerDay <= 0) shiftHoursPerDay = 8;
             }
 
-            workingHoursPerWeek = shiftHoursPerDay * daysPerWeek;
             const restDay = emp.rest_day || 'Sunday';
             const dayMap = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
             const restDayIdx = dayMap[restDay] !== undefined ? dayMap[restDay] : 0;
@@ -253,9 +260,9 @@ router.post('/run', authMiddleware, async (req, res) => {
 
             let overtimeRate = 0;
             if (emp.basic_salary && emp.basic_salary > 0) {
-                // MOM-compliant formula: (12 * monthly basic) / (52 * weekly hours) = hourly base rate
-                const hourlyRate = (12 * emp.basic_salary) / (52 * workingHoursPerWeek);
-                overtimeRate = hourlyRate * 1.5; // 1.5x multiplier stored as the 'rate' used for OT 1.5x column
+                // MOM-compliant OT hourly base rate uses CONTRACTUAL weekly hours (from KET).
+                const hourlyRate = (12 * emp.basic_salary) / (52 * contractualWeeklyHours);
+                overtimeRate = hourlyRate * 1.5; // stored as the 1.5x base; engine divides to get 1.0x for 2.0x calc
             }
 
             const payslip = processEmployeePayroll(emp, {
@@ -269,6 +276,7 @@ router.post('/run', authMiddleware, async (req, res) => {
                 ot15Hours: ot15Hours,
                 ot20Hours: ot20Hours,
                 overtimeRate: overtimeRate,
+                momHourlyRate: overtimeRate / 1.5,  // MOM base hourly rate: (12 * basic) / (52 * contractual_weekly_hours)
                 // Performance credits reinstated as monetary pay
                 performanceCredits: perfCredits,
                 performanceMultiplier: entityPerfMultiplier,

@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const { getDb, reloadDb } = require('./db/init');
 
+console.log('🚀 SERVER RESTARTING - TRANSLATE ROUTE ACTIVE');
 const authRoutes = require('./routes/auth');
 const employeeRoutes = require('./routes/employees');
 const ketsRoutes = require('./routes/kets');
@@ -13,6 +14,7 @@ const documentRoutes = require('./routes/documents');
 const entityRoutes = require('./routes/entities');
 const attendanceRoutes = require('./routes/attendance');
 const transmitRoutes = require('./routes/transmit');
+const translateRoutes = require('./routes/translate');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +40,7 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/translate', translateRoutes);
 app.use('/api/kets', ketsRoutes);
 app.use('/api/leave', leaveRoutes);
 app.use('/api/payroll', payrollRoutes);

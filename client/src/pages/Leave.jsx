@@ -219,7 +219,7 @@ export default function Leave() {
                 const ezyLogo = new Image();
                 ezyLogo.src = '/ezyhr-logo.png';
                 doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
-                doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+                doc.text('Powered by ezyHR | The Future of Payroll', 28, footerY);
             } catch (e) { }
             doc.text(`Total: ${filteredEmployees.length} employees | MOM Compliant`, 148, footerY, { align: 'center' })
 

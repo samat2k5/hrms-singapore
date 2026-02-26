@@ -223,6 +223,7 @@ const api = {
 
     // Transmission
     transmitEmail: (data) => request('/transmit/email', { method: 'POST', body: data }),
+    translate: (text, targetLanguage) => request('/translate', { method: 'POST', body: { text, targetLanguage } }),
 };
 
 export default api;

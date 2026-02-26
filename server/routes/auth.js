@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDb, saveDb } = require('../db/init');
-const { JWT_SECRET } = require('../middleware/auth');
+const { authMiddleware, JWT_SECRET } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -75,6 +75,35 @@ router.post('/register', async (req, res) => {
         saveDb();
 
         res.json({ message: 'User registered successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/auth/change-password
+router.post('/change-password', authMiddleware, async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ error: 'Both old and new passwords are required' });
+        }
+
+        const db = await getDb();
+        const userResult = db.exec('SELECT * FROM users WHERE id = ?', [req.user.id]);
+        const userList = toObjects(userResult);
+
+        if (!userList.length) return res.status(404).json({ error: 'User not found' });
+        const user = userList[0];
+
+        if (!bcrypt.compareSync(oldPassword, user.password_hash)) {
+            return res.status(401).json({ error: 'Incorrect current password' });
+        }
+
+        const newHash = bcrypt.hashSync(newPassword, 10);
+        db.run('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.user.id]);
+        saveDb();
+
+        res.json({ message: 'Password updated successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

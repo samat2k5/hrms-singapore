@@ -99,9 +99,12 @@ export default function Payslip() {
                 }
             } catch (e) { }
 
-            if (ps.ot_1_5_hours > 0) earningsRows.push([`Overtime 1.5x (${ps.ot_1_5_hours} hrs)`, formatCurrency(ps.ot_1_5_pay)]);
-            if (ps.ot_2_0_hours > 0) earningsRows.push([`Overtime 2.0x (${ps.ot_2_0_hours} hrs)`, formatCurrency(ps.ot_2_0_pay)]);
-            if (ps.overtime_hours > 0 && ps.ot_1_5_hours === 0 && ps.ot_2_0_hours === 0) earningsRows.push([`Overtime (${ps.overtime_hours} hrs)`, formatCurrency(ps.overtime_pay)]);
+            if (ps.ot_1_5_hours > 0) earningsRows.push([`Overtime 1.5x (${ps.ot_1_5_hours} hrs @ ${formatCurrency(ps.ot_1_5_pay / ps.ot_1_5_hours)}/hr)`, formatCurrency(ps.ot_1_5_pay)]);
+            if (ps.ot_2_0_hours > 0) earningsRows.push([`Overtime 2.0x (${ps.ot_2_0_hours} hrs @ ${formatCurrency(ps.ot_2_0_pay / ps.ot_2_0_hours)}/hr)`, formatCurrency(ps.ot_2_0_pay)]);
+            // Standard (unclassified) OT only shown when NO categorised OT exists
+            if (ps.overtime_hours > 0 && ps.ot_1_5_hours === 0 && ps.ot_2_0_hours === 0) {
+                earningsRows.push([`Overtime (${ps.overtime_hours} hrs)`, formatCurrency(ps.overtime_pay)]);
+            }
 
             if (ps.ph_worked_pay > 0) earningsRows.push(['Worked on Public Holiday', formatCurrency(ps.ph_worked_pay)]);
             if (ps.ph_off_day_pay > 0) earningsRows.push(['PH Off-Day Pay in Lieu', formatCurrency(ps.ph_off_day_pay)]);
@@ -208,9 +211,9 @@ export default function Payslip() {
                 const ezyLogo = new Image();
                 ezyLogo.src = '/ezyhr-logo.png';
                 doc.addImage(ezyLogo, 'PNG', 14, footerY - 5, 12, 6);
-                doc.text('Powered by ezyHR — The Future of Payroll', 28, footerY);
+                doc.text('Powered by ezyHR | The Future of Payroll', 28, footerY);
             } catch (e) { }
-            doc.text('This is a computer-generated payslip. Compliant with Singapore MOM Employment Act itemized payslip requirements.', 105, footerY + 5, { align: 'center' })
+            doc.text('This is a computer-generated payslip. Compliant with Singapore MOM Employment Act requirements.', 105, footerY + 5, { align: 'center' })
 
             // Timesheet Appended Page
             if (ps.timesheets && ps.timesheets.length > 0) {
@@ -258,16 +261,33 @@ export default function Payslip() {
                     head: [['Date', 'Shift', 'In', 'Out', 'Basic', 'OT 1.5x', 'OT 2.0x', 'PH', 'Remarks']],
                     body: tsBody,
                     theme: 'grid',
-                    headStyles: { fillColor: [15, 23, 42] },
-                    styles: { fontSize: 8 },
+                    headStyles: { fillColor: [15, 23, 42], halign: 'center' },
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    columnStyles: {
+                        0: { cellWidth: 20, halign: 'center' }, // Date
+                        1: { cellWidth: 20, halign: 'center' }, // Shift
+                        2: { cellWidth: 15, halign: 'center' }, // In
+                        3: { cellWidth: 15, halign: 'center' }, // Out
+                        4: { cellWidth: 12, halign: 'center' }, // Basic
+                        5: { cellWidth: 15, halign: 'center' }, // OT 1.5
+                        6: { cellWidth: 15, halign: 'center' }, // OT 2.0
+                        7: { cellWidth: 12, halign: 'center' }, // PH
+                        8: { cellWidth: 'auto' } // Remarks
+                    },
                     margin: { top: 35, bottom: 25 },
                     didDrawPage: (data) => {
-                        // Maintain branding/footer on every page if it spans multiple pages
+                        // Maintain branding/footer on every page
+                        doc.setFontSize(7);
+                        doc.setTextColor(150);
+                        const fY = doc.internal.pageSize.height - 10;
+                        try {
+                            const ezyLogo = new Image();
+                            ezyLogo.src = '/ezyhr-logo.png';
+                            doc.addImage(ezyLogo, 'PNG', 14, fY - 5, 12, 6);
+                            doc.text('Powered by ezyHR | The Future of Payroll', 28, fY);
+                        } catch (e) { }
+
                         if (data.pageNumber > 1) {
-                            // Header Branding on new pages
-                            doc.setFontSize(7);
-                            doc.setTextColor(150);
-                            doc.addImage(logo, ps.logo_url ? (ps.logo_url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG') : 'PNG', 14, 10, 20, 10);
                             doc.text('ITEMIZED PAYSLIP — Attendance Supplement', 105, 15, { align: 'center' });
                         }
                     }
@@ -425,9 +445,16 @@ export default function Payslip() {
                             <Row key={k} label={k} value={v} />
                         ))}
 
-                        {ps.ot_1_5_hours > 0 && <Row label={`Overtime 1.5x (${ps.ot_1_5_hours} hrs)`} value={ps.ot_1_5_pay} />}
-                        {ps.ot_2_0_hours > 0 && <Row label={`Overtime 2.0x (${ps.ot_2_0_hours} hrs)`} value={ps.ot_2_0_pay} />}
-                        {ps.overtime_hours > 0 && ps.ot_1_5_hours === 0 && ps.ot_2_0_hours === 0 && <Row label={`Overtime (${ps.overtime_hours} hrs)`} value={ps.overtime_pay} />}
+                        {ps.ot_1_5_hours > 0 && (
+                            <Row label={`Overtime 1.5x — ${ps.ot_1_5_hours} hrs @ ${formatCurrency(ps.ot_1_5_pay / ps.ot_1_5_hours)}/hr`} value={ps.ot_1_5_pay} />
+                        )}
+                        {ps.ot_2_0_hours > 0 && (
+                            <Row label={`Overtime 2.0x — ${ps.ot_2_0_hours} hrs @ ${formatCurrency(ps.ot_2_0_pay / ps.ot_2_0_hours)}/hr`} value={ps.ot_2_0_pay} />
+                        )}
+                        {/* Standard (flat) OT only shown when there are no categorised OT hours */}
+                        {ps.overtime_hours > 0 && ps.ot_1_5_hours === 0 && ps.ot_2_0_hours === 0 && (
+                            <Row label={`Overtime (${ps.overtime_hours} hrs)`} value={ps.overtime_pay} />
+                        )}
 
                         {ps.ph_worked_pay > 0 && <Row label="Worked on Public Holiday" value={ps.ph_worked_pay} />}
                         {ps.ph_off_day_pay > 0 && <Row label="PH Off-Day Pay in Lieu" value={ps.ph_off_day_pay} />}

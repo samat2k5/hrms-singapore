@@ -72,7 +72,9 @@ router.put('/:employeeId', authMiddleware, async (req, res) => {
                 main_duties=?, employment_end_date=?, working_hours_details=?, break_hours=?,
                 salary_payment_date=?, overtime_payment_date=?, gross_rate_of_pay=?, 
                 other_salary_components=?, cpf_payable=?, probation_start_date=?, probation_end_date=?,
-                custom_allowances=?, custom_deductions=?, employee_grade=?
+                custom_allowances=?, custom_deductions=?, employee_grade=?,
+                job_title_tr=?, main_duties_tr=?, medical_benefits_tr=?, notice_period_tr=?, 
+                other_salary_components_tr=?, target_language=?
             WHERE employee_id=?`;
 
         const cpfPayable = (k.cpf_payable === 1 || k.cpf_payable === true || k.cpf_payable === 'true') ? 1 : 0;
@@ -89,6 +91,8 @@ router.put('/:employeeId', authMiddleware, async (req, res) => {
             k.other_salary_components, cpfPayable,
             k.probation_start_date, k.probation_end_date,
             customAllowances, customDeductions, k.employee_grade || '',
+            k.job_title_tr || '', k.main_duties_tr || '', k.medical_benefits_tr || '',
+            k.notice_period_tr || '', k.other_salary_components_tr || '', k.target_language || 'English',
             req.params.employeeId
         ];
 

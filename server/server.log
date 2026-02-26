@@ -1,0 +1,51 @@
+🚀 SERVER RESTARTING - TRANSLATE ROUTE ACTIVE
+[DB] Saved to c:\Users\mathi\Desktop\AntiGravity Demos\HRMS Singapore\server\db\hrms.sqlite (933888 bytes)
+[DB] Saved to c:\Users\mathi\Desktop\AntiGravity Demos\HRMS Singapore\server\db\hrms.sqlite (933888 bytes)
+[DB] Saved to c:\Users\mathi\Desktop\AntiGravity Demos\HRMS Singapore\server\db\hrms.sqlite (933888 bytes)
+📦 Database initialized
+🚀 HRMS Server running on http://localhost:5000
+📋 API Routes:
+   POST /api/auth/login
+   GET  /api/employees
+   GET  /api/kets/:employeeId
+   GET  /api/leave/types
+   POST /api/payroll/run
+   GET  /api/reports/dashboard
+[2026-02-26T11:46:45.402Z] GET /api/reports/dashboard
+[2026-02-26T11:46:45.414Z] GET /api/documents/expiring
+[2026-02-26T11:46:45.416Z] GET /api/entities
+[2026-02-26T11:46:45.420Z] GET /api/reports/dashboard
+[2026-02-26T11:46:45.423Z] GET /api/documents/expiring
+[2026-02-26T11:46:45.438Z] GET /api/reports/dashboard
+[2026-02-26T11:46:45.438Z] GET /api/documents/expiring
+[2026-02-26T11:46:45.445Z] GET /api/reports/dashboard
+[2026-02-26T11:46:45.445Z] GET /api/documents/expiring
+[2026-02-26T11:51:57.595Z] GET /api/payroll/runs
+[2026-02-26T11:51:57.596Z] GET /api/employee-groups
+[2026-02-26T11:51:57.607Z] GET /api/payroll/runs
+[2026-02-26T11:51:57.607Z] GET /api/employee-groups
+[2026-02-26T11:52:01.362Z] DELETE /api/payroll/run/45
+[PAYROLL_DELETE] Attempting to delete run 45 for entity 1
+[DB] Saved to c:\Users\mathi\Desktop\AntiGravity Demos\HRMS Singapore\server\db\hrms.sqlite (933888 bytes)
+[PAYROLL_DELETE] Successfully deleted run 45
+[2026-02-26T11:52:01.396Z] GET /api/payroll/runs
+[2026-02-26T11:52:01.396Z] GET /api/employee-groups
+[2026-02-26T11:52:06.097Z] GET /api/employees
+[2026-02-26T11:52:09.863Z] POST /api/employees/bulk-custom
+[DB] Saved to c:\Users\mathi\Desktop\AntiGravity Demos\HRMS Singapore\server\db\hrms.sqlite (933888 bytes)
+[2026-02-26T11:52:09.878Z] POST /api/payroll/run
+[PAYROLL_RUN] Created Run ID: 46 for Group: H
+[Payroll Debug] Emp: MOHAMMED NOR, Month: 2026-1, OT1.5: 49.5, OT2.0: 32, Perf: 18
+WARNING: MOHAMMED NOR exceed 72h OT limit (81.5h)
+[Payroll Debug] Emp: MUSKU HAREESH, Month: 2026-1, OT1.5: 25.5, OT2.0: 16, Perf: 6.75
+[Payroll Debug] Emp: SUBRAMANIYAN AYYAPPAN, Month: 2026-1, OT1.5: 47, OT2.0: 32, Perf: 4.75
+WARNING: SUBRAMANIYAN AYYAPPAN exceed 72h OT limit (79.0h)
+[Payroll Debug] Emp: VETRIVEL KABILARASAN, Month: 2026-1, OT1.5: 0, OT2.0: 0, Perf: 0
+[Payroll Debug] Emp: CHELLADHURAI JAGAN, Month: 2026-1, OT1.5: 30.5, OT2.0: 8, Perf: 5.25
+[Payroll Debug] Emp: GANGADHARAN RATHEESH MON, Month: 2026-1, OT1.5: 41, OT2.0: 8, Perf: 6
+[Payroll Debug] Emp: SASIKUMAR SAJI KUMAR, Month: 2026-1, OT1.5: 0, OT2.0: 0, Perf: 0
+[DB] Saved to c:\Users\mathi\Desktop\AntiGravity Demos\HRMS Singapore\server\db\hrms.sqlite (933888 bytes)
+[2026-02-26T11:52:09.917Z] GET /api/payroll/runs
+[2026-02-26T11:52:09.918Z] GET /api/employee-groups
+[2026-02-26T11:52:16.410Z] GET /api/payroll/payslip/769
+[2026-02-26T11:52:16.420Z] GET /api/payroll/payslip/769

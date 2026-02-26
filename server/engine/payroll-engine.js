@@ -39,6 +39,7 @@ function processEmployeePayroll(employee, options = {}) {
         earlyOutMins = 0,
         performanceCredits = 0,
         performanceMultiplier = 1.0,
+        momHourlyRate = 0,  // MOM-formula hourly rate: (12 * basic) / (52 * contractual_weekly_hours)
     } = options;
 
     // Parse custom allowances and deductions
@@ -97,12 +98,19 @@ function processEmployeePayroll(employee, options = {}) {
     const phOffDayExtraPay = Math.round(dailyGrossRate * phOffDaysPaid * 100) / 100;
 
     // 3. Attendance Penalty (Lateness/Early Out)
-    // Formula: (Total Penalty Mins / 60) * (Basic Rate / 8)
+    // Formula: (Total Penalty Mins / 60) * (Basic Rate / 8) — uses daily basic / 8 hrs
     const hourlyBasicRate = dailyBasicRate / 8;
     const attendanceDeduction = Math.round(((lateMins + earlyOutMins) / 60) * hourlyBasicRate * 100) / 100;
 
     // 4. Performance Reward
-    const performanceAllowance = Math.round(performanceCredits * hourlyBasicRate * performanceMultiplier * 100) / 100;
+    // MOM: performance credit uses the same contractual hourly rate as OT.
+    // Falls back to attendance-based hourly rate if MOM rate not provided.
+    const perfHourlyRate = momHourlyRate > 0 ? momHourlyRate : hourlyBasicRate;
+    const rawPerformanceAllowance = performanceCredits * perfHourlyRate * performanceMultiplier;
+    // User Requirement: Round final performance credit amount to the nearest $5 or $10 value
+    const performanceAllowance = Math.round(rawPerformanceAllowance / 5) * 5;
+
+
 
     const grossPay = basicSalary + fixedAllowancesTotal + overtimePay + bonus + phWorkedExtraPay + phOffDayExtraPay + performanceAllowance - unpaidLeaveDeduction - attendanceDeduction;
 

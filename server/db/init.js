@@ -132,6 +132,19 @@ async function getDb() {
       }
     } catch (e) { console.error('[DB] Group seeding failed:', e.message); }
 
+    // Payroll Runs Migrations
+    try {
+      const check = db.exec("PRAGMA table_info(payroll_runs)");
+      if (check.length > 0) {
+        const columns = check[0].values.map(v => v[1]);
+        if (!columns.includes('is_locked')) {
+          console.log('[DB] Migrating payroll_runs: Adding is_locked...');
+          db.run(`ALTER TABLE payroll_runs ADD COLUMN is_locked INTEGER DEFAULT 0`);
+          saveDb();
+        }
+      }
+    } catch (e) { console.error('[DB] Payroll runs migration failed:', e.message); }
+
   } else {
     db = new SQL.Database();
     createSchema(db);

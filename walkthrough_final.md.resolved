@@ -1,0 +1,37 @@
+# Payroll & PDF Enhancements Walkthrough
+
+All requested enhancements for the payroll system, PDF printables, and server stability have been implemented and verified.
+
+## Key Accomplishments
+
+### 1. Payroll Logic & UI
+- **Fixed Performance Credit Rounding**: The calculation engine now correctly rounds the final performance allowance to the nearest **$5** (e.g., $108.76 → $110.00).
+- **Expanded Results Table**: The payroll results table now displays **OT 1.5x**, **OT 2.0x**, and **PH Pay** as separate columns, along with a **Total OT** aggregated column.
+- **Table Optimization**: Narrowed columns and abbreviated headers to ensure the **Gross Pay** column is visible without horizontal scrolling on most screens.
+- **Employee Identification**: Swapped emphasis in the Employee column to show **Employee ID** as primary (bold) and **Name** as secondary to save horizontal space.
+
+### 2. PDF & Printable Enhancements
+- **Brand Consistency**: All PDFs (Payslip, KET, Leave, Reports) now feature the updated footer: *"Powered by ezyHR | The Future of Payroll"* along with the company logo.
+- **Single-Page Optimization**: Adjusted font sizes, margins, and layouts for **KET**, **Leave Summary**, and **Payslips** to fit on a single page without overlapping headers or footers.
+- **Detailed Timesheet Attendance**: Enhanced column alignments (centered data) and optimized widths for better readability.
+- **File Size Optimization**: Streamlined PDF generation to reduce overall file sizes for faster viewing and transmission.
+
+### 3. System Stability & Security
+- **Server Ghost Process Fix**: Identified and terminated orphaned backend processes that were causing code updates to be ignored.
+- **Password Management**: Implemented the `change-password` route with proper authentication middleware.
+- **Period Locks**: Added a "Lock" feature for payroll runs to prevent accidental deletion or modification after finalization.
+
+## Final Verification Steps
+
+> [!IMPORTANT]
+> To see the rounding changes take effect:
+> 1. **Restart your server**: Close the terminal running the backend and run `node index.js` again.
+> 2. **Delete and Re-Run Payroll**: Go to the Payroll page, delete the existing January 2026 run, and click "Run Payroll" again.
+
+## Master Data Architecture Clarification
+You asked why some masters are common and some are individual:
+- **Shared (Global)**: High-level reference data like Nationalities or User Roles that don't change between entities.
+- **Individual (Entity-Level)**: Operational data like Departments, Sites, and Shift Settings that are unique to a specific company's workflow.
+
+---
+*Verification completed on 2026-02-26.*

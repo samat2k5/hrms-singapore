@@ -1,0 +1,36 @@
+# Payroll OT & Performance Fixes Walkthrough
+
+We have successfully resolved the discrepancies in the payroll system, ensuring that all Overtime (OT) and Performance Allowance calculations are MOM-compliant and accurate.
+
+## Key Changes
+
+### 1. Corrected OT Rate Calculation
+Fixed the logic that was using actual shift hours instead of contractual weekly hours for the OT rate formula.
+- **Problem**: Mohammed Nor's OT rate was being calculated based on a 49.5h/week shift, resulting in a lower rate ($5.37/hr).
+- **Fix**: The system now strictly uses the **contractual weekly hours** (44h/week) from the KET profile.
+- **Result**: Mohammed Nor's 1.5x rate is now correctly **$6.04/hr**.
+
+### 2. Performance Credit Rate Fix
+Updated the performance allowance calculation to align with MOM hourly rate standards.
+- **Problem**: Performance credits were using a daily attendance-based hourly rate.
+- **Fix**: Aligned the formula with the OT base hourly rate: [(12 * basic) / (52 * contractual_weekly_hours)](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/App.jsx#68-102).
+- **Result**: Performance credits now value work consistently with overtime standards ($4.03/hr base).
+
+### 3. Overtime Double-Counting Resolution
+Eliminated the bug where unclassified "standard" OT was being added on top of categorized 1.5x and 2.0x OT.
+- **Fix**: Refined the residual calculation: `ot_hours = max(0, total_ot_hours - ot_1_5_hours - ot_2_0_hours)`.
+
+## Verification Results
+
+### Summary Table Update
+The summary table in the Payroll module now correctly shows **"OT & PH Pay ($)"**, combining all extra work payments to ensure the Gross Pay reconciles perfectly. For example, Mohammed Nor now correctly shows **$556.87** in this column.
+
+### Detailed Payslip & Transmission
+The detailed payslip and PDF output now provide a transparent breakdown and the ability to transmit documents digitally via the new **Transmit** button.
+
+## How to Apply
+
+To see these changes effect your current payroll:
+1. Delete the January 2026 payroll run in **Payroll History**.
+2. Re-run the payroll for January 2026.
+3. Observe the corrected rates and totals.

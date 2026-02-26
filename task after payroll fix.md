@@ -1,0 +1,74 @@
+# Global UI Audit Tasks
+
+- [x] Fix Layout Visibility Problems
+    - [x] Make Theme Toggle visible on mobile header
+    - [x] Fix "+Add Employee" visibility in [Employees.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Employees.jsx)
+- [x] Employees Page Redesign
+    - [x] Remove Department, Group, Nationality columns
+    - [x] Add functional filters for Dept/Group/Nationality
+- [x] Refine Sidebar and Signout
+    - [x] Tighten Sidebar Spacing
+    - [x] Move Signout to Sidebar with Confirmation
+- [x] Comprehensive Page Audit (Refine & Polish)
+    - [x] Dashboard & Reports
+    - [x] Payroll & Leaves
+    - [x] Attendance (Both views)
+    - [x] All Master Data Pages
+- [x] Final Responsive Check & Feedback
+
+# Feature Enhancements
+
+- [x] Implement Multi-Entity Profile Synchronization
+    - [x] Plan automated synchronization strategy
+    - [x] Update `PUT` route in [employees.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/employees.js) for cross-entity updates
+    - [x] Update `POST` route in [employees.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/employees.js) to pre-fill from existing records
+    - [x] Verify synchronization logic with Employee 2007
+- [x] Fix Data Persistence & API Layer
+    - [x] Identify and patch `FormData` stringification bug in [api.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/debug_api.js)
+    - [x] Locate and repair corrupted Employee 2007 record in Entity 5
+    - [x] Verify data stability across entities
+- [x] Debug Payroll Issues
+    - [x] Investigate deletion failure (Fixed duplicate routes and transaction logic)
+    - [x] Investigate processing failure (Fixed group matching and missing employees logic)
+    - [x] Consolidate duplicate payroll routes
+    - [x] Verify fixes for delete and process
+- [x] Improve Payslip & PDF Layout
+    - [x] Calculate and display attendance totals in UI
+    - [x] Calculate and display attendance totals in PDF
+    - [x] Fix PDF layout overlapping (Logos/Header/Footer)
+    - [x] Conditionally show timesheet section
+    - [x] Fix "reading 'data'" error in PDF export (Robustness improvement)
+- [x] Extend PDF Hardening to Leave & KET modules
+- [x] Refine PDF Layout & Alignment
+- [x] Fix Face Attendance Timezone
+- [x] Implement PDF Transmission (WhatsApp/Email)
+    - [x] Add PDF upload/transmit endpoint to backend
+    - [x] Harden entity checks in [server/routes/kets.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/kets.js)
+    - [x] Harden entity checks in [server/routes/payroll.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/payroll.js) (Payslip, GIRO, CPF)
+    - [x] Fix last column in Payroll Results to be sticky "View Payslip"
+    - [x] Harden entity checks in [server/routes/leave.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/leave.js) (Balances, Approvals)
+    - [x] Verify cross-entity isolation for all document types
+    - [x] Integrate "Send via Email" in Payslip, KET, and Leave UI
+    - [x] Integrate "Send via WhatsApp" (wa.me) in UI
+    - [/] Verify transmission flow
+    - [x] Identify UTC timestamp source in FaceAttendance.jsx
+    - [x] Implement SGT (UTC+8) conversion in backend or frontend
+    - [x] Verify attendance logs show SGT
+    - [x] Standardize column widths and right-align amounts in Payslips
+    - [x] Fix header/footer overlapping in KET and Leave PDFs
+    - [x] Verify alignment across all generated reports
+- [x] Implement Dynamic Bi-lingual KETs (Rolled back due to PDF font limitations)
+    - [x] Research MOM requirements for dual-language agreements
+    - [x] Fix Payroll OT Pay accuracy & Category Breakdown
+    - [x] Fix OT double-counting bug in [payroll.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/test-payroll.js)
+    - [x] Fix OT rate calculation to use KET contractual hours (44h/week) instead of shift hours
+    - [x] Fix Performance Credit rate to use MOM contractual hourly rate
+    - [x] Update [Payroll.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payroll.jsx) summary table for OT & PH combined pay
+    - [x] Refine [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx) for detailed rate @ hrs breakdown and PDF output
+    - [x] Verify breakdown in UI and PDF
+    - [x] Fix SQL persistence bug (Kept)
+    - [x] Revert bi-lingual labels and UI (Rollback complete)
+    - [x] Fix 1970 epoch date issue in PDF/UI
+- [x] Project Architecture & Implementation Research
+    - [x] Map Backend Routes, DB Schema & API Service Layer
+    - [x] Document System Architecture in [project_overview.md](file:///C:/Users/mathi/.gemini/antigravity/brain/4affa4e7-fee0-419d-a165-0fdeabf1fbbe/project_overview.md)

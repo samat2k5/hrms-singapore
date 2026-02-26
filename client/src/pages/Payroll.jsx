@@ -347,69 +347,79 @@ export default function Payroll() {
                         <table className="table-theme">
                             <thead>
                                 <tr>
-                                    <th>Employee</th>
-                                    <th>Basic</th>
-                                    <th>Allowances</th>
-                                    <th>OT Pay ($)</th>
-                                    <th>Perf. Allow ($)</th>
-                                    <th>Att. Pen ($)</th>
-                                    <th>Gross</th>
-                                    <th>CPF (EE)</th>
-                                    <th>CPF (ER)</th>
-                                    <th>SDL</th>
-                                    <th>SHG</th>
-                                    <th>Net Pay</th>
-                                    <th className="sticky right-0 bg-[var(--bg-card)] z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.05)] border-l border-[var(--border-main)] text-center">View</th>
+                                    <th className="!px-1 !text-[9px] w-24">Employee</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">Basic</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">Allow.</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">OT 1.5x</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">OT 2.0x</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">PH Pay</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">Total OT</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">Perf.</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">Att.</th>
+                                    <th className="!px-1 !text-[9px] text-center bg-cyan-500/5 font-bold">Gross</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">EE CPF</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">ER CPF</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">SDL</th>
+                                    <th className="!px-0.5 !text-[9px] text-center">SHG</th>
+                                    <th className="!px-1 !text-[9px] text-center">Net Pay</th>
+                                    <th className="sticky right-0 bg-[var(--bg-card)] z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.1)] border-l border-[var(--border-main)] text-center !px-2">View</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {payslips.map(ps => (
-                                    <tr key={ps.id}>
-                                        <td>
+                                    <tr key={ps.id} className="text-[11px]">
+                                        <td className="!px-1">
                                             <div>
-                                                <p className="font-medium text-[var(--text-main)]">{ps.employee_name}</p>
-                                                <p className="text-xs text-[var(--text-muted)]">{ps.employee_code}</p>
+                                                <p className="font-bold text-[var(--text-main)] text-[10px]">{ps.employee_code}</p>
+                                                <p className="text-[8px] text-[var(--text-muted)] truncate max-w-[90px]" title={ps.employee_name}>{ps.employee_name}</p>
                                             </div>
                                         </td>
-                                        <td>{formatCurrency(ps.basic_salary)}</td>
-                                        <td>{formatCurrency(ps.total_allowances)}</td>
-                                        <td>
-                                            <span className={ps.overtime_pay > 0 ? "text-amber-400 font-medium" : "text-[var(--text-muted)]"}>
-                                                {formatCurrency(ps.overtime_pay)}
+                                        <td className="!px-1 text-center">{formatCurrency(ps.basic_salary)}</td>
+                                        <td className="!px-1 text-center">{formatCurrency(ps.total_allowances)}</td>
+                                        <td className="!px-1 text-center">
+                                            <span className={ps.ot_1_5_pay > 0 ? "text-amber-400 font-medium" : "text-[var(--text-muted)]"}>
+                                                {formatCurrency(ps.ot_1_5_pay)}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td className="!px-1 text-center">
+                                            <span className={ps.ot_2_0_pay > 0 ? "text-purple-400 font-medium" : "text-[var(--text-muted)]"}>
+                                                {formatCurrency(ps.ot_2_0_pay)}
+                                            </span>
+                                        </td>
+                                        <td className="!px-1 text-center">
+                                            <span className={(ps.ph_worked_pay + ps.ph_off_day_pay) > 0 ? "text-amber-500 font-medium" : "text-[var(--text-muted)]"}>
+                                                {formatCurrency(ps.ph_worked_pay + ps.ph_off_day_pay)}
+                                            </span>
+                                        </td>
+                                        <td className="!px-1 text-center">
+                                            <span className={(ps.ot_1_5_pay + ps.ot_2_0_pay + ps.ph_worked_pay + ps.ph_off_day_pay) > 0 ? "text-cyan-400 font-bold" : "text-[var(--text-muted)]"}>
+                                                {formatCurrency(ps.ot_1_5_pay + ps.ot_2_0_pay + ps.ph_worked_pay + ps.ph_off_day_pay)}
+                                            </span>
+                                        </td>
+                                        <td className="!px-1 text-center">
                                             <span className={ps.performance_allowance > 0 ? "text-emerald-400 font-medium" : "text-[var(--text-muted)]"}>
                                                 {formatCurrency(ps.performance_allowance)}
                                             </span>
                                         </td>
-                                        <td>
-                                            <div className="flex flex-col">
+                                        <td className="!px-1 text-center text-[10px]">
+                                            <div className="flex flex-col items-center">
                                                 <span className={ps.attendance_deduction > 0 ? "text-rose-400 font-medium" : "text-[var(--text-muted)]"}>
                                                     -{formatCurrency(ps.attendance_deduction)}
                                                 </span>
-                                                {(ps.late_mins > 0 || ps.early_out_mins > 0) && (
-                                                    <span className="text-[10px] text-rose-500/70">
-                                                        {ps.late_mins}L / {ps.early_out_mins}E mins
-                                                    </span>
-                                                )}
                                             </div>
                                         </td>
-                                        <td className="font-medium text-[var(--text-main)]">{formatCurrency(ps.gross_pay)}</td>
-                                        <td>{formatCurrency(ps.cpf_employee)}</td>
-                                        <td>{formatCurrency(ps.cpf_employer)}</td>
-                                        <td>{formatCurrency(ps.sdl)}</td>
-                                        <td>
-                                            <div>
-                                                <span>{formatCurrency(ps.shg_deduction)}</span>
-                                                {ps.shg_fund !== 'N/A' && <span className="text-xs text-[var(--text-muted)] ml-1">({ps.shg_fund})</span>}
-                                            </div>
+                                        <td className="!px-2 text-center font-bold text-[var(--text-main)] bg-cyan-500/5">{formatCurrency(ps.gross_pay)}</td>
+                                        <td className="!px-1 text-center">{formatCurrency(ps.cpf_employee)}</td>
+                                        <td className="!px-1 text-center">{formatCurrency(ps.cpf_employer)}</td>
+                                        <td className="!px-1 text-center">{formatCurrency(ps.sdl)}</td>
+                                        <td className="!px-1 text-center">
+                                            <span className="text-[10px]">{formatCurrency(ps.shg_deduction)}</span>
                                         </td>
-                                        <td className="font-semibold text-[var(--brand-primary)]">{formatCurrency(ps.net_pay)}</td>
-                                        <td className="sticky right-0 bg-[var(--bg-card)] z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.05)] border-l border-[var(--border-main)] text-center">
+                                        <td className="!px-2 text-center font-bold text-[var(--brand-primary)]">{formatCurrency(ps.net_pay)}</td>
+                                        <td className="sticky right-0 bg-[var(--bg-card)] z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.1)] border-l border-[var(--border-main)] text-center !px-2">
                                             <button onClick={() => navigate(`/payroll/payslip/${ps.id}`)}
-                                                className="text-xs px-3 py-1 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/20 transition-colors whitespace-nowrap">
-                                                📄 Payslip
+                                                className="text-[9px] px-2 py-0.5 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/20 transition-colors whitespace-nowrap">
+                                                📄 View
                                             </button>
                                         </td>
                                     </tr>
@@ -437,7 +447,10 @@ export default function Payroll() {
                         </select>
                     </div>
                 </div>
-                {loading ? <div className="h-32 loading-shimmer" /> : runs.length === 0 ? (
+
+                {loading ? (
+                    <div className="p-10 loading-shimmer h-96" />
+                ) : runs.length === 0 ? (
                     <p className="text-[var(--text-muted)] text-center py-8">No payroll runs yet. Process your first payroll above.</p>
                 ) : (
                     <div className="overflow-x-auto">
@@ -463,7 +476,14 @@ export default function Payroll() {
                                         <td>{formatCurrency(run.total_cpf_employee + run.total_cpf_employer)}</td>
                                         <td>{formatCurrency(run.total_sdl)}</td>
                                         <td className="font-medium text-[var(--brand-primary)]">{formatCurrency(run.total_net)}</td>
-                                        <td><span className="badge-success">{run.status}</span></td>
+                                        <td>
+                                            <button
+                                                onClick={() => handleToggleLock(run.id, run.is_locked)}
+                                                className={`text-xs px-2 py-1 rounded-lg transition-all ${run.is_locked ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-slate-500/10 text-slate-400 hover:bg-slate-500/20'}`}
+                                            >
+                                                {run.is_locked ? '🔒 Locked' : '🔓 Open'}
+                                            </button>
+                                        </td>
                                         <td>
                                             <div className="flex gap-2">
                                                 <button onClick={() => {
@@ -472,7 +492,9 @@ export default function Payroll() {
                                                 }} className="text-xs px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title={`${giroFormat} GIRO Export`}>🏦 GIRO</button>
                                                 <button onClick={() => downloadExport(`/api/payroll/export-cpf/${run.id}`, `CPF_${run.employee_group}.txt`)} className="text-xs px-2 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors" title="CPF FTP File">📥 CPF</button>
                                                 <button onClick={() => viewRun(run)} className="text-xs px-2 py-1 rounded-lg bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors">View</button>
-                                                <button onClick={() => handleDelete(run.id)} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
+                                                {!run.is_locked && (
+                                                    <button onClick={() => handleDelete(run.id)} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
