@@ -1,0 +1,56 @@
+# Implementation Plan: Premium Singapore Compliance (Phase 3 - Automation & Certification)
+
+This phase introduces high-tier automation features for NS Make-Up Pay with government reimbursement tracking and advanced salary proration logic.
+
+## Proposed Changes
+
+### [Backend] NS Claims & Advanced Payroll
+#### [MODIFY] [init.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/db/init.js)
+- Add `ns_claims` table to track reservist training and reimbursement status:
+    ```sql
+    CREATE TABLE IF NOT EXISTS ns_claims (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      employee_id INTEGER NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      total_days INTEGER NOT NULL,
+      claim_amount REAL,
+      status TEXT DEFAULT 'Pending', -- 'Pending', 'Submitted', 'Reimbursed'
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id),
+      FOREIGN KEY (employee_id) REFERENCES employees(id)
+    )
+    ```
+
+#### [MODIFY] [payroll-engine.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/payroll-engine.js)
+- **Advanced Proration**: Automatically adjust `basicSalary` if `joining_date` or `cessation_date` falls within the payroll period.
+- **MUP Calculation**: Include `nsMakeupPayClaimable` in the returned payslip object (Daily Gross Rate * NS Days).
+
+#### [MODIFY] [iras.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/iras.js)
+- Add `GET /api/iras/compliance-audit`: A diagnostic endpoint that validates UEN, NRICs, and business address completeness for IRAS filing eligibility.
+- Add `GET /api/iras/ns-claims`: List all NS claims.
+- Add `POST /api/iras/ns-claims`: Create a new NS claim record.
+
+### [Frontend] Claims & Readiness UI
+#### [MODIFY] [IRASCompliance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/IRASCompliance.jsx)
+- **Certification Readiness Dashboard**: A new "🛡️ Readiness" tab showing a score and checklist (e.g., "Entity UEN: OK", "Missing NRICs: 2").
+- **NS Claims Manager**: A UI to log reservist dates and view the calculated reimbursement amount.
+
+## Verification Plan
+
+### Automated Tests
+- **Proration Test**: Verify that an employee joining on the 15th of a 30-day month receives exactly 50% of their basic salary.
+- **MUP Test**: Verify that 5 days of reservist for an employee with $4400 gross ($200/day) generates a $1000 MUP claim.
+
+### Manual Verification
+1.  **Readiness Audit**:
+    - Manually delete a UEN from an entity and verify the Readiness Tab flags it as "CRITICAL ERROR".
+    - Fix the UEN and verify it turns green.
+2.  **NS Claim Workflow**:
+    - Add a reservist claim for an employee.
+    - Verify the calculated amount is correct based on their daily gross rate.
+    - Run payroll and verify if compliance notes mention the NS period.
+3.  **Mid-month Cessation**:
+    - Set a cessation date for an employee mid-month.
+    - Run payroll and verify basic salary is prorated.

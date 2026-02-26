@@ -145,6 +145,76 @@ async function getDb() {
       }
     } catch (e) { console.error('[DB] Payroll runs migration failed:', e.message); }
 
+    // IRAS Compliance Tables Migration
+    const irasTables = [
+      {
+        name: 'iras_benefits_in_kind',
+        sql: `CREATE TABLE IF NOT EXISTS iras_benefits_in_kind (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          employee_id INTEGER NOT NULL,
+          year INTEGER NOT NULL,
+          category TEXT NOT NULL,
+          description TEXT,
+          value REAL DEFAULT 0,
+          period_from DATE,
+          period_to DATE
+        )`
+      },
+      {
+        name: 'iras_share_options',
+        sql: `CREATE TABLE IF NOT EXISTS iras_share_options (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          employee_id INTEGER NOT NULL,
+          year INTEGER NOT NULL,
+          plan_type TEXT,
+          grant_date DATE,
+          exercise_date DATE,
+          exercise_price REAL,
+          market_value REAL,
+          shares_count INTEGER,
+          taxable_profit REAL
+        )`
+      },
+      {
+        name: 'iras_submissions',
+        sql: `CREATE TABLE IF NOT EXISTS iras_submissions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          entity_id INTEGER NOT NULL,
+          submission_id TEXT UNIQUE,
+          year INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          status TEXT NOT NULL,
+          payload_json TEXT,
+          response_json TEXT,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (entity_id) REFERENCES entities(id)
+        )`
+      },
+      {
+        name: 'ns_claims',
+        sql: `CREATE TABLE IF NOT EXISTS ns_claims (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          entity_id INTEGER NOT NULL,
+          employee_id INTEGER NOT NULL,
+          start_date DATE NOT NULL,
+          end_date DATE NOT NULL,
+          total_days INTEGER NOT NULL,
+          claim_amount REAL,
+          status TEXT DEFAULT 'Pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (entity_id) REFERENCES entities(id),
+          FOREIGN KEY (employee_id) REFERENCES employees(id)
+        )`
+      }
+    ];
+
+    for (const table of irasTables) {
+      try {
+        db.run(table.sql);
+      } catch (e) { console.error(`[DB] Failed to create ${table.name}:`, e.message); }
+    }
+    saveDb();
+
   } else {
     db = new SQL.Database();
     createSchema(db);
@@ -614,8 +684,37 @@ function createSchema(database) {
       description TEXT,
       value REAL DEFAULT 0,
       period_from DATE,
-      period_to DATE,
-      is_taxable BOOLEAN DEFAULT 1,
+      period_to DATE
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS iras_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      submission_id TEXT UNIQUE,
+      year INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      payload_json TEXT,
+      response_json TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id)
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS ns_claims (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER NOT NULL,
+      employee_id INTEGER NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      total_days INTEGER NOT NULL,
+      claim_amount REAL,
+      status TEXT DEFAULT 'Pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id),
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     )
   `);
@@ -631,8 +730,7 @@ function createSchema(database) {
       exercise_price REAL,
       market_value REAL,
       shares_count INTEGER,
-      taxable_profit REAL,
-      FOREIGN KEY (employee_id) REFERENCES employees(id)
+      taxable_profit REAL
     )
   `);
 

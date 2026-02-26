@@ -377,26 +377,23 @@ export default function Payslip() {
                         <p className="text-[var(--text-muted)]">{formatMonth(ps.period_year, ps.period_month)}</p>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <div className="dropdown dropdown-end">
-                        <button tabIndex={0} className="btn-primary text-sm flex items-center gap-2">
-                            <span>📤 Transmit</span>
-                            <span className="text-[10px]">▼</span>
-                        </button>
-                        <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow-2xl bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl w-52 mt-2">
-                            <li>
-                                <button onClick={() => handleTransmit('email')} className="text-[var(--text-main)] hover:bg-[var(--brand-primary)]/10">
-                                    <span>📧 Send via Email</span>
-                                </button>
-                            </li>
-                            <li>
-                                <button onClick={() => handleTransmit('whatsapp')} className="text-[var(--text-main)] hover:bg-emerald-500/10">
-                                    <span>💬 Share via WhatsApp</span>
-                                </button>
-                            </li>
-                        </ul>
-                    </div>
-                    <button onClick={handleExportPDF} className="btn-secondary text-sm">📥 Download PDF</button>
+                <div className="flex items-center gap-2 h-10">
+                    <select
+                        className="select-base !py-0 !px-4 h-10 text-sm font-bold bg-[var(--bg-input)] text-[var(--brand-primary)] border-[var(--brand-primary)]/30 rounded-xl cursor-pointer focus:ring-0 appearance-none text-center shadow-sm hover:bg-[var(--bg-card)] transition-all"
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === 'pdf') handleExportPDF();
+                            else if (val === 'email') handleTransmit('email');
+                            else if (val === 'whatsapp') handleTransmit('whatsapp');
+                            e.target.value = ''; // Reset
+                        }}
+                        value=""
+                    >
+                        <option value="" disabled>📤 Actions</option>
+                        <option value="pdf">📥 Download PDF</option>
+                        <option value="email">📧 Send via Email</option>
+                        <option value="whatsapp">💬 Share via WhatsApp</option>
+                    </select>
                 </div>
             </div>
 

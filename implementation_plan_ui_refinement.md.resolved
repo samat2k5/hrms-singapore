@@ -1,0 +1,47 @@
+# Implementation Plan - Unified Action Dropdowns
+
+Consolidate "Download PDF", "Send via Email", and "Share via WhatsApp" buttons into a unified "Actions" or "Export" dropdown menu to save layout height and improve the professional aesthetic of the application.
+
+## User Review Required
+
+> [!NOTE]
+> I will be consolidating the standalone "Download PDF" buttons into the "Transmit" dropdown, renaming it to "Actions" or "Export" to create a cleaner header row.
+
+## Proposed Changes
+
+### Frontend Components
+
+#### [MODIFY] [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Payslip.jsx)
+- Rename the "Transmit" dropdown to "📤 Actions".
+- Move the "Download PDF" button inside the dropdown.
+- Standardize button heights using a common utility class or specific padding.
+
+#### [MODIFY] [Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Leave.jsx)
+- Refactor the row-level action buttons for each employee.
+- Combine "Transmit" and "PDF" into a single "Actions" dropdown.
+- Ensure consistent height with other buttons on the page.
+
+#### [MODIFY] [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/EmployeeKETs.jsx)
+- Consolidate the header action bar.
+- Move "Download PDF" into the "Transmit/Actions" dropdown.
+- Fix any height discrepancies between the "Edit", "Issue KET", and the new "Actions" dropdown.
+
+## Verification Plan
+
+### Manual Verification
+1.  **Payslip Page**:
+    -   Navigate to a payslip.
+    -   Verify that only one "Actions" button is visible in the header.
+    -   Ensure the dropdown contains: "Download PDF", "Send via Email", and "Share via WhatsApp".
+    -   Test all three actions to ensure they still function correctly.
+2.  **Leave Page**:
+    -   Go to the Leave balances tab.
+    -   Check the employee cards.
+    -   Verify the consolidated dropdown replaces the side-by-side buttons.
+    -   Confirm "PDF" and "Transmit" options work.
+3.  **Employee KETs Page**:
+    -   View an employee's KETs.
+    -   Verify the header actions are streamlined.
+    -   Test "Download PDF" and "Transmit" from the new dropdown.
+4.  **Visual Audit**:
+    -   Check button heights across all three pages to ensure they are visually aligned and consistent.

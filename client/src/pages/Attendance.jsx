@@ -405,7 +405,7 @@ export default function Attendance() {
                                 <button
                                     onClick={handleScan}
                                     disabled={files.length === 0 || scanning}
-                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-3"
+                                    className="w-full py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-light)] disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-lg shadow-[var(--brand-primary)]/20 flex items-center justify-center gap-3"
                                 >
                                     {scanning ? (
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -505,24 +505,22 @@ export default function Attendance() {
                 </div>
 
                 {/* Filter & Actions Row (One Row) */}
-                <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 bg-black/5 dark:bg-white/5 p-4 rounded-xl border border-[var(--border-main)] mb-8 w-full">
-                    {/* Filter: Staff Search */}
-                    <div className="w-[180px] shrink-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-main)] mb-8 w-full shadow-inner shadow-black/20">
+                    <div className="lg:col-span-1">
                         <input
                             type="text"
                             placeholder="🔍 Filter Staff..."
                             value={empSearchTerm}
                             onChange={e => setEmpSearchTerm(e.target.value)}
-                            className="w-full bg-[var(--bg-card)] border border-[var(--border-main)] rounded-lg px-3 py-2 text-sm text-[var(--text-main)] focus:border-indigo-500 outline-none transition-all"
+                            className="w-full bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-3 h-10 text-sm text-[var(--text-main)] focus:border-indigo-500 outline-none transition-all"
                         />
                     </div>
 
-                    {/* Filter: Entity */}
-                    <div className="w-[200px] shrink-0">
+                    <div className="lg:col-span-1">
                         <select
                             value={selectedEntityId}
                             onChange={e => setSelectedEntityId(e.target.value)}
-                            className="select-base !py-2 !px-3 !rounded-lg text-sm"
+                            className="select-base !py-0 !px-3 !rounded-lg text-sm h-10 w-full"
                         >
                             {entities.map(ent => (
                                 <option key={ent.id} value={ent.id}>{ent.name}</option>
@@ -530,12 +528,11 @@ export default function Attendance() {
                         </select>
                     </div>
 
-                    {/* Filter: Year */}
-                    <div className="w-[110px] shrink-0">
+                    <div className="lg:col-span-1">
                         <select
                             value={selectedYear}
                             onChange={e => setSelectedYear(parseInt(e.target.value))}
-                            className="select-base !py-2 !px-3 !rounded-lg text-sm"
+                            className="select-base !py-0 !px-3 !rounded-lg text-sm h-10 w-full"
                         >
                             {[...Array(5)].map((_, i) => {
                                 const y = new Date().getFullYear() - i;
@@ -544,12 +541,11 @@ export default function Attendance() {
                         </select>
                     </div>
 
-                    {/* Filter: Month */}
-                    <div className="w-[140px] shrink-0">
+                    <div className="lg:col-span-1">
                         <select
                             value={selectedMonth}
                             onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                            className="select-base !py-2 !px-3 !rounded-lg text-sm"
+                            className="select-base !py-0 !px-3 !rounded-lg text-sm h-10 w-full"
                         >
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                                 <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('default', { month: 'long' })}</option>
@@ -557,14 +553,13 @@ export default function Attendance() {
                         </select>
                     </div>
 
-                    {/* Filter: Employee Selection */}
-                    <div className="flex-1 min-w-[240px]">
+                    <div className="lg:col-span-1">
                         <select
                             value={selectedEmployee}
                             onChange={e => setSelectedEmployee(e.target.value)}
-                            className="select-base !py-2 !px-4 !rounded-lg text-sm font-bold border-indigo-500/40"
+                            className="select-base !py-0 !px-4 !rounded-lg text-sm font-bold border-indigo-500/40 h-10 w-full"
                         >
-                            <option value="">-- Choose Employee --</option>
+                            <option value="">-- Staff --</option>
                             {employees
                                 .filter(emp =>
                                     emp.full_name.toLowerCase().includes(empSearchTerm.toLowerCase()) ||
@@ -574,13 +569,12 @@ export default function Attendance() {
                         </select>
                     </div>
 
-                    {/* Primary Action Button */}
                     <button
                         onClick={loadMatrix}
                         disabled={!selectedEmployee}
-                        className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap shrink-0"
+                        className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-light)] disabled:opacity-50 text-white px-4 h-10 rounded-lg text-sm font-bold transition-all shadow-lg shadow-[var(--brand-primary)]/20 whitespace-nowrap lg:col-span-1"
                     >
-                        Apply Monthly Matrix
+                        Apply Matrix
                     </button>
                 </div>
 
@@ -590,7 +584,7 @@ export default function Attendance() {
                         <button
                             onClick={loadMatrix}
                             disabled={!selectedEmployee || loadingMatrix}
-                            className="px-4 py-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/20 transition-all text-sm font-bold flex items-center gap-2 disabled:opacity-50"
+                            className="px-4 py-2 bg-[var(--brand-primary)]/10 hover:bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] rounded-lg border border-[var(--brand-primary)]/20 transition-all text-sm font-bold flex items-center gap-2 disabled:opacity-50"
                         >
                             {loadingMatrix ? 'Loading...' : <>🔄 Reload Matrix</>}
                         </button>
@@ -638,7 +632,7 @@ export default function Attendance() {
                                         <td colSpan={11} className="px-6 py-20 text-center text-slate-500 italic">
                                             {selectedEmployee ? (
                                                 <div className="flex flex-col items-center gap-2">
-                                                    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                                    <div className="w-8 h-8 border-2 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin mb-2"></div>
                                                     Building monthly matrix grid...
                                                 </div>
                                             ) : (
@@ -670,7 +664,7 @@ export default function Attendance() {
                                                         placeholder="HHmm"
                                                         value={row.in_time}
                                                         onChange={e => handleMatrixChange(idx, 'in_time', e.target.value)}
-                                                        className="w-20 bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-center text-xs text-[var(--text-main)] focus:border-indigo-500 outline-none"
+                                                        className="w-20 bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-center text-xs text-[var(--text-main)] focus:border-[var(--brand-primary)] outline-none"
                                                     />
                                                 </td>
                                                 <td className="px-3 py-2 text-center border-r border-[var(--border-main)]">
@@ -679,14 +673,14 @@ export default function Attendance() {
                                                         placeholder="HHmm"
                                                         value={row.out_time}
                                                         onChange={e => handleMatrixChange(idx, 'out_time', e.target.value)}
-                                                        className="w-20 bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-center text-xs text-[var(--text-main)] focus:border-indigo-500 outline-none"
+                                                        className="w-20 bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-center text-xs text-[var(--text-main)] focus:border-[var(--brand-primary)] outline-none"
                                                     />
                                                 </td>
                                                 <td className="px-3 py-2 text-center border-r border-[var(--border-main)]">
                                                     <select
                                                         value={row.shift}
                                                         onChange={e => handleMatrixChange(idx, 'shift', e.target.value)}
-                                                        className="bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-main)] focus:border-indigo-500 outline-none cursor-pointer"
+                                                        className="bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-main)] focus:border-[var(--brand-primary)] outline-none cursor-pointer"
                                                     >
                                                         <option value="" className="bg-[var(--bg-input)]">Off</option>
                                                         <option value="Day" className="bg-[var(--bg-input)]">Day</option>
@@ -745,7 +739,7 @@ export default function Attendance() {
                                                         placeholder="Notes..."
                                                         value={row.remarks}
                                                         onChange={e => handleMatrixChange(idx, 'remarks', e.target.value)}
-                                                        className="w-full bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-[var(--text-main)] text-xs focus:text-indigo-500 outline-none focus:border-indigo-500 transition-all"
+                                                        className="w-full bg-[var(--bg-input)] border border-[var(--border-main)] rounded-lg px-2 py-1.5 text-[var(--text-main)] text-xs focus:text-[var(--brand-primary)] outline-none focus:border-[var(--brand-primary)] transition-all"
                                                     />
                                                 </td>
                                             </tr>
@@ -757,7 +751,7 @@ export default function Attendance() {
                                 <tfoot className="bg-[var(--bg-card)] sticky bottom-0 z-10 border-t-2 border-[var(--border-main)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                                     <tr className="uppercase tracking-widest text-[10px] font-bold">
                                         <td colSpan={5} className="px-6 py-4 text-right text-[var(--text-muted)]">Totals for {new Date(2000, selectedMonth - 1).toLocaleString('default', { month: 'long' })}:</td>
-                                        <td className="px-4 py-4 text-center border-l border-[var(--border-main)] bg-indigo-500/10 text-indigo-500 text-sm font-mono">
+                                        <td className="px-4 py-4 text-center border-l border-[var(--border-main)] bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] text-sm font-mono">
                                             {matrixData.reduce((sum, r) => sum + (parseFloat(r.normal_hours) || 0), 0).toFixed(1)}
                                         </td>
                                         <td className="px-4 py-4 text-center border-l border-[var(--border-main)] bg-amber-500/10 text-amber-500 text-sm font-mono">

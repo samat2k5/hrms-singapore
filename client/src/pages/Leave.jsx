@@ -477,37 +477,30 @@ export default function Leave() {
                             </div>
                         )}
                         {pagedEmployees.map(([empId, data]) => (
-                            <div key={empId} className="card-base p-5">
+                            <div key={empId} className="card-base p-5 relative">
                                 <div className="flex items-center justify-between mb-4">
                                     <div>
                                         <h3 className="text-sm font-semibold text-[var(--text-main)]">{data.name}</h3>
                                         <p className="text-xs text-[var(--text-muted)]">{data.code} · Group {data.group}</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 h-8">
                                         <span className="text-xs text-[var(--text-muted)]">{year}</span>
-                                        <div className="dropdown dropdown-end">
-                                            <button tabIndex={0} className="text-xs px-2.5 py-1 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/20 transition-colors flex items-center gap-1.5">
-                                                <span>📤 Transmit</span>
-                                                <span className="text-[8px]">▼</span>
-                                            </button>
-                                            <ul tabIndex={0} className="dropdown-content z-[2] menu p-2 shadow-2xl bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl w-48 mt-1">
-                                                <li>
-                                                    <button onClick={() => handleTransmit(empId, data, 'email')} className="text-[var(--text-main)] hover:bg-[var(--brand-primary)]/10 text-xs py-2">
-                                                        <span>📧 Send via Email</span>
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button onClick={() => handleTransmit(empId, data, 'whatsapp')} className="text-[var(--text-main)] hover:bg-emerald-500/10 text-xs py-2">
-                                                        <span>💬 Share via WhatsApp</span>
-                                                    </button>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                        <button onClick={() => exportIndividualPDF(empId, data)}
-                                            className="text-xs px-2.5 py-1 rounded-lg border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors"
-                                            title="Download individual leave record PDF">
-                                            📄 PDF
-                                        </button>
+                                        <select
+                                            className="h-full px-3 text-[11px] rounded-lg bg-[var(--bg-input)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 hover:bg-[var(--bg-card)] transition-all cursor-pointer font-bold outline-none appearance-none"
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === 'pdf') exportIndividualPDF(empId, data);
+                                                else if (val === 'email') handleTransmit(empId, data, 'email');
+                                                else if (val === 'whatsapp') handleTransmit(empId, data, 'whatsapp');
+                                                e.target.value = ''; // Reset
+                                            }}
+                                            value=""
+                                        >
+                                            <option value="" disabled>📤 Actions</option>
+                                            <option value="pdf">📄 Download PDF</option>
+                                            <option value="email">📧 Email</option>
+                                            <option value="whatsapp">💬 WhatsApp</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

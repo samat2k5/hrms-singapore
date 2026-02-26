@@ -40,6 +40,7 @@ export default function Reports() {
     ]
 
     const fetchReport = async () => {
+        setData(null)
         setLoading(true)
         try {
             let result
@@ -69,10 +70,9 @@ export default function Reports() {
     }
 
     useEffect(() => {
+        setData(null);
         if (tab === 'master' || tab === 'expiry') {
             fetchReport();
-        } else {
-            setData(null);
         }
     }, [tab])
 
@@ -334,7 +334,7 @@ export default function Reports() {
                         </table>
                     )}
 
-                    {tab === 'master' && (
+                    {tab === 'master' && Array.isArray(data) && (
                         <div className="overflow-x-auto">
                             <table className="table-theme">
                                 <thead><tr><th>Emp ID</th><th>Full Name</th><th>Group</th><th>Basic Pay</th><th>Bank</th><th>Account</th><th>Email</th></tr></thead>
@@ -355,7 +355,7 @@ export default function Reports() {
                         </div>
                     )}
 
-                    {tab === 'expiry' && (
+                    {tab === 'expiry' && Array.isArray(data) && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-500 text-sm">
                                 <span>🔔 Showing documents expiring within 90 days or already expired.</span>

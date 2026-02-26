@@ -1,0 +1,65 @@
+# Singapore Compliance: Premium Roadmap
+
+To elevate the HRMS Singapore project to "best-in-class" status, we will implement the following advanced features based on IRAS and GovTech specifications.
+
+## 1. IRAS Seamless Filing (SFFS) Integration
+
+The project will move from "File Upload" to "Direct API Filing" using **AIS-API 2.0**.
+
+### Technical Requirements
+- **Format**: JSON-based (replacing older XML/CSV formats).
+- **Gateway**: GovTech APEX (Gateway 2.0).
+- **Auth**: OAuth 2.1 with CorpPass OIDC.
+- **Revision API**: Automate amendments for past filing years.
+
+### Feature Goals
+- One-click "Authorize & Submit" button using Singpass/CorpPass.
+- Real-time submission status tracking (Pending → Accepted → Rejected with Error).
+
+---
+
+## 2. One-Stop Payroll (OSP) Integration
+
+Integrate with the [One-Stop Payroll](https://www.onestoppayroll.gov.sg/) initiative to unify diverse government submissions.
+
+### Feature Goals
+- Unified Dashboard: Submit **CPF (CPFB)**, **AIS (IRAS)**, and **OSD (MOM)** data through a single workflow.
+- Standardized data mapping to OSP JSON/CSV specifications.
+
+---
+
+## 3. High-Tier Compliance Automation
+
+Features that distinguish professional-grade systems from basic implementations:
+
+### IR21 (Tax Clearance) Automation
+- **Target**: Foreign employees departing Singapore.
+- **Logic**: Automatically populate IR21 forms by consolidating the current year-to-date income and the previous two years' tax records.
+- **Workflow**: Generate, preview, and API-submit IR21.
+
+### "IRAS-Ready" Validation Engine
+- **Pre-flight Checks**: Logic to detect errors *before* submission:
+    - Invalid NRIC/FIN formats.
+    - Missing compulsory fields for Specific Benefits (e.g., Housing, Car).
+    - CPF cap violations (exceeding annual/monthly limits).
+    - Nationality/Entry-date mismatches.
+
+### NS Make-Up Pay (MUP) Tracking
+- Automated tracking of ICT (In-Camp Training) dates.
+- Export/API submission for MINDEF MUP claims for employees.
+
+---
+
+## 4. Implementation Roadmap
+
+### Phase 1: Robust Internal Validation & IR21 UI
+- Build the "Ready-to-File" validator.
+- Expand IRAS Compliance page to support full IR21 drafting.
+
+### Phase 2: Unified Government Export Centre
+- Create the "One-Stop" export dashboard.
+- Support OSP-compliant formats.
+
+### Phase 3: SFFS & API Integration
+- Implement the APEX authentication flow stubs.
+- AIS-API 2.0 JSON generator.

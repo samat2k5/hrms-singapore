@@ -61,6 +61,7 @@ app.use('/api/timesheets', require('./routes/timesheets'));
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/transmit', transmitRoutes);
 app.use('/api/iras', require('./routes/iras'));
+app.use('/api/gov', require('./routes/gov'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,0 +1,28 @@
+# Implementation Plan - Theme Alignment & UI Polish
+
+Align all recent UI refactorings (Attendance grid, Action Dropdowns) with the project's dark/light mode theme system by using standard CSS variables and utility patterns.
+
+## User Review Required
+
+> [!IMPORTANT]
+> I will be replacing hardcoded Tailwind colors (e.g., `indigo-600`, `emerald-500`) with theme-aware variables (e.g., `var(--brand-primary)`, `var(--success)`) across [Attendance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Attendance.jsx), [Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx), [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx), and [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeKETs.jsx).
+
+## Proposed Changes
+
+### [Attendance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Attendance.jsx)
+- **Container Hierarchy**: Update the matrix zone to use `bg-[var(--bg-card)]` and the filter bar to use `bg-[var(--bg-input)]` (the standard "input on card" pattern).
+- **Color Variables**: Replace `indigo-600/500/400` with `var(--brand-primary)` or `var(--brand-primary-light)`.
+- **Consistency**: Use `dark:bg-white/5` or similar subtle overlays where appropriate to match the rest of the app.
+
+### Action Dropdowns ([Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Leave.jsx), [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Payslip.jsx), [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/EmployeeKETs.jsx))
+- **Style Alignment**: Change the "Actions" selectable dropdown background from the purple tint (`bg-brand-primary/10`) to the standard `bg-[var(--bg-input)]` with a brand-aware border (`border-[var(--brand-primary)]/30`).
+- **Focus States**: Ensure focus/hover states use theme-consistent shadows and colors.
+
+## Verification Plan
+
+### Manual Verification
+1.  **Toggle Theme**: Use the theme toggle in the sidebar to switch between light and dark modes.
+2.  **Verify Components**:
+    -   **Attendance**: Check that the filter bar and the "Apply Matrix" button look natural in both modes and don't feel "stuck" in one mode's color palette.
+    -   **Actions Dropdowns**: Ensure the "Actions" selector is clearly legible and matches the surrounding buttons in terms of contrast and style.
+3.  **Color Audit**: Confirm no hardcoded "indigo" strings remain in the affected components.

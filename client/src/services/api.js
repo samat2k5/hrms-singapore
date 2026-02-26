@@ -243,6 +243,15 @@ const api = {
     addIRASShare: (data) => request('/iras/shares', { method: 'POST', body: data }),
     deleteIRASShare: (id) => request(`/iras/shares/${id}`, { method: 'DELETE' }),
     getIRASLogs: () => request('/iras/audit-logs'),
+    validateIRAS: (year) => request(`/iras/validate/${year}`),
+    draftIR21: (empId) => request(`/iras/ir21/draft/${empId}`, { method: 'POST' }),
+    submitIRASSFFS: (year) => request(`/iras/submit-sffs/${year}`, { method: 'POST' }),
+    getIRASSubmissionStatus: (subId) => request(`/iras/submission/${subId}`),
+    getIRASSubmissionHistory: (year) => request(`/iras/submissions/history/${year}`),
+    getGovAuthUrl: (state) => request(`/gov/corppass/auth?state=${state}`),
+    getComplianceReadiness: () => request('/iras/compliance-readiness'),
+    getNSClaims: () => request('/iras/ns-claims'),
+    addNSClaim: (data) => request('/iras/ns-claims', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export default api;

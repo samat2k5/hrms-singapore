@@ -1,0 +1,35 @@
+# Implementation Plan: Premium Singapore Compliance (Phase 1)
+
+This plan implements the first phase of our "best-in-class" compliance strategy, focusing on robust internal validation and advanced reporting workflows.
+
+## Proposed Changes
+
+### [Backend] IRAS Logic Enhancement
+#### [MODIFY] [iras.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/iras.js)
+- Implement `validateIR8AData(data)`: A helper to check for invalid NRIC/FIN, missing mandatory fields (address, etc.), and CPF cap inconsistencies.
+- Add `GET /api/iras/validate/:year`: Endpoint to run validation across all generated forms for a year.
+- Add `POST /api/iras/ir21/draft/:empId`: Generate a full IR21 JSON draft for a foreign employee.
+
+### [Frontend] UI Polish & Advanced Features
+#### [MODIFY] [IRASCompliance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/IRASCompliance.jsx)
+- **Validation**: Add a "🔍 Validate All" button. Forms with errors will show a red warning badge with specific error tooltips.
+- **IR21 Workflow**: In the Cessation tab, replace the "IRAS Guide" link with a "📝 Draft IR21" button that opens a comprehensive modal with YTD income.
+- **Unified Export**: Add a "📦 One-Stop Payroll Export" dropdown option.
+
+#### [MODIFY] [api.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js)
+- Add methods for `validateIRAS`, `draftIR21`.
+
+## Verification Plan
+
+### Automated Tests
+- **Pre-submission Validation Test**: Script to generate a form with intentional errors (e.g., lowercase NRIC, negative salary) and verify the validator catches them.
+
+### Manual Verification
+1.  **Validate All**:
+    - Click "Validate All" in the IRAS page.
+    - Confirm correct identification of incomplete records.
+2.  **IR21 Drafting**:
+    - Select a foreign employee from the Cessation tab.
+    - Click "Draft IR21" and verify YTD income is correctly aggregated.
+3.  **One-Stop Export**:
+    - Click the new unified export button and verify the JSON format.

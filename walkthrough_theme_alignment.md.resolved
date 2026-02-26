@@ -1,0 +1,24 @@
+# Walkthrough - UI Theme Alignment & Polish
+
+I have unified the visual style of the recent features to ensure they perfectly match the project's dark and light mode themes.
+
+## Changes Made
+
+### 1. Theme-Aware Attendance Grid
+The Attendance matrix and its controls now use the project's CSS variables instead of hardcoded colors.
+- **Brand Colors**: Replaced `indigo` with `var(--brand-primary)`, ensuring the primary buttons and accents adapt correctly to dark/light mode switches.
+- **Container Styles**: The filter bar now uses `bg-[var(--bg-input)]` and the matrix zone uses `bg-[var(--bg-card)]`, matching the standard layout hierarchy used across the app (e.g., in Payroll and Employees).
+- **Shadows & Borders**: Replaced hardcoded shadows with standard `shadow-lg shadow-[var(--brand-primary)]/20` for consistent depth.
+
+### 2. Standardized Action Selectors
+The selectable action dropdowns in **Payslip**, **Leave**, and **Employee KETs** have been polished for theme consistency.
+- **Backgrounds**: Switched from a tinted `bg-brand/10` to `bg-[var(--bg-input)]` for better integration with the form elements.
+- **Hover States**: Set hover background to `bg-[var(--bg-card)]` for a subtle, professional interactive feel.
+- **Contained UI**: All selectors now use `shadow-sm` and project-standard borders, ensuring they feel like a natural part of the page rather than an external overlay.
+
+---
+
+## Verification Results
+- [x] **Light Mode**: Verified contrast and legibility across all components.
+- [x] **Dark Mode**: Confirmed that backgrounds and borders transition smoothly without "burnt-in" light mode colors.
+- [x] **Consistency**: No hardcoded color strings (`indigo`, `emerald` as standalone buttons) remain; all now use theme variables.

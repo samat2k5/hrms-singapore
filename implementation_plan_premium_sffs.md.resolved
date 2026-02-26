@@ -1,0 +1,59 @@
+# Implementation Plan: Premium Singapore Compliance (Phase 2 - SFFS)
+
+This phase implements **Seamless Filing from Software (SFFS)** by simulating the integration with GovTech's APEX gateway and IRAS AIS-API 2.0.
+
+## Proposed Changes
+
+### [Backend] API Submission & Gateway Simulation
+#### [MODIFY] [init.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/db/init.js)
+- Create `iras_submissions` table:
+    ```sql
+    CREATE TABLE IF NOT EXISTS iras_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_id INTEGER,
+      submission_id TEXT UNIQUE,
+      year INTEGER,
+      type TEXT, -- 'AIS', 'IR21'
+      status TEXT, -- 'Pending', 'Accepted', 'Rejected'
+      payload_json TEXT,
+      response_json TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    ```
+
+#### [NEW] [gov.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/gov.js)
+- Implement stubs for CorpPass OAuth 2.1:
+    - `GET /api/gov/corppass/auth`: Simulate redirect to Singpass.
+    - `GET /api/gov/corppass/callback`: Simulate successful token exchange.
+
+#### [MODIFY] [iras.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/iras.js)
+- Add `POST /api/iras/submit-sffs/:year`:
+    - Generate AIS-API 2.0 JSON.
+    - Create a record in `iras_submissions` with status 'Pending'.
+    - Simulate a background "submission process".
+- Add `GET /api/iras/submission/:submissionId`: Endpoint for the frontend to poll status.
+
+### [Frontend] Electronic Submission Workflow
+#### [MODIFY] [api.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js)
+- Add methods: `submitIRASSFFS`, `getIRASSubmissionStatus`.
+
+#### [MODIFY] [IRASCompliance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/IRASCompliance.jsx)
+- **Submit Button**: Add a primary "🚀 Authorize & Submit to IRAS" button.
+- **Progress Modal**: Implement a multi-step modal:
+    1. **Authorization**: Simulated CorpPass login popup.
+    2. **Submission**: Payload generation and transmission indicator.
+    3. **Polling**: Real-time status check using the new API.
+
+## Verification Plan
+
+### Automated Tests
+- **JSON Mapping Test**: Verify [generateAISPayload](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/iras-engine.js#66-88) produces valid AIS 2.0 structure for 2026.
+
+### Manual Verification
+1.  **CorpPass Simulation**:
+    - Click "Authorize & Submit".
+    - Confirm the simulated Singpass authorization flow appears.
+2.  **Submission Polling**:
+    - Verify the status moves from "Pending" to "Accepted" (or "Rejected" if data is invalid).
+3.  **Audit Trail**:
+    - Check the submission history list for the new record.

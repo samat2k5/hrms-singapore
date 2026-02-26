@@ -1,0 +1,36 @@
+# Implementation Plan - Selectable Action Dropdowns
+
+Replace the "Actions" floating menus with a standard `<select>`-based interaction to ensure the options are always contained within the layout flow and provide a more native "click and select" experience.
+
+## User Review Required
+
+> [!NOTE]
+> I will be refactoring the "Actions" component across three pages. Instead of a floating menu that appears on hover/click, users will see a professional dropdown button (styled `<select>`) that triggers the action immediately upon selection.
+
+## Proposed Changes
+
+### [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Payslip.jsx)
+- Replace the `dropdown` [ul](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/iras-engine.js#6-65)/[li](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx#17-586) structure with a styled `<select>` element.
+- Options: "Actions" (default), "Download PDF", "Send via Email", "Share via WhatsApp".
+- Trigger actions on `onChange` and reset the select to "Actions".
+
+### [Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Leave.jsx)
+- Replace the row-level `dropdown` with a `<select>` element.
+- Apply consistent `h-8` or `h-10` styling.
+
+### [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/EmployeeKETs.jsx)
+- Replace the header `dropdown` with a `<select>` element.
+
+## Verification Plan
+
+### Manual Verification
+1.  **Navigation**: Go to Payslip, Leave Balances, and Employee KETs.
+2.  **Interaction**:
+    -   Click the "**Actions**" dropdown.
+    -   Select "**Download PDF**". Verify the PDF download starts.
+    -   Select "**Send via Email**". Verify the email intent opens.
+    -   Select "**Share via WhatsApp**". Verify the WhatsApp link opens.
+3.  **UI Check**:
+    -   Confirm the dropdown resets to the default "**Actions**" label after a selection is made.
+    -   Verify the dropdown is perfectly contained within the card/header and does not "float" over other elements in a way that causes clipping issues.
+    -   Check responsiveness on mobile view.

@@ -1,0 +1,33 @@
+# Implementation Plan - Attendance Layout Fix
+
+Fix the "Apply Monthly Matrix" button containment issue in the Attendance page by refining the responsive flex layout of the filters/actions bar.
+
+## User Review Required
+
+> [!NOTE]
+> I will be modifying the [Attendance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Attendance.jsx) file to improve the layout of the filter/action row. This includes:
+> - Refining the `flex-wrap` logic.
+> - Adjusting the widths of the search/select inputs to be more flexible on smaller screens.
+> - Ensuring the button is visually contained within the parent background and border.
+
+## Proposed Changes
+
+### [Attendance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Attendance.jsx)
+
+#### [MODIFY] [Attendance.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Attendance.jsx)
+- Update the filter row container (line 508) to use a more robust flex layout that handles overflow and wrapping better.
+- Set reasonable `min-width` and `flex-grow` properties for the dropdowns.
+- Ensure the "Apply Monthly Matrix" button is clearly aligned and contained.
+
+## Verification Plan
+
+### Manual Verification
+1.  **Attendance Page**:
+    -   Navigate to the Attendance page.
+    -   Verify that the filter/action row (containing staff filter, entity, year, month, employee select, and the "Apply Monthly Matrix" button) is visually contained within its bordered container.
+    -   Resize the browser window to check the layout at different breakpoints (`lg`, [md](file:///c:/Users/mathi/.gemini/antigravity/brain/4affa4e7-fee0-419d-a165-0fdeabf1fbbe/task.md), [sm](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#229-231)).
+    -   Confirm the button does not "pop out" of its parent container.
+2.  **Functionality Check**:
+    -   Select an employee.
+    -   Click "Apply Monthly Matrix".
+    -   Confirm it still loads the matrix data as expected.

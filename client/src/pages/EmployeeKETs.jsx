@@ -422,37 +422,34 @@ export default function EmployeeKETs() {
                         <p className="text-[var(--text-muted)]">{employee?.full_name} ({employee?.employee_id})</p>
                     </div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3 h-10">
                     {!editing ? (
                         <>
-                            <div className="dropdown dropdown-end">
-                                <button tabIndex={0} className="px-4 py-2 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 text-sm transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)] flex items-center gap-2">
-                                    <span>📤 Transmit</span>
-                                    <span className="text-[10px]">▼</span>
-                                </button>
-                                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow-2xl bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl w-52 mt-2">
-                                    <li>
-                                        <button onClick={() => handleTransmit('email')} className="text-[var(--text-main)] hover:bg-[var(--brand-primary)]/10">
-                                            <span>📧 Send via Email</span>
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button onClick={() => handleTransmit('whatsapp')} className="text-[var(--text-main)] hover:bg-emerald-500/10">
-                                            <span>💬 Share via WhatsApp</span>
-                                        </button>
-                                    </li>
-                                </ul>
-                            </div>
-                            <button onClick={handleGeneratePDF} className="px-4 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-main)] hover:bg-[var(--bg-input)] text-sm transition-all flex items-center gap-2">📄 Download PDF</button>
-                            <button onClick={() => setEditing(true)} className="px-4 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all">✏️ Edit</button>
+                            <select
+                                className="h-full px-4 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] bg-[var(--bg-input)] hover:bg-[var(--bg-card)] text-sm transition-all shadow-sm cursor-pointer outline-none font-bold appearance-none"
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === 'pdf') handleGeneratePDF();
+                                    else if (val === 'email') handleTransmit('email');
+                                    else if (val === 'whatsapp') handleTransmit('whatsapp');
+                                    e.target.value = ''; // Reset
+                                }}
+                                value=""
+                            >
+                                <option value="" disabled>📤 Actions</option>
+                                <option value="pdf">📄 Download PDF</option>
+                                <option value="email">📧 Send via Email</option>
+                                <option value="whatsapp">💬 Share via WhatsApp</option>
+                            </select>
+                            <button onClick={() => setEditing(true)} className="h-full px-4 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all flex items-center gap-2">✏️ Edit</button>
                             {!ket.issued_date && (
-                                <button onClick={handleIssue} className="btn-primary text-sm">📋 Issue KET</button>
+                                <button onClick={handleIssue} className="btn-primary h-full px-4 text-sm flex items-center gap-2 transition-all">📋 Issue KET</button>
                             )}
                         </>
                     ) : (
                         <>
-                            <button onClick={() => { setEditing(false); setForm({ ...ket, _parsedCustomAllowances: form._parsedCustomAllowances, _parsedCustomDeductions: form._parsedCustomDeductions }) }} className="px-4 py-2 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all">Cancel</button>
-                            <button onClick={handleSave} className="btn-primary text-sm">💾 Save Changes</button>
+                            <button onClick={() => { setEditing(false); setForm({ ...ket, _parsedCustomAllowances: form._parsedCustomAllowances, _parsedCustomDeductions: form._parsedCustomDeductions }) }} className="h-full px-4 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all flex items-center gap-2">Cancel</button>
+                            <button onClick={handleSave} className="btn-primary h-full px-4 text-sm flex items-center gap-2 transition-all">💾 Save Changes</button>
                         </>
                     )}
                 </div>

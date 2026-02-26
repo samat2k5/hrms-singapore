@@ -1,0 +1,27 @@
+# Implementation Plan - Reports TypeError Fix
+
+Fix a `TypeError: data.map is not a function` in the Reports page caused by a state race condition when switching between tabs that have different data structures (objects vs arrays).
+
+## Proposed Changes
+
+### Frontend
+
+#### [MODIFY] [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity Demos/HRMS Singapore/client/src/pages/Reports.jsx)
+- Update `useEffect` for tab switching to immediately clear `data` before calling [fetchReport](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx#42-70).
+- Update [fetchReport](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx#42-70) to clear `data` before starting the request.
+- Add `Array.isArray(data)` checks for the `master` and `expiry` report rendering blocks to prevent crashes if `data` is an object.
+- Use optional chaining for other data property accesses.
+
+## Verification Plan
+
+### Automated Tests
+- Run a manual check via `node -e` to confirm the API still returns the correct data. (Completed)
+
+### Manual Verification
+1. Open the HRMS application.
+2. Navigate to **Reports**.
+3. Select **Payroll Summary** (returns an object).
+4. Click **Employee Master** (returns an array).
+5. Verify the page does not crash and correctly loads the employee list.
+6. Repeat for **Doc Expiry**.
+7. Test the **Excel Master** and **PDF** exports to ensure they still work with the new state handling.

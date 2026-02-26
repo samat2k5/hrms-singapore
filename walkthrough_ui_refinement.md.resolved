@@ -1,0 +1,38 @@
+# Walkthrough - Unified Action Dropdowns & UI Refinement
+
+I have refactored the action buttons across several key pages to save vertical space and improve visual consistency.
+
+## Changes Made
+
+### 1. Consolidated Action Dropdowns
+In [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx), [Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx), and [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeKETs.jsx), I have merged the "Download PDF", "Send via Email", and "Share via WhatsApp" buttons into a single, unified "**📤 Actions**" dropdown menu.
+
+- **Before**: Multiple buttons ("Transmit" dropdown + "Download PDF" button) cluttering the header or row.
+- **After**: A single, sleek dropdown containing all export and transmission options.
+
+### 2. Standardized Button Heights
+I have unified the button heights in the affected headers to ensure they align perfectly, giving the interface a more premium and intentional feel.
+
+### 3. Renamed "Transmit" to "Actions"
+The label "**Transmit**" has been updated to "**Actions**" to better reflect the variety of export options now housed within the menu.
+
+---
+
+## Visual Verification
+
+### Payslip Header Refinement
+The "📥 Download PDF" button is now conveniently located within the "📤 Actions" dropdown, simplifying the header layout.
+
+### Leave Balance Action Consolidation
+In the Leave Balances tab, each employee card now features a single "**📤 Actions**" dropdown instead of side-by-side buttons, significantly reducing visual noise.
+
+### Employee KETs Header Cleanup
+The KET management header now maintains a consistent `h-10` height for all buttons and consolidates Export/Transmit actions.
+
+---
+
+## Verification Results
+- [x] **Payslip.jsx**: "Actions" dropdown verified with PDF, Email, and WhatsApp options.
+- [x] **Leave.jsx**: Row-level action buttons consolidated into dropdowns.
+- [x] **EmployeeKETs.jsx**: Header actions streamlined and heights unified.
+- [x] **Logic Check**: All original functions ([handleTransmit](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeKETs.jsx#226-267), [handleExportPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx#304-313), etc.) remain fully functional within the new dropdown structure.

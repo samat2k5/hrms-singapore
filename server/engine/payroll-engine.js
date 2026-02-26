@@ -61,11 +61,36 @@ function processEmployeePayroll(employee, options = {}) {
         console.error("Error parsing custom modifiers:", e);
     }
 
+    // 0. MOM Proration Logic (for mid-month joinees or leavers)
+    let basicSalary = employee.basic_salary || 0;
+    let transportAllowance = employee.transport_allowance || 0;
+    let otherAllowance = employee.other_allowance || 0;
+
+    const periodStart = options.periodStart ? new Date(options.periodStart) : new Date(year, options.month - 1, 1);
+    const periodEnd = options.periodEnd ? new Date(options.periodEnd) : new Date(year, options.month, 0);
+    const joiningDate = employee.joining_date ? new Date(employee.joining_date) : null;
+    const cessationDate = employee.cessation_date ? new Date(employee.cessation_date) : null;
+
+    if (joiningDate && joiningDate > periodStart && joiningDate <= periodEnd) {
+        // Joined mid-month
+        const daysInMonth = periodEnd.getDate();
+        const workedDays = daysInMonth - joiningDate.getDate() + 1;
+        basicSalary = (basicSalary / daysInMonth) * workedDays;
+        transportAllowance = (transportAllowance / daysInMonth) * workedDays;
+        otherAllowance = (otherAllowance / daysInMonth) * workedDays;
+    }
+
+    if (cessationDate && cessationDate >= periodStart && cessationDate < periodEnd) {
+        // Left mid-month
+        const daysInMonth = periodEnd.getDate();
+        const workedDays = cessationDate.getDate();
+        basicSalary = (basicSalary / daysInMonth) * workedDays;
+        transportAllowance = (transportAllowance / daysInMonth) * workedDays;
+        otherAllowance = (otherAllowance / daysInMonth) * workedDays;
+    }
+
     // 1. Calculate Gross Rate of Pay for deductions
-    const basicSalary = employee.basic_salary || 0;
-    const transportAllowance = employee.transport_allowance || 0;
     const mealAllowance = employee.meal_allowance || 0;
-    const otherAllowance = employee.other_allowance || 0;
 
     // Fixed Allowances included in Gross Rate of Pay
     const fixedAllowancesTotal = transportAllowance + mealAllowance + otherAllowance + customAllowancesTotal;
@@ -112,7 +137,10 @@ function processEmployeePayroll(employee, options = {}) {
 
 
 
-    const grossPay = basicSalary + fixedAllowancesTotal + overtimePay + bonus + phWorkedExtraPay + phOffDayExtraPay + performanceAllowance - unpaidLeaveDeduction - attendanceDeduction;
+    const nsDays = options.nsDays || 0;
+    const nsMakeupPay = Math.round(dailyGrossRate * nsDays * 100) / 100;
+
+    const grossPay = basicSalary + fixedAllowancesTotal + overtimePay + bonus + phWorkedExtraPay + phOffDayExtraPay + performanceAllowance + nsMakeupPay - unpaidLeaveDeduction - attendanceDeduction;
 
     // 2. Calculate CPF (if applicable — Citizens and PR only)
     let cpfResult = { employeeContrib: 0, employerContrib: 0, oa: 0, sa: 0, ma: 0 };
@@ -210,6 +238,8 @@ function processEmployeePayroll(employee, options = {}) {
         early_out_mins: earlyOutMins,
         attendance_deduction: attendanceDeduction,
         performance_allowance: performanceAllowance,
+        ns_makeup_pay: nsMakeupPay,
+        ns_days: nsDays,
         payment_mode: employee.payment_mode || 'Bank Transfer',
         compliance_notes: capWarning ? 'MOM 50% Deduction Cap Applied' : ''
     };
