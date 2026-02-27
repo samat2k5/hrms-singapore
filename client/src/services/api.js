@@ -142,6 +142,7 @@ const api = {
     getDocExpiry: () => request('/reports/doc-expiry'),
     getPayrollSummary: (year, month) => request(`/reports/summary/${year}/${month}`),
     getConsolidatedPayroll: (year, month) => request(`/reports/consolidated/${year}/${month}`),
+    getPayrollDetail: (year, month) => request(`/reports/payroll-detail/${year}/${month}`),
     getRunPayslips: (runId) => request(`/reports/run-payslips/${runId}`),
 
     // IRAS Compliance

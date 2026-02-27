@@ -261,4 +261,47 @@ router.get('/run-payslips/:runId', authMiddleware, async (req, res) => {
     }
 });
 
+// GET /api/reports/payroll-detail/:year/:month — Detailed breakdown per employee
+router.get('/payroll-detail/:year/:month', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { year, month } = req.params;
+        const entityId = req.user.entityId;
+
+        const result = db.exec(`
+            SELECT 
+                p.employee_name, 
+                p.employee_code,
+                p.basic_salary,
+                p.transport_allowance,
+                p.meal_allowance,
+                p.other_allowance,
+                p.custom_allowances,
+                p.overtime_pay,
+                p.bonus,
+                p.ph_worked_pay,
+                p.ph_off_day_pay,
+                p.performance_allowance,
+                p.ns_makeup_pay,
+                p.total_allowances,
+                p.gross_pay,
+                p.cpf_employee,
+                p.shg_deduction,
+                p.attendance_deduction,
+                p.unpaid_leave_deduction,
+                p.custom_deductions,
+                p.other_deductions,
+                p.net_pay
+            FROM payslips p 
+            JOIN payroll_runs pr ON p.payroll_run_id = pr.id 
+            WHERE pr.entity_id = ? AND pr.period_year = ? AND pr.period_month = ?
+            ORDER BY p.employee_name ASC
+        `, [entityId, year, month]);
+
+        res.json({ period: `${month}/${year}`, employees: toObjects(result) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

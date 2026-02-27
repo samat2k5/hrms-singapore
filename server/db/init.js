@@ -145,6 +145,27 @@ async function getDb() {
       }
     } catch (e) { console.error('[DB] Payroll runs migration failed:', e.message); }
 
+    // Payslips Table Migrations
+    try {
+      const check = db.exec("PRAGMA table_info(payslips)");
+      if (check.length > 0) {
+        const columns = check[0].values.map(v => v[1]);
+        const migrations = [
+          { name: 'ns_makeup_pay', type: 'REAL DEFAULT 0' },
+          { name: 'ns_days', type: 'REAL DEFAULT 0' }
+        ];
+        let migrated = false;
+        for (const col of migrations) {
+          if (!columns.includes(col.name)) {
+            console.log(`[DB] Migrating payslips: Adding ${col.name}...`);
+            db.run(`ALTER TABLE payslips ADD COLUMN ${col.name} ${col.type}`);
+            migrated = true;
+          }
+        }
+        if (migrated) saveDb();
+      }
+    } catch (e) { console.error('[DB] Payslips migration failed:', e.message); }
+
     // IRAS Compliance Tables Migration
     const irasTables = [
       {
@@ -588,6 +609,8 @@ function createSchema(database) {
       early_out_mins INTEGER DEFAULT 0,
       attendance_deduction REAL DEFAULT 0,
       performance_allowance REAL DEFAULT 0,
+      ns_makeup_pay REAL DEFAULT 0,
+      ns_days REAL DEFAULT 0,
       net_pay REAL DEFAULT 0,
       compliance_notes TEXT DEFAULT '',
       FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id),

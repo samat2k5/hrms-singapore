@@ -293,8 +293,9 @@ router.post('/run', authMiddleware, async (req, res) => {
                     ph_worked_pay, ph_off_day_pay, bonus, gross_pay, cpf_employee, 
                     cpf_employer, cpf_oa, cpf_sa, cpf_ma, sdl, shg_deduction, shg_fund, 
                     other_deductions, unpaid_leave_days, unpaid_leave_deduction, 
-                    late_mins, early_out_mins, attendance_deduction, performance_allowance, net_pay, compliance_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    late_mins, early_out_mins, attendance_deduction, performance_allowance, 
+                    ns_makeup_pay, ns_days, net_pay, compliance_notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     runId, payslip.employee_id, payslip.employee_name, payslip.employee_code,
                     payslip.basic_salary, payslip.transport_allowance, payslip.meal_allowance,
@@ -307,7 +308,7 @@ router.post('/run', authMiddleware, async (req, res) => {
                     payslip.cpf_ma, payslip.sdl, payslip.shg_deduction, payslip.shg_fund,
                     payslip.other_deductions, payslip.unpaid_leave_days, payslip.unpaid_leave_deduction,
                     payslip.late_mins, payslip.early_out_mins, payslip.attendance_deduction,
-                    payslip.performance_allowance, payslip.net_pay, payslip.compliance_notes
+                    payslip.performance_allowance, payslip.ns_makeup_pay, payslip.ns_days, payslip.net_pay, payslip.compliance_notes
                 ]
             );
 

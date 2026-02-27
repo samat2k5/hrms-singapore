@@ -1,0 +1,59 @@
+# Deduction for Absence: Payroll Process Explanation
+
+This document explains how the HRMS Singapore system calculates and processes deductions for employee absences during a payroll run. The process is designed to be compliant with the **Singapore Ministry of Manpower (MOM) Employment Act**.
+
+## 1. Data Sources for Absence
+Absences are captured from two primary sources within the system:
+- **Approved Unpaid Leave**: Any "Approved" leave requests of type "Unpaid Leave" within the payroll month.
+- **Attendance Remarks**: Absences recorded during the attendance import process where remarks indicate a "Leave/Notice" or explicitly contain words like "LEAVE" or "ABSENT".
+
+These values are aggregated to determine the total **Unpaid Leave Days** for the employee in that specific payroll period.
+
+## 2. Calculation of Working Days
+To calculate the daily rate, the system first determines the **Total Working Days in the Month** for each employee:
+- It starts with the total number of days in the month.
+- It subtracts the employee's designated **Rest Day** (e.g., Sunday).
+- It subtracts any **Public Holidays** that fall within that month.
+
+> [!NOTE]
+> This ensures that the deduction rate is fair and based on the actual number of days the employee was expected to work.
+
+## 3. The Deduction Formula
+Following **Section 28 of the MOM Employment Act**, deductions for absence are based on the employee's **Gross Rate of Pay**.
+
+### Gross Rate of Pay
+The Gross Rate of Pay includes the basic salary plus fixed allowances:
+$$ \text{Gross Rate} = \text{Basic Salary} + \text{Fixed Allowances (Transport, Meal, etc.)} $$
+
+### Daily Gross Rate
+The daily rate is then derived:
+$$ \text{Daily Gross Rate} = \frac{\text{Gross Rate of Month}}{\text{Total Working Days in Month}} $$
+
+### Unpaid Leave Deduction
+Finally, the deduction amount is calculated:
+$$ \text{Deduction} = \text{Daily Gross Rate} \times \text{Unpaid Leave Days} $$
+
+## 4. Attendance Penalties (Lateness/Early Out)
+The system also processes "partial" absences (lateness or early departure) as deductions:
+- **Lateness/Early Out minutes** are captured from the `timesheets`.
+- **Hourly Basic Rate** is calculated as:
+  $$ \text{Hourly Rate} = \frac{\text{Basic Salary} / \text{Working Days}}{8 \text{ hours}} $$
+- **Attendance Deduction**:
+  $$ \text{Penalty} = \left( \frac{\text{Total Penalty Mins}}{60} \right) \times \text{Hourly Rate} $$
+
+## 5. Summary Flow
+```mermaid
+graph TD
+    A[Unpaid Leave Requests] --> D[Total Absence Days]
+    B[Attendance Remarks] --> D
+    C[Month & Rest Days] --> E[Total Working Days]
+    F[Basic Salary + Fixed Allowances] --> G[Gross Rate of Pay]
+    G --> H[Daily Gross Rate]
+    E --> H
+    D --> I[Unpaid Leave Deduction]
+    H --> I
+    I --> J[Final Payslip Calculation]
+```
+
+## 6. MOM Compliance (50% Deduction Cap)
+While the **Section 32** cap generally limits total deductions to 50% of the salary, the system correctly identifies that **Deductions for Absence from work** are *exempted* from this 50% cap, ensuring the full absence deduction is applied even if other deductions are capped.
