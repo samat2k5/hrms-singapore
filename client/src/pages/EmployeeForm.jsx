@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 import api from '../services/api'
+import DatePicker from '../components/DatePicker'
 
 const emptyEmployee = {
     employee_id: '', full_name: '', date_of_birth: '', national_id: '', nationality: 'Singapore Citizen',
@@ -311,7 +312,7 @@ export default function EmployeeForm() {
                     <Field form={form} setForm={setForm} label="Full Name" name="full_name" required />
                     <Field form={form} setForm={setForm} label="Status" name="status" options={['Active', 'Inactive']} required />
 
-                    <Field form={form} setForm={setForm} label="Date of Birth" name="date_of_birth" type="date" required />
+                    <DatePicker label="Date of Birth" selected={form.date_of_birth} onChange={val => setForm({ ...form, date_of_birth: val })} required />
                     <Field form={form} setForm={setForm} label="Gender" name="gender" options={['Male', 'Female']} required />
                     <Field form={form} setForm={setForm} label="Race" name="race" options={['Chinese', 'Indian', 'Malay', 'Eurasian', 'Other']} required />
 
@@ -323,7 +324,7 @@ export default function EmployeeForm() {
 
                     {form.nationality === 'SPR' && (
                         <>
-                            <Field form={form} setForm={setForm} label="PR Status Start Date" name="pr_status_start_date" type="date" required />
+                            <DatePicker label="PR Status Start Date" selected={form.pr_status_start_date} onChange={val => setForm({ ...form, pr_status_start_date: val })} required />
                             <div className="flex items-end mb-2">
                                 <div className="flex items-center gap-3 w-full p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30">
                                     <input
@@ -390,8 +391,8 @@ export default function EmployeeForm() {
                         <h3 className="text-lg font-semibold text-[var(--brand-primary)]">Employment Details</h3>
                     </div>
 
-                    <Field form={form} setForm={setForm} label="Date Joined" name="date_joined" type="date" required />
-                    <Field form={form} setForm={setForm} label="Cessation Date" name="cessation_date" type="date" />
+                    <DatePicker label="Date Joined" selected={form.date_joined} onChange={val => setForm({ ...form, date_joined: val })} required />
+                    <DatePicker label="Cessation Date" selected={form.cessation_date} onChange={val => setForm({ ...form, cessation_date: val })} />
                     <Field form={form} setForm={setForm} label="Working Days Per Week" name="working_days_per_week" options={['3', '3.5', '4', '4.5', '5', '5.25 (Alternate Saturday Off)', '5.5', '6']} />
                     <Field form={form} setForm={setForm} label="Rest Day" name="rest_day" options={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']} />
                     <Field form={form} setForm={setForm} label="Work Hours Per Day" name="working_hours_per_day" type="number" step="0.5" />
@@ -606,28 +607,24 @@ export default function EmployeeForm() {
                                             className="input-base flex-1 min-w-[150px]"
                                         />
 
-                                        <input
-                                            type="date"
-                                            placeholder="Issue Date"
-                                            value={doc.issue_date}
-                                            onChange={e => {
+                                        <DatePicker
+                                            selected={doc.issue_date}
+                                            onChange={val => {
                                                 const newDocs = [...documents];
-                                                newDocs[index].issue_date = e.target.value;
+                                                newDocs[index].issue_date = val;
                                                 setDocuments(newDocs);
                                             }}
-                                            className="input-base w-[140px]"
+                                            placeholderText="Issue Date"
                                         />
 
-                                        <input
-                                            type="date"
-                                            placeholder="Expiry Date"
-                                            value={doc.expiry_date}
-                                            onChange={e => {
+                                        <DatePicker
+                                            selected={doc.expiry_date}
+                                            onChange={val => {
                                                 const newDocs = [...documents];
-                                                newDocs[index].expiry_date = e.target.value;
+                                                newDocs[index].expiry_date = val;
                                                 setDocuments(newDocs);
                                             }}
-                                            className="input-base w-[140px]"
+                                            placeholderText="Expiry Date"
                                         />
 
                                         <div className="w-full xl:w-auto mt-2 xl:mt-0">
