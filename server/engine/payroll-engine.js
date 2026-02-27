@@ -96,10 +96,14 @@ function processEmployeePayroll(employee, options = {}) {
     const fixedAllowancesTotal = transportAllowance + mealAllowance + otherAllowance + customAllowancesTotal;
     const grossRateOfMonth = basicSalary + fixedAllowancesTotal;
 
-    // Unpaid leave deduction (MOM Formulation: Gross Rate of Pay / actual working days in month)
-    // Section 28: Deduction for absence from work should be based on Gross Rate of Pay
-    const dailyGrossRate = totalWorkingDaysInMonth > 0 ? grossRateOfMonth / totalWorkingDaysInMonth : 0;
-    const unpaidLeaveDeduction = Math.round(dailyGrossRate * unpaidLeaveDays * 100) / 100;
+    // MOM Official "Daily Rate of Pay" formula (MOM Second Schedule & Section 2)
+    // Formula: (12 * Monthly Gross Rate) / (52 * Working Days Per Week)
+    const workingDaysPerWeek = employee.working_days_per_week || 5.5;
+    const dailyGrossRate = (grossRateOfMonth * 12) / (52 * workingDaysPerWeek);
+
+    // Round daily rate to 2 decimals for constant deduction basis
+    const roundedDailyRate = Math.round(dailyGrossRate * 100) / 100;
+    const unpaidLeaveDeduction = Math.round(roundedDailyRate * unpaidLeaveDays * 100) / 100;
 
     // overtimeRate is already calculated logic as basic / ... * 1.5 by the route
     // So 1.5x pay = ot15Hours * overtimeRate

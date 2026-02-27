@@ -115,6 +115,7 @@ const api = {
     // Attendance Import
     importAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
     clockInFace: (descriptor) => request('/attendance/face-clock', { method: 'POST', body: { descriptor } }),
+    clockInFaceConfirm: (employeeId, entityId) => request('/attendance/face-clock-confirm', { method: 'POST', body: { employeeId, entityId } }),
 
     // Payroll
     getPayrollRuns: () => request('/payroll/runs'),
@@ -143,6 +144,7 @@ const api = {
     getPayrollSummary: (year, month) => request(`/reports/summary/${year}/${month}`),
     getConsolidatedPayroll: (year, month) => request(`/reports/consolidated/${year}/${month}`),
     getPayrollDetail: (year, month) => request(`/reports/payroll-detail/${year}/${month}`),
+    getDetailedAttendance: (year, month, empId) => request(`/reports/detailed-attendance/${year}/${month}/${empId}`),
     getRunPayslips: (runId) => request(`/reports/run-payslips/${runId}`),
 
     // IRAS Compliance
@@ -198,7 +200,7 @@ const api = {
     updateEmployeeGroup: (id, data) => request(`/employee-groups/${id}`, { method: 'PUT', body: data }),
     deleteEmployeeGroup: (id) => request(`/employee-groups/${id}`, { method: 'DELETE' }),
 
-    getEmployeeGrades: () => request('/employee-groups'),
+    getEmployeeGrades: () => request('/employee-grades'),
     createEmployeeGrade: (data) => request('/employee-grades', { method: 'POST', body: data }),
     updateEmployeeGrade: (id, data) => request(`/employee-grades/${id}`, { method: 'PUT', body: data }),
     deleteEmployeeGrade: (id) => request(`/employee-grades/${id}`, { method: 'DELETE' }),

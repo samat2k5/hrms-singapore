@@ -23,9 +23,13 @@ export default function Leave() {
     const [leaveTypes, setLeaveTypes] = useState([])
     const [balances, setBalances] = useState([])
     const [requests, setRequests] = useState([])
+    const [policies, setPolicies] = useState([])
+    const [employeeGrades, setEmployeeGrades] = useState([])
     const [loading, setLoading] = useState(true)
     const [showApply, setShowApply] = useState(false)
+    const [showPolicy, setShowPolicy] = useState(false)
     const [form, setForm] = useState({ employee_id: '', leave_type_id: '', start_date: '', end_date: '', days: 1, reason: '' })
+    const [policyForm, setPolicyForm] = useState({ employee_grade: '', leave_type_id: '', base_days: 0, increment_per_year: 0, max_days: 0, carry_forward_max: 0, carry_forward_expiry_months: 12, encashment_allowed: false })
     const year = new Date().getFullYear()
 
     // Search & Filter State
@@ -44,23 +48,25 @@ export default function Leave() {
 
         setLoading(true)
         try {
-            const [emps, types, bals, reqs] = await Promise.all([
-                api.getEmployees(), api.getLeaveTypes(), api.getAllLeaveBalances(year), api.getLeaveRequests()
+            const [emps, types, bals, reqs, pols, grades] = await Promise.all([
+                api.getEmployees(), api.getLeaveTypes(), api.getAllLeaveBalances(year), api.getLeaveRequests(),
+                api.getLeavePolicies(), api.getEmployeeGrades()
             ])
 
-            // Rely on backend for filtering; local filter is secondary safety
+            // Note: api.getEmployeeGrades might return a result set or array depending on implementation
+            const gradesList = Array.isArray(grades) ? grades : (grades.values ? grades.values.map(v => v[0]) : [])
 
-            // Use Number() for strict type consistency in filtering
+            // ... local filtering ...
             const filteredEmps = emps.filter(e => e.status === 'Active' && Number(e.entity_id) === Number(currentEntityId))
             const filteredBals = bals.filter(b => Number(b.entity_id) === Number(currentEntityId))
             const filteredReqs = reqs.filter(r => Number(r.entity_id) === Number(currentEntityId))
-
-            console.log(`[DEBUG] Leave Page - After local filter: emps: ${filteredEmps.length}, bals: ${filteredBals.length}`)
 
             setEmployees(filteredEmps)
             setLeaveTypes(types)
             setBalances(filteredBals)
             setRequests(filteredReqs)
+            setPolicies(pols)
+            setEmployeeGrades(gradesList)
         } catch (e) {
             console.error('Leave page load failed:', e)
             toast.error(e.message)
@@ -85,6 +91,26 @@ export default function Leave() {
             if (action === 'approve') await api.approveLeave(id)
             else await api.rejectLeave(id)
             toast.success(`Leave ${action}d`)
+            load()
+        } catch (err) { toast.error(err.message) }
+    }
+
+    const handleSavePolicy = async (e) => {
+        e.preventDefault()
+        try {
+            await api.saveLeavePolicy(policyForm)
+            toast.success('Policy saved successfully')
+            setShowPolicy(false)
+            setPolicyForm({ employee_grade: '', leave_type_id: '', base_days: 0, increment_per_year: 0, max_days: 0, carry_forward_max: 0, carry_forward_expiry_months: 12, encashment_allowed: false })
+            load()
+        } catch (err) { toast.error(err.message) }
+    }
+
+    const handleDeletePolicy = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this policy?')) return
+        try {
+            await api.deleteLeavePolicy(id)
+            toast.success('Policy deleted')
             load()
         } catch (err) { toast.error(err.message) }
     }
@@ -184,13 +210,15 @@ export default function Leave() {
             doc.text(`Year: ${year} | Report Date: ${reportDateTime}`, 148, 27, { align: 'center' })
 
             const typeNames = leaveTypes.filter(lt => lt.name !== 'Unpaid Leave').map(lt => lt.name)
-            const head = [['#', 'Employee', 'ID', 'Group', ...typeNames.flatMap(t => [t + ' (Ent)', t + ' (Bal)'])]]
+            const head = [['#', 'Employee', 'ID', 'Group', ...typeNames.flatMap(t => [t + ' (Ent)', t + ' (Ear)', t + ' (CF)', t + ' (Bal)'])]]
 
             const body = filteredEmployees.map(([empId, data], i) => {
                 const row = [i + 1, data.name, data.code, data.group]
                 typeNames.forEach(tn => {
                     const l = data.leaves.find(lv => lv.leave_type_name === tn)
                     row.push(l ? l.entitled : '-')
+                    row.push(l ? l.earned : '-')
+                    row.push(l ? (l.carried_forward || 0) : '-')
                     row.push(l ? l.balance : '-')
                 })
                 return row
@@ -320,11 +348,11 @@ export default function Leave() {
 
         const balanceBody = data.leaves
             .filter(l => !(l.entitled === 0 && l.leave_type_name === 'Unpaid Leave'))
-            .map(l => [l.leave_type_name, l.entitled, l.earned, l.taken, l.balance])
+            .map(l => [l.leave_type_name, l.entitled, l.earned, l.carried_forward || 0, l.taken, l.balance])
 
         autoTable(doc, {
             startY: y + 5,
-            head: [['Leave Type', 'Entitled', 'Earned', 'Taken', 'Balance']],
+            head: [['Leave Type', 'Entitled', 'Earned', 'Carried Fwd', 'Taken', 'Balance']],
             body: balanceBody,
             theme: 'grid',
             headStyles: { fillColor: [6, 182, 212] },
@@ -423,14 +451,12 @@ export default function Leave() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2">
-                {['balances', 'requests'].map(t => (
-                    <button key={t} onClick={() => setTab(t)}
-                        className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${tab === t ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-[var(--brand-primary)] border border-[var(--brand-primary)]/30' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-input)] border border-transparent'}`}>
-                        {t === 'balances' ? '📊 Leave Balances' : '📝 Leave Requests'}
-                    </button>
-                ))}
-            </div>
+            {['balances', 'requests', 'settings'].map(t => (
+                <button key={t} onClick={() => setTab(t)}
+                    className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${tab === t ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-[var(--brand-primary)] border border-[var(--brand-primary)]/30' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-input)] border border-transparent'}`}>
+                    {t === 'balances' ? '📊 Balances' : t === 'requests' ? '📝 Requests' : '⚙️ Policies'}
+                </button>
+            ))}
 
             {/* Balances Tab */}
             {tab === 'balances' && (
@@ -509,18 +535,36 @@ export default function Leave() {
                                         const pct = l.entitled > 0 ? (l.taken / l.entitled) * 100 : 0
                                         return (
                                             <div key={l.id} className="p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-main)]">
-                                                <p className="text-xs text-[var(--text-muted)] mb-1 truncate">{l.leave_type_name}</p>
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <p className="text-xs text-[var(--text-muted)] truncate">{l.leave_type_name}</p>
+                                                    {(l.taken > ((l.carried_forward || 0) + l.earned)) && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold">UNEARNED</span>
+                                                    )}
+                                                </div>
                                                 <div className="flex flex-col gap-1 mb-2">
                                                     <div className="flex items-end justify-between">
-                                                        <span className="text-sm text-[var(--text-muted)]">Earned (Actual)</span>
+                                                        <span className="text-sm text-[var(--text-muted)]">Available Balance</span>
                                                         <div className="text-right">
                                                             <span className="text-lg font-bold text-[var(--text-main)]">{l.balance}</span>
-                                                            <span className="text-xs text-[var(--text-muted)]"> / {l.earned}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-end justify-between border-t border-[var(--border-main)] pt-1">
-                                                        <span className="text-xs text-[var(--text-muted)]">MOM/Grade Entitled</span>
-                                                        <span className="text-xs text-[var(--text-muted)]">{l.entitled} days/yr</span>
+                                                    <div className="grid grid-cols-2 gap-x-2 gap-y-1 pt-1 mt-1 border-t border-[var(--border-main)]/50">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-[var(--text-muted)]">Carried Fwd</span>
+                                                            <span className="text-xs font-semibold text-[var(--text-main)]">{l.carried_forward || 0}</span>
+                                                        </div>
+                                                        <div className="flex flex-col text-right">
+                                                            <span className="text-[10px] text-[var(--text-muted)]">Earned TD</span>
+                                                            <span className="text-xs font-semibold text-[var(--text-main)]">{l.earned}</span>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-[var(--text-muted)]">Ann. Entitled</span>
+                                                            <span className="text-xs font-semibold text-[var(--text-main)]">{l.entitled}</span>
+                                                        </div>
+                                                        <div className="flex flex-col text-right">
+                                                            <span className="text-[10px] text-[var(--text-muted)]">Taken</span>
+                                                            <span className="text-xs font-semibold text-red-400">{l.taken}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="w-full h-1.5 rounded-full bg-[var(--bg-input)]">
@@ -555,7 +599,7 @@ export default function Leave() {
             {/* Requests Tab */}
             {tab === 'requests' && (
                 <div className="space-y-4">
-                    {/* Search & Filter Bar */}
+                    {/* ... existing requests UI ... */}
                     <div className="card-base p-4">
                         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                             <div className="relative flex-1">
@@ -625,6 +669,61 @@ export default function Leave() {
                 </div>
             )}
 
+            {/* Policies Tab */}
+            {tab === 'settings' && (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-bold text-[var(--text-main)]">Leave Policies</h2>
+                        <button onClick={() => {
+                            setPolicyForm({ employee_grade: '', leave_type_id: '', base_days: 0, increment_per_year: 0, max_days: 0, carry_forward_max: 0, carry_forward_expiry_months: 12, encashment_allowed: false })
+                            setShowPolicy(true)
+                        }} className="btn-primary py-2 text-sm">+ Add Policy</button>
+                    </div>
+
+                    <div className="card-base overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="table-theme">
+                                <thead>
+                                    <tr>
+                                        <th>Grade</th>
+                                        <th>Type</th>
+                                        <th>Base Days</th>
+                                        <th>Increment/Yr</th>
+                                        <th>Max Days</th>
+                                        <th>Carry Fwd Max</th>
+                                        <th>Encashable</th>
+                                        <th className="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {policies.map(p => (
+                                        <tr key={p.id}>
+                                            <td className="font-bold text-cyan-400">{p.employee_grade}</td>
+                                            <td className="font-medium">{p.leave_type_name}</td>
+                                            <td>{p.base_days}</td>
+                                            <td>+{p.increment_per_year}</td>
+                                            <td>{p.max_days || '—'}</td>
+                                            <td>{p.carry_forward_max} ({p.carry_forward_expiry_months}m)</td>
+                                            <td>{p.encashment_allowed ? '✅' : '❌'}</td>
+                                            <td className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => {
+                                                        setPolicyForm({ ...p, encashment_allowed: !!p.encashment_allowed })
+                                                        setShowPolicy(true)
+                                                    }} className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all">✏️</button>
+                                                    <button onClick={() => handleDeletePolicy(p.id)} className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">🗑️</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {policies.length === 0 && <tr><td colSpan="8" className="text-center py-8 text-[var(--text-muted)]">No policies configured yet.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Apply Modal */}
             {showApply && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -669,6 +768,77 @@ export default function Leave() {
                             <div className="flex gap-3 pt-2">
                                 <button type="button" onClick={() => setShowApply(false)} className="flex-1 py-2.5 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-all">Cancel</button>
                                 <button type="submit" className="btn-primary flex-1">Submit Request</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Policy Modal */}
+            {showPolicy && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="card-base p-6 w-full max-w-xl animate-slide-up" style={{ background: 'rgba(15, 23, 42, 0.95)' }}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-[var(--text-main)]">Configure Policy</h2>
+                            <button onClick={() => setShowPolicy(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] text-2xl">×</button>
+                        </div>
+                        <form onSubmit={handleSavePolicy} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-[var(--text-muted)] mb-1.5">Employee Grade</label>
+                                    <select value={policyForm.employee_grade} onChange={e => setPolicyForm({ ...policyForm, employee_grade: e.target.value })} className="select-base" required>
+                                        <option value="">Select Grade</option>
+                                        {employeeGrades.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-[var(--text-muted)] mb-1.5">Leave Type</label>
+                                    <select value={policyForm.leave_type_id} onChange={e => setPolicyForm({ ...policyForm, leave_type_id: parseInt(e.target.value) })} className="select-base" required>
+                                        <option value="">Select Type</option>
+                                        {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-[var(--border-main)] pt-4 md:col-span-2">
+                                <h3 className="text-xs font-bold text-[var(--brand-primary)] uppercase tracking-wider mb-3">Entitlement Rules</h3>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[var(--text-muted)] mb-1.5">Base Days (Year 1)</label>
+                                <input type="number" value={policyForm.base_days} onChange={e => setPolicyForm({ ...policyForm, base_days: parseFloat(e.target.value) || 0 })} className="input-base" required min="0" step="0.5" />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-[var(--text-muted)] mb-1.5">Increment Per Year</label>
+                                <input type="number" value={policyForm.increment_per_year} onChange={e => setPolicyForm({ ...policyForm, increment_per_year: parseFloat(e.target.value) || 0 })} className="input-base" min="0" step="0.5" />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-[var(--text-muted)] mb-1.5">Max Possible Days</label>
+                                <input type="number" value={policyForm.max_days} onChange={e => setPolicyForm({ ...policyForm, max_days: parseFloat(e.target.value) || 0 })} className="input-base" min="0" step="0.5" placeholder="0 for unlimited" />
+                            </div>
+
+                            <div className="border-t border-[var(--border-main)] pt-4 md:col-span-2">
+                                <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3">Year-End Compliance</h3>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[var(--text-muted)] mb-1.5">Carry Forward Limit</label>
+                                <input type="number" value={policyForm.carry_forward_max} onChange={e => setPolicyForm({ ...policyForm, carry_forward_max: parseFloat(e.target.value) || 0 })} className="input-base" min="0" step="0.5" />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-[var(--text-muted)] mb-1.5">CF Expiry (Months)</label>
+                                <input type="number" value={policyForm.carry_forward_expiry_months} onChange={e => setPolicyForm({ ...policyForm, carry_forward_expiry_months: parseInt(e.target.value) || 0 })} className="input-base" min="1" />
+                            </div>
+                            <div className="md:col-span-2 px-1">
+                                <label className="flex items-center gap-3 cursor-pointer group">
+                                    <input type="checkbox" checked={policyForm.encashment_allowed} onChange={e => setPolicyForm({ ...policyForm, encashment_allowed: e.target.checked })} className="w-5 h-5 rounded-lg text-cyan-500 bg-[var(--bg-input)] border border-[var(--border-main)]" />
+                                    <span className="text-sm text-[var(--text-main)] group-hover:text-[var(--brand-primary)] transition-colors">Allow Encashment of Unused Leave</span>
+                                </label>
+                            </div>
+
+                            <div className="md:col-span-2 flex gap-3 pt-4 border-t border-[var(--border-main)]">
+                                <button type="button" onClick={() => setShowPolicy(false)} className="flex-1 py-2.5 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-all">Cancel</button>
+                                <button type="submit" className="btn-primary flex-1">Save Policy</button>
                             </div>
                         </form>
                     </div>

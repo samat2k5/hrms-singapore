@@ -131,28 +131,17 @@ const FaceAttendance = () => {
                 const descriptor = Array.from(detections.descriptor);
                 const result = await api.clockInFace(descriptor);
 
-                setLastAction(result);
-                setStatusMessage(`Welcome ${result.employee.full_name}! Clocked ${result.action}`);
-
-                Toast.fire({
-                    icon: 'success',
-                    title: `Clocked ${result.action}: ${result.employee.full_name}`
-                });
-
-                // Set cooldown to prevent double scans
-                setCooldown(true);
-                setTimeout(() => {
-                    setStatusMessage('Face Attendance Ready');
-                    setLastAction(null);
-                    setCooldown(false);
-                }, 8000); // 8 second cooldown for next person
+                if (result.multipleMatches) {
+                    await handleMultipleMatches(result.matches);
+                } else {
+                    showSuccess(result);
+                }
             } else {
                 setStatusMessage('Detecting Face...');
             }
         } catch (err) {
             console.error('Clocking failed:', err);
             const msg = err.message || 'Face recognition failed';
-            // Only show toast if it's a real failure, not just 'not recognized'
             if (!msg.toLowerCase().includes('not recognized')) {
                 Toast.fire({
                     icon: 'error',
@@ -161,7 +150,6 @@ const FaceAttendance = () => {
             }
             setStatusMessage(msg);
 
-            // Short cooldown on errors to prevent spam
             setCooldown(true);
             setTimeout(() => {
                 setStatusMessage('Face Attendance Ready');
@@ -170,6 +158,64 @@ const FaceAttendance = () => {
         } finally {
             setDetecting(false);
         }
+    };
+
+    const handleMultipleMatches = async (matches) => {
+        setCooldown(true);
+        setStatusMessage('Multiple Entities Found');
+
+        const { value: selected } = await Swal.fire({
+            title: 'Multiple Entities Found',
+            text: 'Face recognized in multiple entities. Please select where to clock in:',
+            icon: 'question',
+            input: 'select',
+            inputOptions: Object.fromEntries(matches.map(m => [`${m.id}_${m.entity_id}`, `${m.full_name} (${m.entity_name})`])),
+            inputPlaceholder: 'Select Entity',
+            showCancelButton: true,
+            confirmButtonText: 'Select & Clock',
+            confirmButtonColor: 'var(--brand-primary)',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl shadow-2xl',
+                input: 'bg-[var(--bg-input)] text-[var(--text-main)] border-[var(--border-main)] rounded-xl py-2 px-4 outline-none'
+            }
+        });
+
+        if (selected) {
+            const [empId, entId] = selected.split('_');
+            try {
+                const result = await api.clockInFaceConfirm(empId, entId);
+                showSuccess(result);
+            } catch (err) {
+                Toast.fire({
+                    icon: 'error',
+                    title: err.message || 'Confirmation failed'
+                });
+                setStatusMessage('Face Attendance Ready');
+                setCooldown(false);
+            }
+        } else {
+            setStatusMessage('Face Attendance Ready');
+            setCooldown(false);
+        }
+    };
+
+    const showSuccess = (result) => {
+        setLastAction(result);
+        setStatusMessage(`Welcome ${result.employee.full_name}! Clocked ${result.action}`);
+
+        Toast.fire({
+            icon: 'success',
+            title: `Clocked ${result.action}: ${result.employee.full_name}`
+        });
+
+        setCooldown(true);
+        setTimeout(() => {
+            setStatusMessage('Face Attendance Ready');
+            setLastAction(null);
+            setCooldown(false);
+        }, 8000);
     };
 
     return (

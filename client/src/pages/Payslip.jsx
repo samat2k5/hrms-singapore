@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 import { formatCurrency, formatDate, formatMonth } from '../utils/formatters'
+import { Eye } from 'lucide-react'
+import ReportViewer from '../components/ReportViewer'
 
 const loadLogo = (url) => {
     return new Promise((resolve) => {
@@ -19,6 +21,9 @@ export default function Payslip() {
     const navigate = useNavigate()
     const [payslip, setPayslip] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [isViewerOpen, setIsViewerOpen] = useState(false)
+    const [viewerPdfUrl, setViewerPdfUrl] = useState('')
+    const [viewerTitle, setViewerTitle] = useState('')
 
     useEffect(() => {
         api.getPayslip(id).then(setPayslip).catch(e => toast.error(e.message)).finally(() => setLoading(false))
@@ -228,32 +233,32 @@ export default function Payslip() {
                 doc.text(`Period: ${formatMonth(ps.period_year, ps.period_month)}`, 14, 36)
 
                 const tsBody = ps.timesheets.map(t => [
-                    formatDate(t.date),
+                    `${t.date.split('-')[2]} ${new Date(t.date).toLocaleString('default', { month: 'short' })} (${t.dayName.substring(0, 3)})`,
                     t.shift || '',
                     t.in_time || '',
                     t.out_time || '',
-                    (t.normal_hours > 0 ? t.normal_hours : '-'),
-                    (t.ot_1_5_hours > 0 ? t.ot_1_5_hours : '-'),
-                    (t.ot_2_0_hours > 0 ? t.ot_2_0_hours : '-'),
-                    (t.ph_hours > 0 ? t.ph_hours : '-'),
+                    (t.normal_hours || '-'),
+                    (t.ot_1_5_hours || '-'),
+                    (t.ot_2_0_hours || '-'),
+                    (t.ph_hours || '-'),
                     t.remarks || ''
                 ]);
 
                 // Calculate and add Total Row
                 const totals = ps.timesheets.reduce((acc, t) => ({
-                    normal: acc.normal + (Number(t.normal_hours) || 0),
-                    ot15: acc.ot15 + (Number(t.ot_1_5_hours) || 0),
-                    ot20: acc.ot20 + (Number(t.ot_2_0_hours) || 0),
-                    ph: acc.ph + (Number(t.ph_hours) || 0)
+                    normal: acc.normal + (parseFloat(t.normal_hours) || 0),
+                    ot15: acc.ot15 + (parseFloat(t.ot_1_5_hours) || 0),
+                    ot20: acc.ot20 + (parseFloat(t.ot_2_0_hours) || 0),
+                    ph: acc.ph + (parseFloat(t.ph_hours) || 0)
                 }), { normal: 0, ot15: 0, ot20: 0, ph: 0 });
 
                 tsBody.push([
-                    { content: 'TOTAL', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right' } },
-                    { content: totals.normal > 0 ? totals.normal.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
-                    { content: totals.ot15 > 0 ? totals.ot15.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
-                    { content: totals.ot20 > 0 ? totals.ot20.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
-                    { content: totals.ph > 0 ? totals.ph.toFixed(1) : '-', styles: { fontStyle: 'bold' } },
-                    ''
+                    { content: 'MONTHLY TOTALS', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
+                    { content: totals.normal > 0 ? totals.normal.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [224, 242, 254] } },
+                    { content: totals.ot15 > 0 ? totals.ot15.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [254, 243, 199] } },
+                    { content: totals.ot20 > 0 ? totals.ot20.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [255, 237, 213] } },
+                    { content: totals.ph > 0 ? totals.ph.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [255, 228, 230] } },
+                    { content: '', styles: { fillColor: [240, 240, 240] } }
                 ]);
 
                 autoTable(doc, {
@@ -262,9 +267,9 @@ export default function Payslip() {
                     body: tsBody,
                     theme: 'grid',
                     headStyles: { fillColor: [15, 23, 42], halign: 'center' },
-                    styles: { fontSize: 8, cellPadding: 2 },
+                    styles: { fontSize: 8, cellPadding: 1.5 },
                     columnStyles: {
-                        0: { cellWidth: 20, halign: 'center' }, // Date
+                        0: { cellWidth: 23, halign: 'center' }, // Date
                         1: { cellWidth: 20, halign: 'center' }, // Shift
                         2: { cellWidth: 15, halign: 'center' }, // In
                         3: { cellWidth: 15, halign: 'center' }, // Out
@@ -308,6 +313,18 @@ export default function Payslip() {
             toast.success('PDF downloaded')
         } catch (err) {
             toast.error('PDF export failed: ' + (err.message || 'Unknown error'))
+        }
+    }
+
+    const handlePreviewPDF = async () => {
+        try {
+            const doc = await generatePDFDoc();
+            const pdfBlobUrl = doc.output('bloburl');
+            setViewerPdfUrl(pdfBlobUrl);
+            setViewerTitle(`Itemized Payslip - ${ps.employee_name} (${formatMonth(ps.period_year, ps.period_month)})`);
+            setIsViewerOpen(true);
+        } catch (err) {
+            toast.error('PDF preview failed: ' + (err.message || 'Unknown error'));
         }
     }
 
@@ -357,13 +374,13 @@ export default function Payslip() {
     const totalDeductions = ps.cpf_employee + ps.shg_deduction + ps.other_deductions
 
     const timesheetTotals = ps.timesheets?.reduce((acc, t) => ({
-        normal: acc.normal + (Number(t.normal_hours) || 0),
-        ot15: acc.ot15 + (Number(t.ot_1_5_hours) || 0),
-        ot20: acc.ot20 + (Number(t.ot_2_0_hours) || 0),
-        ph: acc.ph + (Number(t.ph_hours) || 0)
+        normal: acc.normal + (parseFloat(t.normal_hours) || 0),
+        ot15: acc.ot15 + (parseFloat(t.ot_1_5_hours) || 0),
+        ot20: acc.ot20 + (parseFloat(t.ot_2_0_hours) || 0),
+        ph: acc.ph + (parseFloat(t.ph_hours) || 0)
     }), { normal: 0, ot15: 0, ot20: 0, ph: 0 });
 
-    const hasAttendance = timesheetTotals && (timesheetTotals.normal > 0 || timesheetTotals.ot15 > 0 || timesheetTotals.ot20 > 0 || timesheetTotals.ph > 0);
+    const hasAttendance = timesheetTotals && (timesheetTotals.normal > 0 || timesheetTotals.ot15 > 0 || timesheetTotals.ot20 > 0 || timesheetTotals.ph > 0 || ps.timesheets?.length > 0);
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
@@ -378,6 +395,14 @@ export default function Payslip() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 h-10">
+                    <button
+                        onClick={handlePreviewPDF}
+                        className="btn-glass h-10 !px-4 flex items-center gap-2 text-[var(--brand-primary)] border-[var(--brand-primary)]/30 hover:bg-[var(--brand-primary)]/10"
+                        title="Preview PDF"
+                    >
+                        <Eye className="w-5 h-5" />
+                        <span className="text-sm font-bold">Preview</span>
+                    </button>
                     <select
                         className="select-base !py-0 !px-4 h-10 text-sm font-bold bg-[var(--bg-input)] text-[var(--brand-primary)] border-[var(--brand-primary)]/30 rounded-xl cursor-pointer focus:ring-0 appearance-none text-center shadow-sm hover:bg-[var(--bg-card)] transition-all"
                         onChange={(e) => {
@@ -543,27 +568,29 @@ export default function Payslip() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {ps.timesheets.map(t => (
-                                        <tr key={t.id}>
-                                            <td className="text-[var(--text-muted)]">{formatDate(t.date)}</td>
-                                            <td className="text-[var(--text-main)]">{t.shift || ''}</td>
-                                            <td className="text-emerald-400">{t.in_time || ''}</td>
-                                            <td className="text-amber-400">{t.out_time || ''}</td>
-                                            <td className="text-indigo-400">{t.normal_hours > 0 ? t.normal_hours : '-'}</td>
-                                            <td className="text-[var(--brand-primary)]">{t.ot_1_5_hours > 0 ? t.ot_1_5_hours : '-'}</td>
-                                            <td className="text-purple-400">{t.ot_2_0_hours > 0 ? t.ot_2_0_hours : '-'}</td>
-                                            <td className="text-amber-500">{t.ph_hours > 0 ? t.ph_hours : '-'}</td>
-                                            <td className="text-[var(--text-muted)]">{t.remarks || ''}</td>
+                                    {ps.timesheets.map((t, idx) => (
+                                        <tr key={idx}>
+                                            <td className="text-[var(--text-muted)]">
+                                                {`${t.date.split('-')[2]} ${new Date(t.date).toLocaleString('default', { month: 'short' })} (${t.dayName.substring(0, 3)})`}
+                                            </td>
+                                            <td className="text-[var(--text-main)]">{t.shift || '-'}</td>
+                                            <td className="text-emerald-400">{t.in_time || '-'}</td>
+                                            <td className="text-amber-400">{t.out_time || '-'}</td>
+                                            <td className="text-indigo-400 font-medium">{t.normal_hours}</td>
+                                            <td className="text-[var(--brand-primary)] font-medium">{t.ot_1_5_hours}</td>
+                                            <td className="text-purple-400 font-medium">{t.ot_2_0_hours}</td>
+                                            <td className="text-amber-500 font-medium">{t.ph_hours}</td>
+                                            <td className="text-[var(--text-muted)] truncate max-w-[150px]" title={t.remarks}>{t.remarks || ''}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                                 <tfoot className="border-t-2 border-[var(--border-main)] font-bold text-[var(--text-main)] bg-[var(--brand-primary)]/5">
                                     <tr>
-                                        <td colSpan={4} className="text-right py-2 px-3">TOTALS</td>
-                                        <td className="py-2 px-3">{timesheetTotals.normal.toFixed(1)}</td>
-                                        <td className="py-2 px-3">{timesheetTotals.ot15.toFixed(1)}</td>
-                                        <td className="py-2 px-3">{timesheetTotals.ot20.toFixed(1)}</td>
-                                        <td className="py-2 px-3">{timesheetTotals.ph.toFixed(1)}</td>
+                                        <td colSpan={4} className="text-right py-2 px-3 tracking-wider text-[10px]">MONTHLY TOTALS</td>
+                                        <td className="py-2 px-3 text-indigo-400 bg-indigo-500/5">{timesheetTotals.normal.toFixed(1)}</td>
+                                        <td className="py-2 px-3 text-[var(--brand-primary)] bg-cyan-500/5">{timesheetTotals.ot15.toFixed(1)}</td>
+                                        <td className="py-2 px-3 text-purple-400 bg-purple-500/5">{timesheetTotals.ot20.toFixed(1)}</td>
+                                        <td className="py-2 px-3 text-amber-500 bg-amber-500/5">{timesheetTotals.ph.toFixed(1)}</td>
                                         <td />
                                     </tr>
                                 </tfoot>
@@ -572,6 +599,13 @@ export default function Payslip() {
                     </div>
                 )}
             </div>
+
+            <ReportViewer
+                isOpen={isViewerOpen}
+                onClose={() => setIsViewerOpen(false)}
+                pdfUrl={viewerPdfUrl}
+                title={viewerTitle}
+            />
         </div>
     )
 }

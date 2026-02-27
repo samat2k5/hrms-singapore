@@ -329,19 +329,48 @@ router.post('/monthly', authMiddleware, async (req, res) => {
     }
 });
 
+const performClockAction = async (db, employee, entityId) => {
+    const now = new Date();
+    const sgtOffset = 8 * 60; // Singapore is UTC+8
+    const sgtTime = new Date(now.getTime() + (sgtOffset * 60 * 1000));
+
+    const today = sgtTime.toISOString().split('T')[0];
+    const timeStr = String(sgtTime.getUTCHours()).padStart(2, '0') + String(sgtTime.getUTCMinutes()).padStart(2, '0');
+
+    const checkRes = db.exec('SELECT in_time, out_time FROM timesheets WHERE employee_id = ? AND date = ? AND entity_id = ?', [employee.id, today, entityId]);
+    const existing = toObjects(checkRes)[0];
+
+    let action = 'In';
+    if (existing && existing.in_time && !existing.out_time) {
+        db.run('UPDATE timesheets SET out_time = ? WHERE employee_id = ? AND date = ? AND entity_id = ?', [timeStr, employee.id, today, entityId]);
+        action = 'Out';
+    } else if (existing && existing.in_time && existing.out_time) {
+        throw new Error('Already clocked in and out today');
+    } else {
+        db.run('INSERT INTO timesheets (entity_id, employee_id, date, in_time, shift) VALUES (?, ?, ?, ?, ?)', [entityId, employee.id, today, timeStr, 'Day']);
+    }
+    saveDb();
+    return { employee, action };
+};
+
 router.post('/face-clock', authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
         const { descriptor } = req.body;
-        const entityId = req.user.entityId;
-        if (!descriptor || !entityId) return res.status(400).json({ error: 'Missing descriptor or entity context' });
+        if (!descriptor) return res.status(400).json({ error: 'Missing descriptor' });
 
-        const empsRes = db.exec('SELECT id, full_name, employee_id, face_descriptor FROM employees WHERE entity_id = ? AND face_descriptor IS NOT NULL', [entityId]);
+        // Search across ALL entities
+        const empsRes = db.exec(`
+            SELECT e.id, e.full_name, e.employee_id, e.face_descriptor, e.entity_id, ent.name as entity_name 
+            FROM employees e
+            JOIN entities ent ON e.entity_id = ent.id
+            WHERE e.face_descriptor IS NOT NULL
+        `);
         const emps = toObjects(empsRes);
-        console.log(`[FACE_CLOCK] Comparing against ${emps.length} enrolled employees for entity ${entityId}`);
+        console.log(`[FACE_CLOCK] Comparing against ${emps.length} enrolled employees across all entities`);
 
-        let bestMatch = null;
-        let minDistance = 0.65; // Relaxed from 0.6
+        let matches = [];
+        let threshold = 0.65;
 
         const calculateDistance = (d1, d2) => Math.sqrt(d1.reduce((sum, val, i) => sum + Math.pow(val - d2[i], 2), 0));
 
@@ -349,37 +378,52 @@ router.post('/face-clock', authMiddleware, async (req, res) => {
             try {
                 const empDescriptor = JSON.parse(emp.face_descriptor);
                 const distance = calculateDistance(descriptor, empDescriptor);
-                console.log(`   - Distance for ${emp.full_name}: ${distance.toFixed(4)}`);
-                if (distance < minDistance) { minDistance = distance; bestMatch = emp; }
+                if (distance < threshold) {
+                    matches.push({ ...emp, distance });
+                }
             } catch (e) { }
         });
 
-        if (!bestMatch) {
-            console.warn(`[FACE_CLOCK] No match found. Min distance observed: ${minDistance.toFixed(4)}`);
+        if (matches.length === 0) {
+            console.warn(`[FACE_CLOCK] No match found.`);
             return res.status(404).json({ error: 'Face not recognized' });
         }
 
-        const now = new Date();
-        const sgtOffset = 8 * 60; // Singapore is UTC+8
-        const sgtTime = new Date(now.getTime() + (sgtOffset * 60 * 1000));
+        // Sort by best match
+        matches.sort((a, b) => a.distance - b.distance);
 
-        const today = sgtTime.toISOString().split('T')[0];
-        const timeStr = String(sgtTime.getUTCHours()).padStart(2, '0') + String(sgtTime.getUTCMinutes()).padStart(2, '0');
-
-        const checkRes = db.exec('SELECT in_time, out_time FROM timesheets WHERE employee_id = ? AND date = ? AND entity_id = ?', [bestMatch.id, today, entityId]);
-        const existing = toObjects(checkRes)[0];
-
-        let action = 'In';
-        if (existing && existing.in_time && !existing.out_time) {
-            db.run('UPDATE timesheets SET out_time = ? WHERE employee_id = ? AND date = ? AND entity_id = ?', [timeStr, bestMatch.id, today, entityId]);
-            action = 'Out';
-        } else if (existing && existing.in_time && existing.out_time) {
-            return res.status(400).json({ error: 'Already clocked in and out today' });
-        } else {
-            db.run('INSERT INTO timesheets (entity_id, employee_id, date, in_time, shift) VALUES (?, ?, ?, ?, ?)', [entityId, bestMatch.id, today, timeStr, 'Day']);
+        // If multiple matches are found, return them for selection
+        if (matches.length > 1) {
+            return res.json({
+                multipleMatches: true,
+                matches: matches.map(m => ({
+                    id: m.id,
+                    full_name: m.full_name,
+                    employee_id: m.employee_id,
+                    entity_id: m.entity_id,
+                    entity_name: m.entity_name
+                }))
+            });
         }
-        saveDb();
-        res.json({ message: `Successfully clocked ${action} for ${bestMatch.full_name}`, employee: bestMatch, action });
+
+        const bestMatch = matches[0];
+        const result = await performClockAction(db, bestMatch, bestMatch.entity_id);
+        res.json({ message: `Successfully clocked ${result.action} for ${bestMatch.full_name}`, ...result });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/face-clock-confirm', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { employeeId, entityId } = req.body;
+        if (!employeeId || !entityId) return res.status(400).json({ error: 'Missing parameters' });
+
+        const empRes = db.exec('SELECT id, full_name, employee_id FROM employees WHERE id = ? AND entity_id = ?', [employeeId, entityId]);
+        const employee = toObjects(empRes)[0];
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+        const result = await performClockAction(db, employee, entityId);
+        res.json({ message: `Successfully clocked ${result.action} for ${employee.full_name}`, ...result });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

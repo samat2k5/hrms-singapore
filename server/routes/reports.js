@@ -1,11 +1,12 @@
 const express = require('express');
 const { getDb } = require('../db/init');
 const { authMiddleware } = require('../middleware/auth');
+const { generateMonthlyAttendanceReport } = require('../engine/attendance-report-engine');
 
 const router = express.Router();
 
 function toObjects(result) {
-    if (!result.length) return [];
+    if (!result || !result.length) return [];
     const { columns, values } = result[0];
     return values.map(row => {
         const obj = {};
@@ -247,6 +248,15 @@ router.get('/run-payslips/:runId', authMiddleware, async (req, res) => {
         const { runId } = req.params;
         const entityId = req.user.entityId;
 
+        const runResult = db.exec(`
+            SELECT pr.*, en.name as entity_name, en.logo_url
+            FROM payroll_runs pr
+            JOIN entities en ON pr.entity_id = en.id
+            WHERE pr.id = ? AND pr.entity_id = ?
+        `, [runId, entityId]);
+        const run = toObjects(runResult)[0];
+        if (!run) return res.status(404).json({ error: 'Payroll run not found' });
+
         const result = db.exec(`
             SELECT p.*, e.employee_id as emp_code, en.name as entity_name, en.logo_url
             FROM payslips p 
@@ -254,8 +264,14 @@ router.get('/run-payslips/:runId', authMiddleware, async (req, res) => {
             JOIN entities en ON e.entity_id = en.id
             WHERE p.payroll_run_id = ? AND en.id = ?
         `, [runId, entityId]);
+        const payslips = toObjects(result);
 
-        res.json(toObjects(result));
+        // Append attendance report for each payslip
+        for (let ps of payslips) {
+            ps.timesheets = generateMonthlyAttendanceReport(db, ps.employee_id, run.period_year, run.period_month, entityId);
+        }
+
+        res.json(payslips);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -299,6 +315,27 @@ router.get('/payroll-detail/:year/:month', authMiddleware, async (req, res) => {
         `, [entityId, year, month]);
 
         res.json({ period: `${month}/${year}`, employees: toObjects(result) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/reports/detailed-attendance/:year/:month/:employeeId
+router.get('/detailed-attendance/:year/:month/:employeeId', authMiddleware, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { year, month, employeeId } = req.params;
+        const entityId = req.user.entityId;
+
+        // Fetch employee details
+        const empResult = db.exec('SELECT * FROM employees WHERE id = ? AND entity_id = ?', [employeeId, entityId]);
+        const employees = toObjects(empResult);
+        if (!employees.length) return res.status(404).json({ error: 'Employee not found' });
+        const emp = employees[0];
+
+        const report = generateMonthlyAttendanceReport(db, employeeId, year, month, entityId);
+
+        res.json({ employee: emp, month, year, report });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

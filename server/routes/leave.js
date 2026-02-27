@@ -50,18 +50,36 @@ async function computeDynamicBalances(db, employeeId, yearString) {
     // Determine the reference dates for the queried year
     const queryYearStart = new Date(year, 0, 1);
     const queryYearEnd = new Date(year, 11, 31);
-
-    // For calculating completed years/months by the end of the queried year
     const queryYearEndPlusOne = new Date(year + 1, 0, 1);
-    let totalCompletedMonthsAtYearEnd = (queryYearEndPlusOne.getFullYear() - dateJoined.getFullYear()) * 12 + (queryYearEndPlusOne.getMonth() - dateJoined.getMonth());
-    if (queryYearEndPlusOne.getDate() < dateJoined.getDate()) totalCompletedMonthsAtYearEnd--;
-    totalCompletedMonthsAtYearEnd = Math.max(0, totalCompletedMonthsAtYearEnd);
-    const completedYearsAtYearEnd = Math.floor(totalCompletedMonthsAtYearEnd / 12);
 
-    // Calculate maximum possible completed months IN THIS SPECIFIC QUERIED YEAR
+    // Calculate Unpaid Leave and AWOL days to deduct from service period
+    // Find IDs for Unpaid Leave and AWOL dynamically
+    const unpaidTypeRes = db.exec("SELECT id FROM leave_types WHERE name IN ('Unpaid Leave', 'AWOL')");
+    const unpaidTypeIds = unpaidTypeRes.length ? unpaidTypeRes[0].values.map(v => v[0]) : [8];
+    const placeholders = unpaidTypeIds.map(() => '?').join(',');
+
+    const unpaidRes = db.exec(`
+        SELECT SUM(days) as total_unpaid 
+        FROM leave_requests 
+        WHERE employee_id = ? AND status = 'Approved' AND leave_type_id IN (${placeholders})
+        AND start_date >= ? AND end_date <= ?
+    `, [employeeId, ...unpaidTypeIds, queryYearStart.toISOString().split('T')[0], queryYearEnd.toISOString().split('T')[0]]);
+    const totalUnpaidDays = unpaidRes[0]?.values[0][0] || 0;
+
+    const awolRes = db.exec(`
+        SELECT COUNT(*) as total_awol 
+        FROM attendance_remarks 
+        WHERE employee_id = ? AND (remark_type = 'AWOL' OR remark_type = 'Absent')
+        AND date >= ? AND date <= ?
+    `, [employeeId, queryYearStart.toISOString().split('T')[0], queryYearEnd.toISOString().split('T')[0]]);
+    const totalAwolDays = awolRes[0]?.values[0][0] || 0;
+
+    const totalDeductedDays = totalUnpaidDays + totalAwolDays;
+    const monthDeduction = totalDeductedDays / 30; // Rough month equivalent for proration
+
+    // Determine service period in this year
     let totalPossibleMonthsThisYear = 12;
     if (dateJoined.getFullYear() === year) {
-        // e.g. Joined Mar 1 -> 10 months possible this year
         totalPossibleMonthsThisYear = (queryYearEndPlusOne.getFullYear() - dateJoined.getFullYear()) * 12 + (queryYearEndPlusOne.getMonth() - dateJoined.getMonth());
         if (queryYearEndPlusOne.getDate() < dateJoined.getDate()) totalPossibleMonthsThisYear--;
         totalPossibleMonthsThisYear = Math.max(0, Math.min(12, totalPossibleMonthsThisYear));
@@ -69,10 +87,9 @@ async function computeDynamicBalances(db, employeeId, yearString) {
         totalPossibleMonthsThisYear = 0;
     }
 
-    // Calculate completed months IN THIS SPECIFIC YEAR up to the current date (if querying current year)
     let yearRefDate = currentDate;
     if (year < currentDate.getFullYear()) {
-        yearRefDate = queryYearEndPlusOne; // completed full possible
+        yearRefDate = queryYearEndPlusOne;
     } else if (year > currentDate.getFullYear()) {
         yearRefDate = queryYearStart;
     }
@@ -89,47 +106,64 @@ async function computeDynamicBalances(db, employeeId, yearString) {
         monthsCompletedThisYear = Math.max(0, Math.min(totalPossibleMonthsThisYear, monthsCompletedThisYear));
     }
 
-    // Total months completed since dateJoined up to yearRefDate (for overall probation checking)
+    // Adjusted service period for proration (MOM style)
+    const adjustedPossibleMonths = Math.max(0, totalPossibleMonthsThisYear - monthDeduction);
+    const adjustedCompletedMonths = Math.max(0, monthsCompletedThisYear - monthDeduction);
+
     let totalCompletedMonthsTillDate = (yearRefDate.getFullYear() - dateJoined.getFullYear()) * 12 + (yearRefDate.getMonth() - dateJoined.getMonth());
     if (yearRefDate.getDate() < dateJoined.getDate()) totalCompletedMonthsTillDate--;
     totalCompletedMonthsTillDate = Math.max(0, totalCompletedMonthsTillDate);
 
-    // Fetch Grade Policies for THIS entity only
+    // Fetch Grade Policies
     const polResult = db.exec('SELECT * FROM leave_policies WHERE employee_grade = ? AND entity_id = ?', [emp.employee_grade, emp.entity_id]);
     const policies = toObjects(polResult);
 
     balances = balances.map(lb => {
-        let finalEntitled = lb.entitled; // Default static fallback
-        let earned = lb.entitled;
+        let carriedForward = lb.carried_forward || 0;
+        let effectiveCarriedForward = carriedForward;
+        const policy = policies.find(p => p.leave_type_id === lb.leave_type_id);
+
+        if (policy && policy.carry_forward_expiry_months > 0) {
+            // Check if we are past the expiry date (Jan 1st + expiry_months)
+            const expiryDate = new Date(year, policy.carry_forward_expiry_months, 1);
+            if (currentDate >= expiryDate) {
+                // CF is forfeited if not used. 
+                // We assume 'taken' first uses CF.
+                // effectiveCF = remaining CF after 'taken' has been applied, but only if before expiry.
+                // If after expiry, effectiveCF is 0 (forfeited), but we still account for what was 'taken' from it.
+
+                // Logic: 
+                // Before expiry: Balance = CF + Earned - Taken
+                // After expiry: Balance = Earned - (Taken - CF, if Taken > CF else 0)
+                // Simplified: Balance = Max(0, CF used [Min(CF, Taken)] + Earned - Taken)
+                effectiveCarriedForward = Math.min(carriedForward, lb.taken);
+            }
+        }
+
+        // Apply policy limitations to carried forward
+        if (policy && policy.carry_forward_max !== undefined) {
+            effectiveCarriedForward = Math.min(effectiveCarriedForward, policy.carry_forward_max);
+        }
 
         if (lb.leave_type_name === 'Annual Leave') {
             let policyEntitlement = 0;
-            const policy = policies.find(p => p.leave_type_id === lb.leave_type_id);
-
-            // 1. Grade-wise Policy Full Year Entitlement
             if (policy) {
+                const completedYearsAtYearEnd = Math.floor(totalCompletedMonthsTillDate / 12);
                 policyEntitlement = policy.base_days + (completedYearsAtYearEnd * policy.increment_per_year);
                 if (policy.max_days > 0) policyEntitlement = Math.min(policyEntitlement, policy.max_days);
             }
 
-            // 2. MOM Statutory Minimum Full Year Entitlement
-            let momMinimum = Math.min(14, 7 + completedYearsAtYearEnd);
-
-            // 3. Absolute Full Year Entitlement is the Highest of both
+            let momMinimum = Math.min(14, 7 + Math.floor(totalCompletedMonthsTillDate / 12));
             let absoluteFullYearEntitlement = Math.max(momMinimum, policyEntitlement);
 
-            // 4. Prorate Entitlement for incomplete years
-            finalEntitled = Math.round((totalPossibleMonthsThisYear / 12) * absoluteFullYearEntitlement * 2) / 2;
+            finalEntitled = Math.round((adjustedPossibleMonths / 12) * absoluteFullYearEntitlement * 2) / 2;
+            earned = Math.round((adjustedCompletedMonths / 12) * absoluteFullYearEntitlement * 2) / 2;
 
-            // 5. Earned Leave pro-rata till date
-            earned = Math.round((monthsCompletedThisYear / 12) * absoluteFullYearEntitlement * 2) / 2;
-
-            // 6. MOM 3-month probation rule
             if (totalCompletedMonthsTillDate < 3) {
-                earned = 0; // Strictly 0 earned before probation completes
+                earned = 0;
             }
         } else if (lb.leave_type_name === 'Medical Leave') {
-            // Medical leave Proration logic based on MOM
+            // ... medical leave logic ...
             if (totalCompletedMonthsTillDate < 3) earned = 0;
             else if (totalCompletedMonthsTillDate === 3) earned = 5;
             else if (totalCompletedMonthsTillDate === 4) earned = 8;
@@ -137,6 +171,7 @@ async function computeDynamicBalances(db, employeeId, yearString) {
             else earned = 14;
             finalEntitled = 14;
         } else if (lb.leave_type_name === 'Hospitalization Leave') {
+            // ... hospitalization logic ...
             if (totalCompletedMonthsTillDate < 3) earned = 0;
             else if (totalCompletedMonthsTillDate === 3) earned = 15;
             else if (totalCompletedMonthsTillDate === 4) earned = 30;
@@ -149,7 +184,9 @@ async function computeDynamicBalances(db, employeeId, yearString) {
             ...lb,
             entitled: finalEntitled,
             earned: earned,
-            balance: Math.max(0, earned - lb.taken) // recompute fluid balance based on earned
+            carried_forward: carriedForward,
+            // Balance = Effective Carried Forward + Earned - Taken
+            balance: Math.max(0, effectiveCarriedForward + earned - lb.taken)
         };
     });
 
@@ -252,16 +289,18 @@ router.post('/request', authMiddleware, async (req, res) => {
         const db = await getDb();
         const { employee_id, leave_type_id, start_date, end_date, days, reason } = req.body;
 
-        // Check balance
+        // Check balance (Entitled vs Earned)
         const year = new Date(start_date).getFullYear();
-        const balResult = db.exec(
-            'SELECT * FROM leave_balances WHERE employee_id = ? AND leave_type_id = ? AND year = ?',
-            [employee_id, leave_type_id, year]
-        );
-        const balances = toObjects(balResult);
+        const balances = await computeDynamicBalances(db, employee_id, year);
+        const leaveTypeBal = balances.find(b => b.leave_type_id === parseInt(leave_type_id, 10));
 
-        if (balances.length && balances[0].balance < days) {
-            return res.status(400).json({ error: 'Insufficient leave balance' });
+        if (!leaveTypeBal) {
+            return res.status(400).json({ error: 'Leave balance record not found for this year' });
+        }
+
+        // Allow if days <= entitled (Full year allowance), even if > earned
+        if (days > leaveTypeBal.entitled) {
+            return res.status(400).json({ error: `Insufficient annual entitlement. Max available for this year: ${leaveTypeBal.entitled} days.` });
         }
 
         db.run(
@@ -297,11 +336,11 @@ router.put('/request/:id/approve', authMiddleware, async (req, res) => {
         // Update status
         db.run('UPDATE leave_requests SET status = \'Approved\' WHERE id = ?', [req.params.id]);
 
-        // Update balance
+        // Update balance (only 'taken' is stored statically, 'balance' is dynamic)
         const year = new Date(lr.start_date).getFullYear();
         db.run(
-            'UPDATE leave_balances SET taken = taken + ?, balance = balance - ? WHERE employee_id = ? AND leave_type_id = ? AND year = ?',
-            [lr.days, lr.days, lr.employee_id, lr.leave_type_id, year]
+            'UPDATE leave_balances SET taken = taken + ? WHERE employee_id = ? AND leave_type_id = ? AND year = ?',
+            [lr.days, lr.employee_id, lr.leave_type_id, year]
         );
 
         saveDb();

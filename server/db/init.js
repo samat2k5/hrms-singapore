@@ -166,6 +166,65 @@ async function getDb() {
       }
     } catch (e) { console.error('[DB] Payslips migration failed:', e.message); }
 
+    // Leave Policies and Balances Migrations
+    try {
+      const checkPol = db.exec("PRAGMA table_info(leave_policies)");
+      if (checkPol.length > 0) {
+        const columns = checkPol[0].values.map(v => v[1]);
+        const migrations = [
+          { name: 'carry_forward_max', type: 'REAL DEFAULT 0' },
+          { name: 'carry_forward_expiry_months', type: 'INTEGER DEFAULT 12' },
+          { name: 'encashment_allowed', type: 'BOOLEAN DEFAULT 0' }
+        ];
+        let migrated = false;
+        for (const col of migrations) {
+          if (!columns.includes(col.name)) {
+            db.run(`ALTER TABLE leave_policies ADD COLUMN ${col.name} ${col.type}`);
+            migrated = true;
+          }
+        }
+        if (migrated) saveDb();
+      }
+
+      const checkBal = db.exec("PRAGMA table_info(leave_balances)");
+      if (checkBal.length > 0) {
+        const columns = checkBal[0].values.map(v => v[1]);
+        if (!columns.includes('carried_forward')) {
+          db.run(`ALTER TABLE leave_balances ADD COLUMN carried_forward REAL DEFAULT 0`);
+          saveDb();
+        }
+      }
+    } catch (e) { console.error('[DB] Leave table migrations failed:', e.message); }
+
+    // Ensure AWOL leave type exists
+    try {
+      const awolCheck = db.exec("SELECT id FROM leave_types WHERE name = 'AWOL'");
+      let awolId = null;
+      if (!awolCheck.length || !awolCheck[0].values.length) {
+        console.log("[DB] Adding missing AWOL leave type...");
+        db.run("INSERT INTO leave_types (name, default_days) VALUES (?, ?)", ['AWOL', 0]);
+        awolId = db.exec("SELECT id FROM leave_types WHERE name = 'AWOL'")[0].values[0][0];
+        saveDb();
+      } else {
+        awolId = awolCheck[0].values[0][0];
+      }
+
+      // Ensure all employees have an AWOL balance record for existing years
+      if (awolId) {
+        db.run(`
+            INSERT INTO leave_balances (employee_id, leave_type_id, year, entitled, taken, balance, carried_forward)
+            SELECT DISTINCT employee_id, ?, year, 0, 0, 0, 0 FROM leave_balances lb1
+            WHERE NOT EXISTS (
+                SELECT 1 FROM leave_balances lb2 
+                WHERE lb2.employee_id = lb1.employee_id 
+                AND lb2.year = lb1.year 
+                AND lb2.leave_type_id = ?
+            )
+        `, [awolId, awolId]);
+        saveDb();
+      }
+    } catch (e) { console.error('[DB] AWOL leave type migration failed:', e.message); }
+
     // IRAS Compliance Tables Migration
     const irasTables = [
       {
@@ -511,6 +570,9 @@ function createSchema(database) {
       base_days REAL DEFAULT 0,
       increment_per_year REAL DEFAULT 0,
       max_days REAL DEFAULT 0,
+      carry_forward_max REAL DEFAULT 0,
+      carry_forward_expiry_months INTEGER DEFAULT 12,
+      encashment_allowed BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (entity_id) REFERENCES entities(id),
       FOREIGN KEY (leave_type_id) REFERENCES leave_types(id),
@@ -525,6 +587,7 @@ function createSchema(database) {
       leave_type_id INTEGER NOT NULL,
       year INTEGER NOT NULL,
       entitled REAL DEFAULT 0,
+      carried_forward REAL DEFAULT 0,
       taken REAL DEFAULT 0,
       balance REAL DEFAULT 0,
       FOREIGN KEY (employee_id) REFERENCES employees(id),
@@ -805,7 +868,8 @@ function seedConfigData(database) {
     ['Paternity Leave', 24],
     ['Shared Parental Leave', 60],
     ['Compassionate Leave', 3],
-    ['Unpaid Leave', 0]
+    ['Unpaid Leave', 0],
+    ['AWOL', 0]
   ];
   leaveTypes.forEach(([name, days]) => {
     database.run(`INSERT INTO leave_types (name, default_days) VALUES (?, ?)`, [name, days]);

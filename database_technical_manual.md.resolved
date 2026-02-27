@@ -1,0 +1,286 @@
+# HRMS Singapore: Database Technical Manual
+
+This document provides a comprehensive technical overview of the database architecture, including a full data dictionary for all tables and a visualization of the data flow.
+
+---
+
+## 1. Data Flow Diagram
+
+The following diagram illustrates the lifecycle of data within the system, from organizational setup to payroll processing and statutory reporting.
+
+```mermaid
+graph TD
+    subgraph "Master Data"
+        E[Entities] --> D[Departments]
+        E --> EG[Employee Groups]
+        E --> GR[Employee Grades]
+        E --> EMP[Employees]
+    end
+
+    subgraph "Operations"
+        EMP --> LV[Leave Requests]
+        EMP --> TS[Timesheets]
+        EMP --> KET[Employee KETs]
+        EMP --> DOC[Employee Documents]
+    end
+
+    subgraph "Processing"
+        LV --> PE[Payroll Engine]
+        TS --> PE
+        EMP --> PE
+        KET --> PE
+        PR[Payroll Runs] --> PE
+    end
+
+    subgraph "Output & Compliance"
+        PE --> PS[Payslips]
+        PS --> REP[Payroll Reports]
+        PS --> IRAS[IRAS Forms]
+        PS --> NS[NS Claims]
+    end
+
+    U[Users] -.->|Manages| E
+    U -.->|Processes| PR
+```
+
+---
+
+## 2. Complete Data Dictionary
+
+### 2.1 Organizational & Configuration Tables
+
+#### `entities`
+Stores master information for business entities (multi-tenant roots).
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `uen`: Unique Entity Number (Singapore)
+- `name`: Company Name
+- `address`, `contact_number`, `website`: Contact details
+- `email_domains`: Allowed domains for entity users
+- `logo_url`: Path to company logo
+- `performance_multiplier`: GLOBAL adjustment for performance-based pay
+- `created_at`: Audit timestamp
+
+#### `departments`
+Organizational units within an entity.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`: Foreign Key to `entities`
+- `name`: Department name
+- `description`: Strategic or functional description
+
+#### `employee_groups`
+Used to categorize employees for batch processing (e.g., "Full-time", "Part-time").
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`: Foreign Key to `entities`
+- `name`: Group name
+- `description`: Usage details
+
+#### `employee_grades`
+Defines seniority or pay scales, used for leave policy mapping.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`: Foreign Key to `entities`
+- `name`: Grade level (e.g., "Senior Manager", "Rank & File")
+- `description`: Salary or benefit range details
+
+#### `email_domains`
+Allowed email domains per entity for security validation.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`: Foreign Key to `entities`
+- `domain`: Domain string (e.g., `company.sg`)
+
+#### `holidays`
+Designates non-working days for payroll and leave calculations (MOM compliance).
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`: Foreign Key to `entities`
+- `name`: Holiday name (e.g., "National Day")
+- [date](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#182-183): Calendar date
+- `description`: Optional notes
+
+---
+
+### 2.2 User & Access Control Tables
+
+#### `users`
+System-wide users (Administrator accounts).
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `username`: Unique login handle
+- `password_hash`: Bcrypt hashed password
+- `full_name`: Display name
+
+#### `user_roles`
+Master list of permission profiles.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `name`: Role name (e.g., "Admin", "HR")
+- `description`: Role responsibilities
+- `permissions`: JSON array of functional keys (e.g., `["payroll:run", "employee:edit"]`)
+
+#### `user_entity_roles`
+Maps users to specific entities with designated roles.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `user_id`: Foreign Key to `users`
+- `entity_id`: Foreign Key to `entities`
+- `role`: Role name assigned for this entity
+- `managed_groups`: JSON array of employee groups this user can see
+
+---
+
+### 2.3 Employee & Contract Tables
+
+#### `employees`
+The central master record for all personnel.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`: Foreign Key to `entities`
+- `employee_id`: Internal code (e.g., `EMP001`)
+- `full_name`, `date_of_birth`, `national_id`: Personal identity
+- `nationality`, `tax_residency`, `race`, `gender`: Compliance attributes
+- `designation`, `department`, `employee_group`, `employee_grade`: Org placement
+- `status`: "Active" or "Inactive"
+- `mobile_number`, `email`, `whatsapp_number`: Contact info
+- `basic_salary`: Monthly fixed salary
+- `transport_allowance`, `meal_allowance`, `other_allowance`: Fixed pay components
+- `other_deduction`: General recurring deduction
+- `custom_allowances`, `custom_deductions`: JSON objects for named components
+- `payment_mode`: Bank, GIRO, Cash, etc.
+- `bank_name`, `bank_account`: Payment destination
+- `cpf_applicable`: Toggle for statutory CPF contribution
+- `working_days_per_week`, `working_hours_per_day`: MOM work schedule
+- `site_id`: Site assignment for remote/project work
+- `photo_url`, `face_descriptor`: Biometric and ID assets
+
+#### `employee_documents`
+Identity documents and work passes.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `employee_id`: Foreign Key to `employees`
+- `document_type`: NRIC, FIN, WP, Passport, etc.
+- `document_number`: ID number
+- `issue_date`, `expiry_date`: Validity period
+- `file_path`: Path to scanned copy
+
+#### `employee_kets`
+Key Employment Terms as regulated by MOM Singapore.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `employee_id`: Foreign Key to `employees`
+- `employment_start_date`, `employment_end_date`: Contract term
+- `working_hours_details`, `break_hours`, `rest_day`: Specific schedule
+- `salary_payment_date`, `overtime_payment_date`: Expected payment timing
+- `bonus_structure`: Description of performance/AWS logic
+- `annual_leave_days`, `sick_leave_days`: Basic entitlements
+- `probation_start_date`, `probation_end_date`: Probation period
+- `notice_period`: Resignation/Termination notice timeline
+
+---
+
+### 2.4 Attendance, Leave & Processing Tables
+
+#### `timesheets`
+Operational clock-in/out data.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `employee_id`: Identity keys
+- [date](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#182-183): Work date
+- `in_time`, `out_time`: Actual timestamps
+- `shift`: Shift identifier
+- `ot_hours`, `ot_1_5_hours`, `ot_2_0_hours`: Calculated overtime buckets
+
+#### `attendance_remarks`
+Flags for attendance exceptions.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `employee_id`, [date](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#182-183): Keys
+- `remark_type`: e.g., "Late", "Absent", "Early Out"
+- `description`: Manual notes
+
+#### `leave_types`
+Master categories for leave.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `name`: e.g., "Annual Leave", "Medical Leave"
+- `default_days`: Statutory minimums
+
+#### `leave_policies`
+Grade-based entitlement rules.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `employee_grade`, `leave_type_id`: Mapping keys
+- `base_days`, `increment_per_year`, `max_days`: Proration logic
+
+#### `leave_balances`
+Current year entitlements and consumption.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `employee_id`, `leave_type_id`, `year`: Inventory keys
+- `entitled`, `taken`, `balance`: Current quota status
+
+#### `leave_requests`
+Application and approval workflow.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `employee_id`, `leave_type_id`: Type/Owner
+- `start_date`, `end_date`, [days](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): Duration
+- `status`: "Pending", "Approved", "Rejected"
+
+---
+
+### 2.5 Payroll & Statutory Compliance Tables
+
+#### `payroll_runs`
+Master batch records for monthly processing.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `employee_group`: Processing scope
+- `period_year`, `period_month`: Pay month
+- `total_gross`, `total_net`: Summary totals
+- `total_cpf_employee`, `total_cpf_employer`: Statutory aggregates
+- `status`: "Draft", "Approved", "Paid", "Locked"
+
+#### `payslips`
+Granular breakdown of an individual's pay items.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `payroll_run_id`: Link to batch
+- `employee_id`: Recipient
+- `basic_salary`, `transport_allowance`, `gross_pay`: Earning components
+- `cpf_employee`, `cpf_employer`, `sdl`, `shg_deduction`: Statutory items
+- `ns_makeup_pay`, `performance_allowance`: Special items
+- `net_pay`: Final take-home pay
+- `compliance_notes`: Automated flags for MOM rule violations
+
+#### `iras_forms`
+Tax records for Singapore Inland Revenue.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `employee_id`, `year`: Record keys
+- `form_type`: IR8A, Appendix 8A, Appendix 8B
+- `data_json`: The full tax data blob
+- `is_locked`: Prevents changes after generation
+
+#### `iras_submissions`
+Tracking for bulk submissions to IRAS.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `submission_id`, `year`: Audit keys
+- `status`: "Pending", "Success", "Failed"
+
+#### `iras_benefits_in_kind`
+Component-level tracking for non-cash benefits.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `employee_id`, `year`, `category`, `value`: Accounting details
+
+#### `iras_share_options`
+Tracking for ESOP/Share-based compensation.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `employee_id`, `year`, `grant_date`, `taxable_profit`: Taxable profit calculation
+
+#### `ns_claims`
+Managing NS makeup pay for Singaporean employees.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `employee_id`: Employee link
+- `start_date`, `end_date`, `total_days`: Military call-up duration
+- `claim_amount`: Expected refund from MINDEF/MHA
+- `status`: "Pending", "Processed", "Claimed"
+
+#### `shift_settings_v2`
+Detailed shift configuration for attendance engine.
+- [id](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/services/api.js#206-220): PRIMARY KEY
+- `entity_id`, `shift_name`: Identifier
+- `start_time`, `end_time`: Standard window
+- `ot_start_time`: Buffer period before OT kicks in
+- `late_arrival_threshold_mins`: Grace period
+- `lunch_break_mins`, `dinner_break_mins`: Deductible break durations
+
+---
+
+## 3. Technical Notes
+
+- **Multi-Tenant Keys**: Tables use `entity_id` combined with `employee_id` or `name` in `UNIQUE` clusters to prevent cross-company data collisions.
+- **Dynamic Extensibility**: All tables utilize standard SQLite types (`TEXT`, `INTEGER`, `REAL`, `DATE`), with complex data structures stored as `JSON` strings in `TEXT` columns for forward compatibility.
+- **Auditing**: Operational tables include a `created_at DATETIME DEFAULT CURRENT_TIMESTAMP` for record traceability.

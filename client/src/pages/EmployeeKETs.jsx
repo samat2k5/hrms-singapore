@@ -4,6 +4,8 @@ import toast from 'react-hot-toast'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { formatDate, formatCurrency } from '../utils/formatters'
+import { Eye } from 'lucide-react'
+import ReportViewer from '../components/ReportViewer'
 
 const loadLogo = (url) => {
     return new Promise((resolve) => {
@@ -92,6 +94,9 @@ export default function EmployeeKETs() {
     const [loading, setLoading] = useState(true)
     const [editing, setEditing] = useState(false)
     const [form, setForm] = useState({})
+    const [isViewerOpen, setIsViewerOpen] = useState(false)
+    const [viewerPdfUrl, setViewerPdfUrl] = useState('')
+    const [viewerTitle, setViewerTitle] = useState('')
     const { activeEntity } = useAuth()
 
     useEffect(() => {
@@ -403,6 +408,19 @@ export default function EmployeeKETs() {
         }
     }
 
+    const handlePreviewPDF = async () => {
+        try {
+            const doc = await generatePDFDoc();
+            const pdfBlobUrl = doc.output('bloburl');
+            setViewerPdfUrl(pdfBlobUrl);
+            setViewerTitle(`Key Employment Terms - ${employee?.full_name}`);
+            setIsViewerOpen(true);
+        } catch (err) {
+            console.error('[KET_PREVIEW_ERROR]', err);
+            toast.error('Failed to preview PDF: ' + (err.message || 'Unknown error'));
+        }
+    }
+
     if (loading) return <div className="card-base h-96 loading-shimmer" />
     if (!ket) return <div className="text-center py-20 text-[var(--text-muted)]">KETs not found</div>
 
@@ -425,6 +443,14 @@ export default function EmployeeKETs() {
                 <div className="flex items-center gap-3 h-10">
                     {!editing ? (
                         <>
+                            <button
+                                onClick={handlePreviewPDF}
+                                className="btn-glass h-10 !px-4 flex items-center gap-2 text-[var(--brand-primary)] border-[var(--brand-primary)]/30 hover:bg-[var(--brand-primary)]/10"
+                                title="Preview KET"
+                            >
+                                <Eye className="w-5 h-5" />
+                                <span className="text-sm font-bold">Preview</span>
+                            </button>
                             <select
                                 className="h-full px-4 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] bg-[var(--bg-input)] hover:bg-[var(--bg-card)] text-sm transition-all shadow-sm cursor-pointer outline-none font-bold appearance-none"
                                 onChange={(e) => {
@@ -589,6 +615,13 @@ export default function EmployeeKETs() {
                 <p className="text-xs text-cyan-300 font-medium mb-1">📋 MOM Compliance Note</p>
                 <p className="text-xs text-[var(--text-muted)]">This document contains all mandatory fields as required by the Ministry of Manpower (MOM) for Key Employment Terms under the Employment Act. KETs must be issued within 14 days of the employee's start date.</p>
             </div>
+
+            <ReportViewer
+                isOpen={isViewerOpen}
+                onClose={() => setIsViewerOpen(false)}
+                pdfUrl={viewerPdfUrl}
+                title={viewerTitle}
+            />
         </div >
     )
 }

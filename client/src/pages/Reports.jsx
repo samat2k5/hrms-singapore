@@ -25,6 +25,8 @@ export default function Reports() {
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(false)
     const [selectedEmp, setSelectedEmp] = useState(null)
+    const [employees, setEmployees] = useState([])
+    const [attEmployeeId, setAttEmployeeId] = useState('')
     const [bikModal, setBikModal] = useState(false)
     const [shareModal, setShareModal] = useState(false)
     const [bikData, setBikData] = useState([])
@@ -32,7 +34,6 @@ export default function Reports() {
     const [isViewerOpen, setIsViewerOpen] = useState(false)
     const [viewerPdfUrl, setViewerPdfUrl] = useState('')
     const [viewerTitle, setViewerTitle] = useState('')
-
     const tabs = [
         { key: 'summary', label: 'Payroll Summary', desc: 'Entity-wide payroll totals & stats', icon: LayoutDashboard, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
         { key: 'consolidated', label: 'Consolidated', desc: 'Grouping by employee group', icon: Landmark, color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -43,7 +44,9 @@ export default function Reports() {
         { key: 'sdl', label: 'SDL Report', desc: 'Skills Development Levy', icon: FileCheck, color: 'text-orange-400', bg: 'bg-orange-500/10' },
         { key: 'shg', label: 'SHG Report', desc: 'Self-Help Group deductions', icon: ClipboardList, color: 'text-purple-400', bg: 'bg-purple-500/10' },
         { key: 'ir8a', label: 'IR8A Summary', desc: 'Annual IRAS tax reporting', icon: BadgeAlert, color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10' },
+        { key: 'attendance', label: 'Detailed Attendance', desc: 'Monthly day-by-day timesheet', icon: ClipboardList, color: 'text-sky-400', bg: 'bg-sky-500/10' },
     ]
+
 
     const fetchReport = async () => {
         setData(null)
@@ -67,6 +70,10 @@ export default function Reports() {
                     const cpfExcess = await api.getIRASCpfExcess().catch(() => []);
                     result = { summary, forms, logs, cessation, cpfExcess, year };
                     break;
+                case 'attendance':
+                    if (!attEmployeeId) throw new Error("Please select an employee");
+                    result = await api.getDetailedAttendance(year, month, attEmployeeId);
+                    break;
             }
             setData(result)
         } catch (err) {
@@ -80,6 +87,9 @@ export default function Reports() {
         setData(null);
         if (tab === 'master' || tab === 'expiry') {
             fetchReport();
+        }
+        if (tab === 'attendance') {
+            api.getEmployees().then(setEmployees).catch(() => { });
         }
     }, [tab])
 
@@ -169,6 +179,68 @@ export default function Reports() {
                 // Footer
                 doc.setFontSize(7).setFont(undefined, 'normal').setTextColor(150);
                 doc.text('This is a computer-generated payslip. No signature required.', 105, 285, { align: 'center' });
+
+                // Attendance Supplement (New Page)
+                if (s.timesheets && s.timesheets.length > 0) {
+                    doc.addPage();
+                    doc.addImage(logo, 'PNG', 14, 10, 30, 15);
+                    doc.setFontSize(14).setFont(undefined, 'bold').setTextColor(6, 182, 212).text('DETAILED TIMESHEET ATTENDANCE', 105, 20, { align: 'center' });
+                    doc.setFontSize(10).setFont(undefined, 'normal').setTextColor(100).text(`Supplement for Period: ${formatMonth(year, month)}`, 105, 26, { align: 'center' });
+
+                    doc.setFontSize(10).setTextColor(0).text('Employee Details', 14, 40);
+                    autoTable(doc, {
+                        startY: 42,
+                        body: [
+                            ['Name', s.employee_name, 'Emp ID', s.emp_code],
+                            ['Entity', s.entity_name, 'Group', s.employee_group || '-']
+                        ],
+                        theme: 'grid', styles: { fontSize: 8 }
+                    });
+
+                    const tsBody = s.timesheets.map(t => [
+                        `${t.date.split('-')[2]} ${new Date(t.date).toLocaleString('default', { month: 'short' })} (${t.dayName.substring(0, 3)})`,
+                        t.shift || '',
+                        t.in_time || '',
+                        t.out_time || '',
+                        (t.normal_hours || '-'),
+                        (t.ot_1_5_hours || '-'),
+                        (t.ot_2_0_hours || '-'),
+                        (t.ph_hours || '-'),
+                        t.remarks || ''
+                    ]);
+
+                    const totals = s.timesheets.reduce((acc, t) => ({
+                        normal: acc.normal + (parseFloat(t.normal_hours) || 0),
+                        ot15: acc.ot15 + (parseFloat(t.ot_1_5_hours) || 0),
+                        ot20: acc.ot20 + (parseFloat(t.ot_2_0_hours) || 0),
+                        ph: acc.ph + (parseFloat(t.ph_hours) || 0)
+                    }), { normal: 0, ot15: 0, ot20: 0, ph: 0 });
+
+                    tsBody.push([
+                        { content: 'MONTHLY TOTALS', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
+                        { content: totals.normal > 0 ? totals.normal.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [224, 242, 254] } },
+                        { content: totals.ot15 > 0 ? totals.ot15.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [254, 243, 199] } },
+                        { content: totals.ot20 > 0 ? totals.ot20.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [255, 237, 213] } },
+                        { content: totals.ph > 0 ? totals.ph.toFixed(1) : '-', styles: { fontStyle: 'bold', halign: 'center', fillColor: [255, 228, 230] } },
+                        { content: '', styles: { fillColor: [240, 240, 240] } }
+                    ]);
+
+                    autoTable(doc, {
+                        startY: doc.lastAutoTable.finalY + 10,
+                        head: [['Date', 'Shift', 'In', 'Out', 'Basic', 'OT 1.5x', 'OT 2.0x', 'PH', 'Remarks']],
+                        body: tsBody,
+                        theme: 'striped',
+                        styles: { fontSize: 7, halign: 'center' },
+                        headStyles: { fillColor: [6, 182, 212], textColor: 255 },
+                        columnStyles: {
+                            0: { halign: 'left', cellWidth: 30 },
+                            8: { halign: 'left' }
+                        }
+                    });
+
+                    doc.setFontSize(7).setFont(undefined, 'normal').setTextColor(150);
+                    doc.text('This supplement is an integral part of the payslip.', 105, 285, { align: 'center' });
+                }
             });
 
             if (isSnapshot) {
@@ -343,6 +415,39 @@ export default function Reports() {
                 doc.save(`Payroll_Detail_Report_${mode}_${year}_${month}.pdf`);
                 toast.success('Professional Grid PDF downloaded');
                 return;
+            } else if (tab === 'attendance' && data?.report) {
+                headers = [['Date', 'Shift', 'In', 'Out', 'Basic', 'OT 1.5x', 'OT 2.0x', 'PH', 'Remarks']];
+                tableData = data.report.map(r => [
+                    `${r.date.split('-')[2]} ${new Date(r.date).toLocaleString('default', { month: 'short' })} (${r.dayName.substring(0, 3)})`,
+                    r.shift,
+                    r.clockIn,
+                    r.clockOut,
+                    r.normal_hours,
+                    r.ot15,
+                    r.ot20,
+                    r.ph_hours,
+                    r.remark
+                ]);
+
+                // Append Totals Row
+                const totalBasic = data.report.reduce((sum, r) => sum + (parseFloat(r.normal_hours) || 0), 0);
+                const totalOT15 = data.report.reduce((sum, r) => sum + (parseFloat(r.ot15) || 0), 0);
+                const totalOT20 = data.report.reduce((sum, r) => sum + (parseFloat(r.ot20) || 0), 0);
+                const totalPH = data.report.reduce((sum, r) => sum + (parseFloat(r.ph_hours) || 0), 0);
+
+                tableData.push([
+                    { content: 'MONTHLY TOTALS', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
+                    { content: totalBasic.toFixed(1), styles: { fontStyle: 'bold', halign: 'center', fillColor: [224, 242, 254] } }, // Light cyan
+                    { content: totalOT15.toFixed(1), styles: { fontStyle: 'bold', halign: 'center', fillColor: [254, 243, 199] } }, // Light amber
+                    { content: totalOT20.toFixed(1), styles: { fontStyle: 'bold', halign: 'center', fillColor: [255, 237, 213] } }, // Light orange
+                    { content: totalPH.toFixed(1), styles: { fontStyle: 'bold', halign: 'center', fillColor: [255, 228, 230] } }, // Light rose
+                    { content: '', styles: { fillColor: [240, 240, 240] } }
+                ]);
+
+                doc.setFontSize(12).setTextColor(0, 0, 0).setFont(undefined, 'bold');
+                doc.text(`Employee Attendance Report: ${data.employee.full_name}`, 14, 34);
+                doc.setFontSize(10).setFont(undefined, 'normal').setTextColor(100);
+                doc.text(`ID: ${data.employee.employee_id} | Designation: ${data.employee.designation}`, 14, 40);
             }
 
             if (tableData.length) {
@@ -443,6 +548,19 @@ export default function Reports() {
                     {/* Controls */}
                     <div className="p-6 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[2rem] backdrop-blur-md shadow-lg">
                         <div className="flex flex-col sm:flex-row sm:items-end gap-5 flex-wrap">
+                            {tab === 'attendance' && (
+                                <div className="w-full sm:w-auto">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Employee</label>
+                                    <select
+                                        value={attEmployeeId}
+                                        onChange={e => setAttEmployeeId(e.target.value)}
+                                        className="w-full sm:w-64 bg-[var(--bg-input)] border border-[var(--border-main)] text-[var(--text-main)] rounded-xl px-4 py-2.5 outline-none focus:border-cyan-500/50 transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Select Employee</option>
+                                        {employees.map(e => <option key={e.id} value={e.id}>{e.full_name} ({e.employee_id})</option>)}
+                                    </select>
+                                </div>
+                            )}
                             {!['ir8a', 'master', 'expiry'].includes(tab) && (
                                 <div className="w-full sm:w-auto">
                                     <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Month</label>
@@ -681,6 +799,91 @@ export default function Reports() {
                                             })}
                                         </tbody>
                                     </table>
+                                </div>
+                            )}
+
+                            {tab === 'attendance' && data?.report && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-4 bg-[var(--bg-input)] rounded-2xl border border-[var(--border-main)] backdrop-blur-sm">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 font-bold border border-sky-500/30">
+                                                {data.employee.full_name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-[var(--text-main)]">{data.employee.full_name}</h4>
+                                                <p className="text-xs text-[var(--text-muted)] tracking-wide uppercase">{data.employee.designation} • {data.employee.employee_id}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-bold">Base Pay</p>
+                                            <p className="text-lg font-bold text-sky-400">{formatCurrency(data.employee.basic_salary)}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto rounded-[1.5rem] border border-[var(--border-main)] shadow-inner bg-[var(--bg-input)]/30 backdrop-blur-sm">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-[var(--border-main)] bg-[var(--bg-card)]/50">
+                                                    <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Date</th>
+                                                    <th className="px-2 py-4 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] text-center">Shift</th>
+                                                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] text-center">In</th>
+                                                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] text-center">Out</th>
+                                                    <th className="px-3 py-4 text-xs font-bold uppercase tracking-wider text-sky-400 text-center">Basic</th>
+                                                    <th className="px-3 py-4 text-xs font-bold uppercase tracking-wider text-amber-400 text-center">OT 1.5</th>
+                                                    <th className="px-3 py-4 text-xs font-bold uppercase tracking-wider text-orange-400 text-center">OT 2.0</th>
+                                                    <th className="px-3 py-4 text-xs font-bold uppercase tracking-wider text-rose-400 text-center">PH</th>
+                                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Remarks</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[var(--border-main)]/50">
+                                                {data.report.map((r, i) => (
+                                                    <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                                                        <td className="px-5 py-3">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-bold text-[var(--text-main)]">{r.date.split('-')[2]} {new Date(r.date).toLocaleString('default', { month: 'short' })}</span>
+                                                                <span className="text-[10px] uppercase tracking-tighter text-[var(--text-muted)]">{r.dayName}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-2 py-3 text-center text-xs text-[var(--text-muted)]">{r.shift}</td>
+                                                        <td className="px-4 py-3 text-center font-mono text-xs text-[var(--text-main)]">{r.clockIn}</td>
+                                                        <td className="px-4 py-3 text-center font-mono text-xs text-[var(--text-main)]">{r.clockOut}</td>
+                                                        <td className="px-3 py-3 text-center font-mono text-xs text-sky-400">{r.normal_hours}</td>
+                                                        <td className="px-3 py-3 text-center font-mono text-xs text-amber-400">{r.ot15}</td>
+                                                        <td className="px-3 py-3 text-center font-mono text-xs text-orange-400">{r.ot20}</td>
+                                                        <td className="px-3 py-3 text-center font-mono text-xs text-rose-400">{r.ph_hours}</td>
+                                                        <td className="px-6 py-3">
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase ${r.remark === 'Rest Day' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
+                                                                r.remark === 'AWOL' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                                                    r.remark.includes('Holiday') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                                                        r.remark.includes('Leave') ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                                            'text-[var(--text-muted)]'
+                                                                }`}>
+                                                                {r.remark}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot className="bg-[var(--bg-card)]/50 border-t border-[var(--border-main)] font-bold">
+                                                <tr>
+                                                    <td colSpan={4} className="px-6 py-4 text-right text-xs text-[var(--text-muted)] font-bold uppercase tracking-widest">Monthly Totals:</td>
+                                                    <td className="px-3 py-4 text-center font-mono text-sm text-sky-400">
+                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.normal_hours) || 0), 0).toFixed(1)}
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center font-mono text-sm text-amber-400">
+                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.ot15) || 0), 0).toFixed(1)}
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center font-mono text-sm text-orange-400">
+                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.ot20) || 0), 0).toFixed(1)}
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center font-mono text-sm text-rose-400">
+                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.ph_hours) || 0), 0).toFixed(1)}
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
 

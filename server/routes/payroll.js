@@ -2,6 +2,7 @@ const express = require('express');
 const { getDb, saveDb } = require('../db/init');
 const { authMiddleware } = require('../middleware/auth');
 const { processEmployeePayroll } = require('../engine/payroll-engine');
+const { generateMonthlyAttendanceReport } = require('../engine/attendance-report-engine');
 
 const router = express.Router();
 
@@ -127,7 +128,7 @@ router.post('/run', authMiddleware, async (req, res) => {
         for (const emp of employees) {
             // Get unpaid leave days for this month from leave requests
             const leaveResult = db.exec(
-                'SELECT COALESCE(SUM(lr.days), 0) as unpaid_days FROM leave_requests lr JOIN leave_types lt ON lr.leave_type_id = lt.id WHERE lr.employee_id = ? AND lr.status = \'Approved\' AND lt.name = \'Unpaid Leave\' AND strftime(\'%Y\', lr.start_date) = ? AND strftime(\'%m\', lr.start_date) = ?',
+                'SELECT COALESCE(SUM(lr.days), 0) as unpaid_days FROM leave_requests lr JOIN leave_types lt ON lr.leave_type_id = lt.id WHERE lr.employee_id = ? AND lr.status = \'Approved\' AND lt.name IN (\'Unpaid Leave\', \'AWOL\') AND strftime(\'%Y\', lr.start_date) = ? AND strftime(\'%m\', lr.start_date) = ?',
                 [emp.id, String(year), String(month).padStart(2, '0')]
             );
 
@@ -374,15 +375,8 @@ router.get('/payslip/:id', authMiddleware, async (req, res) => {
 
         const payslip = payslips[0];
 
-        // Fetch detailed timesheets for this employee/month
-        const timesheetsResult = db.exec(`
-            SELECT * FROM timesheets
-            WHERE employee_id = ${payslip.employee_id}
-            AND strftime('%Y', date) = '${payslip.period_year}' 
-            AND strftime('%m', date) = '${String(payslip.period_month).padStart(2, '0')}'
-            ORDER BY date ASC
-        `);
-        payslip.timesheets = toObjects(timesheetsResult);
+        // Fetch full attendance report for this employee/month
+        payslip.timesheets = generateMonthlyAttendanceReport(db, payslip.employee_id, payslip.period_year, payslip.period_month, req.user.entityId);
 
         res.json(payslip);
     } catch (err) {

@@ -1,0 +1,160 @@
+openapi: 3.0.0
+info:
+  title: Face Attendance API
+  description: API documentation for biometric enrollment and face recognition clocking in HRMS Singapore.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    entityId:
+      type: apiKey
+      in: header
+      name: Entity-Id
+
+  schemas:
+    EmployeeFace:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Internal employee ID
+        full_name:
+          type: string
+        employee_id:
+          type: string
+          description: Public employee code
+        entity_id:
+          type: integer
+        entity_name:
+          type: string
+
+    ClockResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        employee:
+          $ref: '#/components/schemas/EmployeeFace'
+        action:
+          type: string
+          enum: [In, Out]
+
+    MultipleMatchesResponse:
+      type: object
+      properties:
+        multipleMatches:
+          type: boolean
+          example: true
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeFace'
+
+paths:
+  /employees/{id}/face:
+    put:
+      summary: Enroll Face Biometrics
+      description: Saves a face descriptor for an employee with a uniqueness check within the same entity.
+      security:
+        - bearerAuth: []
+        - entityId: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descriptor:
+                  type: array
+                  items:
+                    type: number
+                  description: 128-float face descriptor array
+      responses:
+        '200':
+          description: Face descriptor saved successfully
+        '400':
+          description: Face already enrolled for another employee
+    delete:
+      summary: Reset Face Biometrics
+      description: Removes the stored face descriptor for an employee.
+      security:
+        - bearerAuth: []
+        - entityId: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Face biometric data reset successfully
+
+  /attendance/face-clock:
+    post:
+      summary: Clock In/Out via Face Recognition
+      description: Scans a face across all entities. Returns a success message, a list of potential matches, or an error.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descriptor:
+                  type: array
+                  items:
+                    type: number
+      responses:
+        '200':
+          description: Successfully clocked or multiple matches found
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClockResponse'
+                  - $ref: '#/components/schemas/MultipleMatchesResponse'
+        '404':
+          description: Face not recognized
+
+  /attendance/face-clock-confirm:
+    post:
+      summary: Confirm Clock In/Out
+      description: Used when multiple matches are found to confirm which entity to clock into.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employeeId:
+                  type: integer
+                entityId:
+                  type: integer
+      responses:
+        '200':
+          description: Clocking confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClockResponse'
