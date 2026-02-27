@@ -253,10 +253,11 @@ export default function Reports() {
 
                     // 1. Summary Row (Yellow Background for full detail, White for summary grid)
                     const summaryStyle = { fontStyle: 'bold', fillColor: mode === 'summary' ? [255, 255, 255] : [255, 217, 102] };
+                    const displayAllowances = e.gross_pay - e.basic_salary;
                     masterBody.push([
                         { content: `${e.employee_name}\nID:${e.employee_code}`, styles: { ...summaryStyle, minCellHeight: mode === 'summary' ? 7 : 10 } },
                         { content: formatCurrency(e.basic_salary), styles: { ...summaryStyle, halign: 'right' } },
-                        { content: formatCurrency(e.total_allowances), styles: { ...summaryStyle, halign: 'right' } },
+                        { content: formatCurrency(displayAllowances), styles: { ...summaryStyle, halign: 'right' } },
                         { content: totalDeductions > 0 ? `-${formatCurrency(totalDeductions)}` : formatCurrency(0), styles: { ...summaryStyle, halign: 'right' } },
                         { content: formatCurrency(e.net_pay), styles: { ...summaryStyle, halign: 'right' } },
                     ]);
@@ -621,6 +622,7 @@ export default function Reports() {
                                                 const customAllowances = e.custom_allowances ? JSON.parse(e.custom_allowances) : {};
                                                 const customDeductions = e.custom_deductions ? JSON.parse(e.custom_deductions) : {};
 
+                                                const displayAllowances = e.gross_pay - e.basic_salary;
                                                 return (
                                                     <>
                                                         <tr key={i} className="cursor-pointer hover:bg-[var(--bg-input)]" onClick={() => setSelectedEmp(isExpanded ? null : e.employee_code)}>
@@ -628,7 +630,7 @@ export default function Reports() {
                                                             <td className="text-[var(--text-main)] font-medium">{e.employee_name}</td>
                                                             <td>{e.employee_code}</td>
                                                             <td>{formatCurrency(e.basic_salary)}</td>
-                                                            <td className="text-emerald-400">{formatCurrency(e.total_allowances)}</td>
+                                                            <td className="text-emerald-400">{formatCurrency(displayAllowances)}</td>
                                                             <td className="text-rose-400">-{formatCurrency(totalDeductions)}</td>
                                                             <td className="font-bold text-cyan-400">{formatCurrency(e.net_pay)}</td>
                                                         </tr>
