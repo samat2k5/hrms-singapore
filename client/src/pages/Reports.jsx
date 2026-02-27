@@ -4,7 +4,7 @@ import api from '../services/api'
 import { formatCurrency, formatMonth } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
 import * as XLSX from 'xlsx'
-import { Printer, Eye, Download, FileText } from 'lucide-react'
+import { Printer, Eye, Download, FileText, LayoutDashboard, Landmark, Users, ClipboardList, ShieldAlert, BadgeAlert, FileCheck, ReceiptText, ArrowLeft, MoreHorizontal } from 'lucide-react'
 import ReportViewer from '../components/ReportViewer'
 
 const loadLogo = (url) => {
@@ -19,7 +19,7 @@ const loadLogo = (url) => {
 
 export default function Reports() {
     const { activeEntity } = useAuth()
-    const [tab, setTab] = useState('summary')
+    const [tab, setTab] = useState(null)
     const [year, setYear] = useState(new Date().getFullYear())
     const [month, setMonth] = useState(new Date().getMonth() + 1)
     const [data, setData] = useState(null)
@@ -34,15 +34,15 @@ export default function Reports() {
     const [viewerTitle, setViewerTitle] = useState('')
 
     const tabs = [
-        { key: 'summary', label: '📋 Payroll Summary', desc: 'Entity-wide payroll totals' },
-        { key: 'consolidated', label: '🏢 Consolidated', desc: 'Grouping by employee group' },
-        { key: 'detail', label: '📝 Payroll Detail', desc: 'Drill-down breakdown' },
-        { key: 'master', label: '👤 Employee Master', desc: 'Comprehensive employee database' },
-        { key: 'expiry', label: '⚠️ Doc Expiry', desc: 'WP & Passport tracking' },
-        { key: 'cpf', label: '🏦 CPF Submission', desc: 'Monthly CPF contribution' },
-        { key: 'sdl', label: '🎓 SDL Report', desc: 'Skills Development Levy' },
-        { key: 'shg', label: '🤝 SHG Report', desc: 'Self-Help Group deductions' },
-        { key: 'ir8a', label: '📊 IR8A Summary', desc: 'Annual IRAS tax report' },
+        { key: 'summary', label: 'Payroll Summary', desc: 'Entity-wide payroll totals & stats', icon: LayoutDashboard, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+        { key: 'consolidated', label: 'Consolidated', desc: 'Grouping by employee group', icon: Landmark, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+        { key: 'detail', label: 'Payroll Detail', desc: 'Itemized drill-down breakdown', icon: ReceiptText, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+        { key: 'master', label: 'Employee Master', desc: 'Comprehensive employee database', icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+        { key: 'expiry', label: 'Doc Expiry', desc: 'WP & Passport tracking', icon: ShieldAlert, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+        { key: 'cpf', label: 'CPF Submission', desc: 'Monthly CPF contribution', icon: Landmark, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+        { key: 'sdl', label: 'SDL Report', desc: 'Skills Development Levy', icon: FileCheck, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+        { key: 'shg', label: 'SHG Report', desc: 'Self-Help Group deductions', icon: ClipboardList, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+        { key: 'ir8a', label: 'IR8A Summary', desc: 'Annual IRAS tax reporting', icon: BadgeAlert, color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10' },
     ]
 
     const fetchReport = async () => {
@@ -359,103 +359,44 @@ export default function Reports() {
                 return;
             }
 
-            doc.save(`${tab}_report_${year}_${month}.pdf`)
-            toast.success('PDF downloaded')
+            doc.save(filename);
+            toast.success(filename.includes('Grid') ? 'Professional Grid PDF downloaded' : 'PDF downloaded');
         } catch (err) {
             toast.error('Export failed')
         }
     }
 
+    const activeTab = tabs.find(t => t.key === tab);
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-3xl font-bold text-[var(--text-main)]">Business Intelligence & Compliance</h1>
-                    <p className="text-[var(--text-muted)] mt-1">Strategic insights and statutory reporting</p>
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={handleExportExcel} disabled={!data} className="btn-primary bg-emerald-600 hover:bg-emerald-700 py-1.5 px-3 text-xs flex items-center gap-2">
-                        <FileText className="w-3 h-3" /> Excel Master
-                    </button>
-                    <div className="flex rounded-xl overflow-hidden border border-rose-500/30">
-                        <button onClick={() => handleExportMasterPDF(false)} disabled={loading} className="bg-rose-600 hover:bg-rose-700 text-white py-1.5 px-3 text-xs flex items-center gap-2 border-r border-rose-500/30 transition-colors">
-                            <Download className="w-3 h-3" /> Master PDF
+        <div className="space-y-6 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    {tab && (
+                        <button
+                            onClick={() => { setTab(null); setData(null); }}
+                            className="p-2 bg-[var(--bg-input)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all border border-[var(--border-main)]"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <button onClick={() => handleExportMasterPDF(true)} disabled={loading} className="bg-rose-900/50 hover:bg-rose-800 text-rose-300 py-1.5 px-3 text-xs flex items-center gap-2 transition-colors">
-                            <Eye className="w-3 h-3" /> Preview
-                        </button>
+                    )}
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-[var(--text-main)] tracking-tight">
+                            {tab ? activeTab.label : 'Business Intelligence'}
+                        </h1>
+                        <p className="text-[var(--text-muted)] mt-0.5">
+                            {tab ? activeTab.desc : 'Strategic insights and statutory reporting'}
+                        </p>
                     </div>
                 </div>
-            </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 flex-nowrap overflow-x-auto pb-2 scrollbar-none">
-                {tabs.map(t => (
-                    <button key={t.key} onClick={() => setTab(t.key)}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${tab === t.key ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-[var(--brand-primary)] border border-[var(--brand-primary)]/30' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-input)] border border-transparent'}`}>
-                        {t.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Controls */}
-            <div className="card-base p-6">
-                <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-wrap">
-                    {!['ir8a', 'master', 'expiry'].includes(tab) && (
-                        <div className="w-full sm:w-auto">
-                            <label className="block text-sm text-[var(--text-muted)] mb-1.5">Month</label>
-                            <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className="select-base w-full sm:w-40">
-                                {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                            </select>
-                        </div>
-                    )}
-                    {!['master', 'expiry'].includes(tab) && (
-                        <div className="w-full sm:w-auto">
-                            <label className="block text-sm text-[var(--text-muted)] mb-1.5">Year</label>
-                            <select value={year} onChange={e => setYear(parseInt(e.target.value))} className="select-base w-full sm:w-32">
-                                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                            </select>
-                        </div>
-                    )}
-                    {!['master', 'expiry'].includes(tab) && (
-                        <button onClick={fetchReport} disabled={loading} className="btn-primary w-full sm:w-auto mt-2 sm:mt-0 text-center">
-                            {loading ? 'Crunching...' : '📊 Generate'}
+                {!tab && (
+                    <div className="flex gap-2">
+                        <button onClick={handleExportExcel} disabled={!data} className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm font-medium hover:bg-emerald-500/20 transition-all flex items-center gap-2">
+                            <FileText className="w-4 h-4" /> Excel Master
                         </button>
-                    )}
-                    {data && (
-                        <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                            {tab === 'detail' ? (
-                                <>
-                                    <div className="flex rounded-xl overflow-hidden border border-[var(--border-main)] shadow-sm">
-                                        <button onClick={() => handleExportPDF(false, 'full')} className="px-3 py-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-xs font-medium transition-all border-r border-[var(--border-main)] flex items-center gap-2">
-                                            <Download className="w-3.5 h-3.5" /> Detail PDF
-                                        </button>
-                                        <button onClick={() => handleExportPDF(true, 'full')} className="px-2.5 py-2.5 text-cyan-400 hover:bg-cyan-500/10 text-xs transition-all flex items-center gap-1">
-                                            <Eye className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                    <div className="flex rounded-xl overflow-hidden border border-emerald-500/30 shadow-sm bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors">
-                                        <button onClick={() => handleExportPDF(false, 'summary')} className="px-3 py-2.5 text-emerald-400 text-xs font-bold transition-all border-r border-emerald-500/20 flex items-center gap-2">
-                                            <Download className="w-3.5 h-3.5" /> Summary PDF
-                                        </button>
-                                        <button onClick={() => handleExportPDF(true, 'summary')} className="px-2.5 py-2.5 text-emerald-400 hover:bg-emerald-500/20 text-xs transition-all flex items-center gap-1">
-                                            <Eye className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <button onClick={() => handleExportPDF(false)} className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-[var(--border-main)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] text-sm transition-all flex items-center justify-center gap-2">
-                                        <Download className="w-4 h-4" /> PDF
-                                    </button>
-                                    <button onClick={() => handleExportPDF(true)} className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-sm transition-all flex items-center justify-center gap-2">
-                                        <Eye className="w-4 h-4" /> Preview
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             <ReportViewer
@@ -465,202 +406,297 @@ export default function Reports() {
                 title={viewerTitle}
             />
 
-            {/* Report Content */}
-            {loading && <div className="card-base h-48 loading-shimmer" />}
-
-            {data && !loading && (
-                <div className="card-base p-6 animate-slide-up">
-                    {tab === 'summary' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[
-                                { label: 'Total Headcount', val: data.headcount, color: 'text-white' },
-                                { label: 'Total Gross Pay', val: formatCurrency(data.total_gross), color: 'text-cyan-400' },
-                                { label: 'Total Net Pay', val: formatCurrency(data.total_net), color: 'text-emerald-400' },
-                                { label: 'Basic Salary', val: formatCurrency(data.total_basic), color: 'text-[var(--text-muted)]' },
-                                { label: 'Overtime Pay', val: formatCurrency(data.total_ot), color: 'text-amber-400' },
-                                { label: 'Standard Deductions', val: `-${formatCurrency(data.total_standard_deductions)}`, color: 'text-rose-400' },
-                                { label: 'CPF (Employer)', val: formatCurrency(data.total_cpf_er), color: 'text-blue-400' },
-                                { label: 'SDL Contribution', val: formatCurrency(data.total_sdl), color: 'text-indigo-400' },
-                                { label: 'SHG Fund', val: formatCurrency(data.total_shg), color: 'text-purple-400' },
-                            ].map((item, idx) => (
-                                <div key={idx} className="p-4 rounded-2xl bg-[var(--bg-input)] border border-[var(--border-main)] hover:border-[var(--brand-primary)]/30 transition-all">
-                                    <p className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1">{item.label}</p>
-                                    <p className={`text-2xl font-bold ${item.color}`}>{item.val}</p>
+            {!tab ? (
+                /* Report Selection Grid */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-slide-up">
+                    {tabs.map((t) => {
+                        const Icon = t.icon;
+                        return (
+                            <button
+                                key={t.key}
+                                onClick={() => setTab(t.key)}
+                                className="group relative flex flex-col p-6 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[2rem] hover:border-[var(--brand-primary)]/40 hover:shadow-xl hover:shadow-[var(--brand-primary)]/5 transition-all duration-300 text-left overflow-hidden backdrop-blur-sm"
+                            >
+                                <div className={`w-14 h-14 ${t.bg} rounded-2xl flex items-center justify-center mb-4 border border-black/5 dark:border-white/5 group-hover:scale-110 transition-transform duration-300`}>
+                                    <Icon className={`w-7 h-7 ${t.color}`} />
                                 </div>
-                            ))}
+                                <h3 className="text-lg font-bold text-[var(--text-main)] group-hover:text-[var(--brand-primary)] transition-colors">{t.label}</h3>
+                                <p className="text-[var(--text-muted)] text-sm mt-1 leading-relaxed">{t.desc}</p>
+
+                                <div className="mt-8 flex items-center justify-between">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--text-main)] transition-colors text-opacity-60">Generate Report</span>
+                                    <div className="w-8 h-8 rounded-full bg-[var(--bg-input)] flex items-center justify-center opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300 border border-[var(--border-main)]">
+                                        <ArrowLeft className="w-4 h-4 text-[var(--text-main)] rotate-180" />
+                                    </div>
+                                </div>
+
+                                {/* Inner glow/gradient */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-black/5 dark:from-white/5 to-transparent rounded-bl-full pointer-events-none" />
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                /* Active Report View */
+                <div className="space-y-6 animate-slide-up">
+                    {/* Controls */}
+                    <div className="p-6 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[2rem] backdrop-blur-md shadow-lg">
+                        <div className="flex flex-col sm:flex-row sm:items-end gap-5 flex-wrap">
+                            {!['ir8a', 'master', 'expiry'].includes(tab) && (
+                                <div className="w-full sm:w-auto">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Month</label>
+                                    <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className="w-full sm:w-48 bg-[var(--bg-input)] border border-[var(--border-main)] text-[var(--text-main)] rounded-xl px-4 py-2.5 outline-none focus:border-cyan-500/50 transition-all appearance-none cursor-pointer">
+                                        {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {!['master', 'expiry'].includes(tab) && (
+                                <div className="w-full sm:w-auto">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Year</label>
+                                    <select value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full sm:w-36 bg-[var(--bg-input)] border border-[var(--border-main)] text-[var(--text-main)] rounded-xl px-4 py-2.5 outline-none focus:border-cyan-500/50 transition-all appearance-none cursor-pointer">
+                                        {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {!['master', 'expiry'].includes(tab) && (
+                                <button onClick={fetchReport} disabled={loading} className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20">
+                                    {loading ? 'Processing...' : 'Generate View'}
+                                </button>
+                            )}
+                            {data && (
+                                <div className="flex gap-2 w-full sm:w-auto">
+                                    {tab === 'detail' ? (
+                                        <>
+                                            <div className="flex rounded-xl overflow-hidden border border-[var(--border-main)] shadow-sm bg-[var(--bg-input)]">
+                                                <button onClick={() => handleExportPDF(false, 'full')} className="px-4 py-2.5 text-[var(--text-muted)] hover:text-[var(--text-main)] text-xs font-bold transition-all border-r border-[var(--border-main)] flex items-center gap-2 hover:bg-[var(--bg-card)]">
+                                                    <Download className="w-3.5 h-3.5" /> Detail PDF
+                                                </button>
+                                                <button onClick={() => handleExportPDF(true, 'full')} className="px-3 py-2.5 text-cyan-400 hover:bg-cyan-500/10 text-xs transition-all flex items-center gap-1">
+                                                    <Eye className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <div className="flex rounded-xl overflow-hidden border border-emerald-500/30 shadow-sm bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors">
+                                                <button onClick={() => handleExportPDF(false, 'summary')} className="px-4 py-2.5 text-emerald-400 text-xs font-bold transition-all border-r border-emerald-500/20 flex items-center gap-2">
+                                                    <Download className="w-3.5 h-3.5" /> Summary PDF
+                                                </button>
+                                                <button onClick={() => handleExportPDF(true, 'summary')} className="px-3 py-2.5 text-emerald-400 hover:bg-emerald-500/20 text-xs transition-all flex items-center gap-1">
+                                                    <Eye className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => handleExportPDF(false)} className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-[var(--border-main)] bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] text-xs font-bold transition-all flex items-center justify-center gap-2">
+                                                <Download className="w-4 h-4" /> Download PDF
+                                            </button>
+                                            <button onClick={() => handleExportPDF(true)} className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500/10 text-xs font-bold transition-all flex items-center justify-center gap-2">
+                                                <Eye className="w-4 h-4" /> Preview
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </div>
 
-                    {tab === 'consolidated' && (
-                        <table className="table-theme">
-                            <thead><tr><th>Employee Group</th><th>Headcount</th><th>Gross Pay</th><th>CPF (EE)</th><th>CPF (ER)</th><th>Net Pay</th></tr></thead>
-                            <tbody>
-                                {data.groups?.map((g, i) => (
-                                    <tr key={i}>
-                                        <td className="font-bold text-[var(--brand-primary)]">{g.employee_group}</td>
-                                        <td>{g.headcount}</td>
-                                        <td>{formatCurrency(g.total_gross)}</td>
-                                        <td>{formatCurrency(g.total_cpf_ee)}</td>
-                                        <td>{formatCurrency(g.total_cpf_er)}</td>
-                                        <td className="font-bold">{formatCurrency(g.total_net)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
+                    {/* Report Content */}
+                    {loading && <div className="h-48 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500"></div></div>}
 
-                    {tab === 'master' && Array.isArray(data) && (
-                        <div className="overflow-x-auto">
-                            <table className="table-theme">
-                                <thead><tr><th>Emp ID</th><th>Full Name</th><th>Group</th><th>Basic Pay</th><th>Bank</th><th>Account</th><th>Email</th></tr></thead>
-                                <tbody>
-                                    {data.map((e, i) => (
-                                        <tr key={i}>
-                                            <td>{e.employee_id}</td>
-                                            <td className="text-[var(--text-main)]">{e.full_name}</td>
-                                            <td><span className="badge-info">{e.employee_group}</span></td>
-                                            <td>{formatCurrency(e.basic_salary)}</td>
-                                            <td className="text-xs">{e.bank_name || '-'}</td>
-                                            <td className="text-xs font-mono">{e.bank_account || '-'}</td>
-                                            <td className="text-[10px]">{e.email || '-'}</td>
-                                        </tr>
+                    {data && !loading && (
+                        <div className="p-1 animate-slide-up">
+                            {tab === 'summary' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {[
+                                        { label: 'Total Headcount', val: data.headcount, color: 'text-[var(--text-main)]' },
+                                        { label: 'Total Gross Pay', val: formatCurrency(data.total_gross), color: 'text-cyan-400' },
+                                        { label: 'Total Net Pay', val: formatCurrency(data.total_net), color: 'text-emerald-400' },
+                                        { label: 'Basic Salary', val: formatCurrency(data.total_basic), color: 'text-[var(--text-muted)]' },
+                                        { label: 'Overtime Pay', val: formatCurrency(data.total_ot), color: 'text-amber-400' },
+                                        { label: 'Standard Deductions', val: `-${formatCurrency(data.total_standard_deductions)}`, color: 'text-rose-400' },
+                                        { label: 'CPF (Employer)', val: formatCurrency(data.total_cpf_er), color: 'text-blue-400' },
+                                        { label: 'SDL Contribution', val: formatCurrency(data.total_sdl), color: 'text-indigo-400' },
+                                        { label: 'SHG Fund', val: formatCurrency(data.total_shg), color: 'text-purple-400' },
+                                    ].map((item, idx) => (
+                                        <div key={idx} className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-main)] hover:border-[var(--brand-primary)]/30 transition-all shadow-sm">
+                                            <p className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1">{item.label}</p>
+                                            <p className={`text-2xl font-bold ${item.color}`}>{item.val}</p>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                </div>
+                            )}
 
-                    {tab === 'expiry' && Array.isArray(data) && (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-500 text-sm">
-                                <span>🔔 Showing documents expiring within 90 days or already expired.</span>
-                            </div>
-                            <table className="table-theme">
-                                <thead><tr><th>Emp ID</th><th>Full Name</th><th>Nationality</th><th>Expiry Date</th><th>Document Type</th></tr></thead>
-                                <tbody>
-                                    {data.map((e, i) => {
-                                        const isExpired = new Date(e.cessation_date || e.pr_status_start_date) < new Date();
-                                        return (
+                            {tab === 'consolidated' && (
+                                <table className="table-theme">
+                                    <thead><tr><th>Employee Group</th><th>Headcount</th><th>Gross Pay</th><th>CPF (EE)</th><th>CPF (ER)</th><th>Net Pay</th></tr></thead>
+                                    <tbody>
+                                        {data.groups?.map((g, i) => (
                                             <tr key={i}>
-                                                <td>{e.employee_id}</td>
-                                                <td>{e.full_name}</td>
-                                                <td>{e.nationality}</td>
-                                                <td className={isExpired ? 'text-rose-500 font-bold' : 'text-amber-500'}>{e.cessation_date || e.pr_status_start_date || '-'}</td>
-                                                <td><span className="badge-info">{e.cessation_date ? 'Work Permit' : 'PR Start'}</span></td>
+                                                <td className="font-bold text-[var(--brand-primary)]">{g.employee_group}</td>
+                                                <td>{g.headcount}</td>
+                                                <td>{formatCurrency(g.total_gross)}</td>
+                                                <td>{formatCurrency(g.total_cpf_ee)}</td>
+                                                <td>{formatCurrency(g.total_cpf_er)}</td>
+                                                <td className="font-bold">{formatCurrency(g.total_net)}</td>
                                             </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
 
-                    {tab === 'cpf' && (
-                        <table className="table-theme">
-                            <thead><tr><th>Employee</th><th>ID</th><th>Gross</th><th>CPF (EE)</th><th>CPF (ER)</th><th>OA</th><th>SA</th><th>MA</th></tr></thead>
-                            <tbody>
-                                {data.employees?.map((e, i) => (
-                                    <tr key={i}><td className="text-[var(--text-main)] font-medium">{e.employee_name}</td><td>{e.employee_code}</td><td>{formatCurrency(e.gross_pay)}</td><td>{formatCurrency(e.cpf_employee)}</td><td>{formatCurrency(e.cpf_employer)}</td><td>{formatCurrency(e.cpf_oa)}</td><td>{formatCurrency(e.cpf_sa)}</td><td>{formatCurrency(e.cpf_ma)}</td></tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-
-                    {tab === 'detail' && (
-                        <div className="space-y-4">
-                            <table className="table-theme">
-                                <thead>
-                                    <tr>
-                                        <th className="w-10"></th>
-                                        <th>Employee</th>
-                                        <th>ID</th>
-                                        <th>Basic</th>
-                                        <th>Allowances</th>
-                                        <th>Deductions</th>
-                                        <th>Net Pay</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.employees?.map((e, i) => {
-                                        const isExpanded = selectedEmp === e.employee_code;
-                                        const totalDeductions = e.cpf_employee + e.shg_deduction + e.attendance_deduction + e.unpaid_leave_deduction + e.other_deductions;
-                                        const customAllowances = e.custom_allowances ? JSON.parse(e.custom_allowances) : {};
-                                        const customDeductions = e.custom_deductions ? JSON.parse(e.custom_deductions) : {};
-
-                                        return (
-                                            <>
-                                                <tr key={i} className="cursor-pointer hover:bg-[var(--bg-input)]" onClick={() => setSelectedEmp(isExpanded ? null : e.employee_code)}>
-                                                    <td className="text-center">{isExpanded ? '▼' : '▶'}</td>
-                                                    <td className="text-[var(--text-main)] font-medium">{e.employee_name}</td>
-                                                    <td>{e.employee_code}</td>
+                            {tab === 'master' && Array.isArray(data) && (
+                                <div className="overflow-x-auto">
+                                    <table className="table-theme">
+                                        <thead><tr><th>Emp ID</th><th>Full Name</th><th>Group</th><th>Basic Pay</th><th>Bank</th><th>Account</th><th>Email</th></tr></thead>
+                                        <tbody>
+                                            {data.map((e, i) => (
+                                                <tr key={i}>
+                                                    <td>{e.employee_id}</td>
+                                                    <td className="text-[var(--text-main)]">{e.full_name}</td>
+                                                    <td><span className="badge-info">{e.employee_group}</span></td>
                                                     <td>{formatCurrency(e.basic_salary)}</td>
-                                                    <td className="text-emerald-400">{formatCurrency(e.total_allowances)}</td>
-                                                    <td className="text-rose-400">-{formatCurrency(totalDeductions)}</td>
-                                                    <td className="font-bold text-cyan-400">{formatCurrency(e.net_pay)}</td>
+                                                    <td className="text-xs">{e.bank_name || '-'}</td>
+                                                    <td className="text-xs font-mono">{e.bank_account || '-'}</td>
+                                                    <td className="text-[10px]">{e.email || '-'}</td>
                                                 </tr>
-                                                {isExpanded && (
-                                                    <tr className="bg-[var(--bg-card)]/50 border-x border-b border-[var(--border-main)]">
-                                                        <td colSpan="7" className="p-6">
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                                {/* Allowances Drill-down */}
-                                                                <div>
-                                                                    <h4 className="text-xs uppercase tracking-widest text-emerald-400 font-bold mb-3 border-b border-[var(--border-main)] pb-1">Earnings breakdown</h4>
-                                                                    <div className="space-y-2">
-                                                                        <div className="flex justify-between text-sm"><span>Basic Salary</span><span className="font-mono">{formatCurrency(e.basic_salary)}</span></div>
-                                                                        {e.transport_allowance > 0 && <div className="flex justify-between text-sm"><span>Transport Allowance</span><span className="font-mono">{formatCurrency(e.transport_allowance)}</span></div>}
-                                                                        {e.meal_allowance > 0 && <div className="flex justify-between text-sm"><span>Meal Allowance</span><span className="font-mono">{formatCurrency(e.meal_allowance)}</span></div>}
-                                                                        {e.other_allowance > 0 && <div className="flex justify-between text-sm"><span>Other Allowance</span><span className="font-mono">{formatCurrency(e.other_allowance)}</span></div>}
-                                                                        {Object.entries(customAllowances).map(([name, val]) => (
-                                                                            <div key={name} className="flex justify-between text-sm"><span>{name}</span><span className="font-mono">{formatCurrency(val)}</span></div>
-                                                                        ))}
-                                                                        {e.overtime_pay > 0 && <div className="flex justify-between text-sm text-cyan-400"><span>Overtime Pay</span><span className="font-mono">{formatCurrency(e.overtime_pay)}</span></div>}
-                                                                        {e.bonus > 0 && <div className="flex justify-between text-sm text-amber-400 font-bold"><span>Bonus / AWS</span><span className="font-mono">{formatCurrency(e.bonus)}</span></div>}
-                                                                        {e.performance_allowance > 0 && <div className="flex justify-between text-sm text-indigo-400"><span>Performance Credit</span><span className="font-mono">{formatCurrency(e.performance_allowance)}</span></div>}
-                                                                        {e.ns_makeup_pay > 0 && <div className="flex justify-between text-sm"><span>NS Makeup Pay</span><span className="font-mono">{formatCurrency(e.ns_makeup_pay)}</span></div>}
-                                                                        <div className="flex justify-between text-sm font-bold border-t border-[var(--border-main)] pt-2 text-white"><span>Total Gross</span><span className="font-mono">{formatCurrency(e.gross_pay)}</span></div>
-                                                                    </div>
-                                                                </div>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
-                                                                {/* Deductions Drill-down */}
-                                                                <div>
-                                                                    <h4 className="text-xs uppercase tracking-widest text-rose-400 font-bold mb-3 border-b border-[var(--border-main)] pb-1">Deductions breakdown</h4>
-                                                                    <div className="space-y-2">
-                                                                        {e.cpf_employee > 0 && <div className="flex justify-between text-sm"><span>CPF (Employee)</span><span className="font-mono">-{formatCurrency(e.cpf_employee)}</span></div>}
-                                                                        {e.shg_deduction > 0 && <div className="flex justify-between text-sm"><span>SHG Contribution</span><span className="font-mono">-{formatCurrency(e.shg_deduction)}</span></div>}
-                                                                        {e.unpaid_leave_deduction > 0 && <div className="flex justify-between text-sm text-rose-300"><span>Absence (Unpaid Leave)</span><span className="font-mono">-{formatCurrency(e.unpaid_leave_deduction)}</span></div>}
-                                                                        {e.attendance_deduction > 0 && <div className="flex justify-between text-sm text-rose-300"><span>Attendance Penalty</span><span className="font-mono">-{formatCurrency(e.attendance_deduction)}</span></div>}
-                                                                        {Object.entries(customDeductions).map(([name, val]) => (
-                                                                            <div key={name} className="flex justify-between text-sm"><span>{name}</span><span className="font-mono">-{formatCurrency(val)}</span></div>
-                                                                        ))}
-                                                                        {e.other_deductions > 0 && <div className="flex justify-between text-sm"><span>Other Deductions</span><span className="font-mono">-{formatCurrency(e.other_deductions)}</span></div>}
-                                                                        <div className="flex justify-between text-sm font-bold border-t border-[var(--border-main)] pt-2 text-white"><span>Total Deductions</span><span className="font-mono">-{formatCurrency(totalDeductions)}</span></div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </td>
+                            {tab === 'expiry' && Array.isArray(data) && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-500 text-sm">
+                                        <span>🔔 Showing documents expiring within 90 days or already expired.</span>
+                                    </div>
+                                    <table className="table-theme">
+                                        <thead><tr><th>Emp ID</th><th>Full Name</th><th>Nationality</th><th>Expiry Date</th><th>Document Type</th></tr></thead>
+                                        <tbody>
+                                            {data.map((e, i) => {
+                                                const isExpired = new Date(e.cessation_date || e.pr_status_start_date) < new Date();
+                                                return (
+                                                    <tr key={i}>
+                                                        <td>{e.employee_id}</td>
+                                                        <td>{e.full_name}</td>
+                                                        <td>{e.nationality}</td>
+                                                        <td className={isExpired ? 'text-rose-500 font-bold' : 'text-amber-500'}>{e.cessation_date || e.pr_status_start_date || '-'}</td>
+                                                        <td><span className="badge-info">{e.cessation_date ? 'Work Permit' : 'PR Start'}</span></td>
                                                     </tr>
-                                                )}
-                                            </>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
-                    {/* Keep existing IR8A/SDL/SHG logic as fallback but integrated into new design */}
-                    {tab === 'ir8a' && (
-                        <div className="space-y-4">
-                            <p className="text-sm text-[var(--text-muted)]">Annual IRAS summary and form management.</p>
-                            {/* Simplified view for clarity in this large update */}
-                            <table className="table-theme">
-                                <thead><tr><th>Employee</th><th>ID</th><th>Total Gross</th><th>Status</th></tr></thead>
-                                <tbody>
-                                    {data.forms?.map((f, i) => (
-                                        <tr key={i}><td>{f.full_name}</td><td>{f.emp_code}</td><td>{formatCurrency(JSON.parse(f.data_json).income.gross_salary)}</td><td><span className="badge-success">{f.status}</span></td></tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                            {tab === 'cpf' && (
+                                <table className="table-theme">
+                                    <thead><tr><th>Employee</th><th>ID</th><th>Gross</th><th>CPF (EE)</th><th>CPF (ER)</th><th>OA</th><th>SA</th><th>MA</th></tr></thead>
+                                    <tbody>
+                                        {data.employees?.map((e, i) => (
+                                            <tr key={i}><td className="text-[var(--text-main)] font-medium">{e.employee_name}</td><td>{e.employee_code}</td><td>{formatCurrency(e.gross_pay)}</td><td>{formatCurrency(e.cpf_employee)}</td><td>{formatCurrency(e.cpf_employer)}</td><td>{formatCurrency(e.cpf_oa)}</td><td>{formatCurrency(e.cpf_sa)}</td><td>{formatCurrency(e.cpf_ma)}</td></tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+
+                            {tab === 'detail' && (
+                                <div className="space-y-4">
+                                    <table className="table-theme">
+                                        <thead>
+                                            <tr>
+                                                <th className="w-10"></th>
+                                                <th>Employee</th>
+                                                <th>ID</th>
+                                                <th>Basic</th>
+                                                <th>Allowances</th>
+                                                <th>Deductions</th>
+                                                <th>Net Pay</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.employees?.map((e, i) => {
+                                                const isExpanded = selectedEmp === e.employee_code;
+                                                const totalDeductions = e.cpf_employee + e.shg_deduction + e.attendance_deduction + e.unpaid_leave_deduction + e.other_deductions;
+                                                const customAllowances = e.custom_allowances ? JSON.parse(e.custom_allowances) : {};
+                                                const customDeductions = e.custom_deductions ? JSON.parse(e.custom_deductions) : {};
+
+                                                return (
+                                                    <>
+                                                        <tr key={i} className="cursor-pointer hover:bg-[var(--bg-input)]" onClick={() => setSelectedEmp(isExpanded ? null : e.employee_code)}>
+                                                            <td className="text-center">{isExpanded ? '▼' : '▶'}</td>
+                                                            <td className="text-[var(--text-main)] font-medium">{e.employee_name}</td>
+                                                            <td>{e.employee_code}</td>
+                                                            <td>{formatCurrency(e.basic_salary)}</td>
+                                                            <td className="text-emerald-400">{formatCurrency(e.total_allowances)}</td>
+                                                            <td className="text-rose-400">-{formatCurrency(totalDeductions)}</td>
+                                                            <td className="font-bold text-cyan-400">{formatCurrency(e.net_pay)}</td>
+                                                        </tr>
+                                                        {isExpanded && (
+                                                            <tr className="bg-[var(--bg-card)]/50 border-x border-b border-[var(--border-main)]">
+                                                                <td colSpan="7" className="p-6">
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                        {/* Allowances Drill-down */}
+                                                                        <div>
+                                                                            <h4 className="text-xs uppercase tracking-widest text-emerald-400 font-bold mb-3 border-b border-[var(--border-main)] pb-1">Earnings breakdown</h4>
+                                                                            <div className="space-y-2">
+                                                                                <div className="flex justify-between text-sm"><span>Basic Salary</span><span className="font-mono">{formatCurrency(e.basic_salary)}</span></div>
+                                                                                {e.transport_allowance > 0 && <div className="flex justify-between text-sm"><span>Transport Allowance</span><span className="font-mono">{formatCurrency(e.transport_allowance)}</span></div>}
+                                                                                {e.meal_allowance > 0 && <div className="flex justify-between text-sm"><span>Meal Allowance</span><span className="font-mono">{formatCurrency(e.meal_allowance)}</span></div>}
+                                                                                {e.other_allowance > 0 && <div className="flex justify-between text-sm"><span>Other Allowance</span><span className="font-mono">{formatCurrency(e.other_allowance)}</span></div>}
+                                                                                {Object.entries(customAllowances).map(([name, val]) => (
+                                                                                    <div key={name} className="flex justify-between text-sm"><span>{name}</span><span className="font-mono">{formatCurrency(val)}</span></div>
+                                                                                ))}
+                                                                                {e.overtime_pay > 0 && <div className="flex justify-between text-sm text-cyan-400"><span>Overtime Pay</span><span className="font-mono">{formatCurrency(e.overtime_pay)}</span></div>}
+                                                                                {e.bonus > 0 && <div className="flex justify-between text-sm text-amber-400 font-bold"><span>Bonus / AWS</span><span className="font-mono">{formatCurrency(e.bonus)}</span></div>}
+                                                                                {e.performance_allowance > 0 && <div className="flex justify-between text-sm text-indigo-400"><span>Performance Credit</span><span className="font-mono">{formatCurrency(e.performance_allowance)}</span></div>}
+                                                                                {e.ns_makeup_pay > 0 && <div className="flex justify-between text-sm"><span>NS Makeup Pay</span><span className="font-mono">{formatCurrency(e.ns_makeup_pay)}</span></div>}
+                                                                                <div className="flex justify-between text-sm font-bold border-t border-[var(--border-main)] pt-2 text-white"><span>Total Gross</span><span className="font-mono">{formatCurrency(e.gross_pay)}</span></div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Deductions Drill-down */}
+                                                                        <div>
+                                                                            <h4 className="text-xs uppercase tracking-widest text-rose-400 font-bold mb-3 border-b border-[var(--border-main)] pb-1">Deductions breakdown</h4>
+                                                                            <div className="space-y-2">
+                                                                                {e.cpf_employee > 0 && <div className="flex justify-between text-sm"><span>CPF (Employee)</span><span className="font-mono">-{formatCurrency(e.cpf_employee)}</span></div>}
+                                                                                {e.shg_deduction > 0 && <div className="flex justify-between text-sm"><span>SHG Contribution</span><span className="font-mono">-{formatCurrency(e.shg_deduction)}</span></div>}
+                                                                                {e.unpaid_leave_deduction > 0 && <div className="flex justify-between text-sm text-rose-300"><span>Absence (Unpaid Leave)</span><span className="font-mono">-{formatCurrency(e.unpaid_leave_deduction)}</span></div>}
+                                                                                {e.attendance_deduction > 0 && <div className="flex justify-between text-sm text-rose-300"><span>Attendance Penalty</span><span className="font-mono">-{formatCurrency(e.attendance_deduction)}</span></div>}
+                                                                                {Object.entries(customDeductions).map(([name, val]) => (
+                                                                                    <div key={name} className="flex justify-between text-sm"><span>{name}</span><span className="font-mono">-{formatCurrency(val)}</span></div>
+                                                                                ))}
+                                                                                {e.other_deductions > 0 && <div className="flex justify-between text-sm"><span>Other Deductions</span><span className="font-mono">-{formatCurrency(e.other_deductions)}</span></div>}
+                                                                                <div className="flex justify-between text-sm font-bold border-t border-[var(--border-main)] pt-2 text-white"><span>Total Deductions</span><span className="font-mono">-{formatCurrency(totalDeductions)}</span></div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* Keep existing IR8A/SDL/SHG logic as fallback but integrated into new design */}
+                            {tab === 'ir8a' && (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-[var(--text-muted)]">Annual IRAS summary and form management.</p>
+                                    {/* Simplified view for clarity in this large update */}
+                                    <table className="table-theme">
+                                        <thead><tr><th>Employee</th><th>ID</th><th>Total Gross</th><th>Status</th></tr></thead>
+                                        <tbody>
+                                            {data.forms?.map((f, i) => (
+                                                <tr key={i}><td>{f.full_name}</td><td>{f.emp_code}</td><td>{formatCurrency(JSON.parse(f.data_json).income.gross_salary)}</td><td><span className="badge-success">{f.status}</span></td></tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
