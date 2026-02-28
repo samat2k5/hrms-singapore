@@ -49,7 +49,9 @@ async function getDb() {
           { name: 'site_id', type: 'INTEGER' },
           { name: 'cessation_date', type: 'DATE' },
           { name: 'pr_status_start_date', type: 'DATE' },
-          { name: 'cpf_full_rate_agreed', type: 'BOOLEAN DEFAULT 0' }
+          { name: 'cpf_full_rate_agreed', type: 'BOOLEAN DEFAULT 0' },
+          { name: 'work_pass_type', type: 'TEXT' },
+          { name: 'work_pass_expiry', type: 'DATE' }
         ];
 
         let migrated = false;

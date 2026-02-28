@@ -16,6 +16,7 @@ const emptyEmployee = {
     working_hours_per_day: 8, working_hours_per_week: 44,
     status: 'Active', photo_url: null,
     other_deduction: 0,
+    work_pass_type: '', work_pass_expiry: '',
     _parsedCustomAllowances: [], _parsedCustomDeductions: []
 }
 
@@ -152,6 +153,8 @@ export default function EmployeeForm() {
             formData.append('gender', form.gender || 'Male');
             formData.append('language', form.language || 'English');
             formData.append('status', form.status || 'Active');
+            formData.append('work_pass_type', form.work_pass_type || '');
+            formData.append('work_pass_expiry', form.work_pass_expiry || '');
 
             // Contact
             formData.append('mobile_number', form.mobile_number || '');
@@ -321,6 +324,13 @@ export default function EmployeeForm() {
                     <Field form={form} setForm={setForm} label="Language" name="language" options={['English', 'Mandarin', 'Malay', 'Tamil', 'Bengali', 'Telugu', 'Hindi', 'Others']} required />
 
                     <Field form={form} setForm={setForm} label="Highest Education Attained" name="highest_education" options={['Primary', 'Secondary', 'O Level', 'A Level', 'Diploma', 'Bachelor Degree', 'Master Degree', 'Doctorate', 'Others']} required />
+
+                    {form.nationality === 'Foreigner' && (
+                        <>
+                            <Field form={form} setForm={setForm} label="Work Pass Type" name="work_pass_type" options={['Employment Pass', 'S Pass', 'Work Permit', 'Dependent Pass (with LOC)', 'Other']} required />
+                            <DatePicker label="Work Pass Expiry" selected={form.work_pass_expiry} onChange={val => setForm({ ...form, work_pass_expiry: val })} required />
+                        </>
+                    )}
 
                     {form.nationality === 'SPR' && (
                         <>

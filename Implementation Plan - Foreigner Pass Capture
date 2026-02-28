@@ -1,0 +1,32 @@
+# Implementation Plan - Foreigner Pass Capture
+
+Add fields to capture and track Work Pass details for Foreigner employees, improving Singapore compliance and record-keeping.
+
+## Proposed Changes
+
+### [Component Name] Database
+
+#### [MODIFY] [init.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/db/init.js)
+- Add migration to include `work_pass_type` (TEXT) and `work_pass_expiry` (DATE) to the `employees` table.
+
+### [Component Name] Backend API
+
+#### [MODIFY] [employees.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/employees.js)
+- Update `POST /api/employees` and `PUT /api/employees/:id` to handle `work_pass_type` and `work_pass_expiry`.
+
+### [Component Name] Frontend
+
+#### [MODIFY] [EmployeeForm.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeForm.jsx)
+- Update `emptyEmployee` state with new fields.
+- Add conditional fields for "Work Pass Type" and "Work Pass Expiry" when `nationality === 'Foreigner'`.
+- Pass new fields to the API via `FormData`.
+
+## Verification Plan
+
+### Manual Verification
+1.  Open the **Employee Form** (Add New).
+2.  Set **Nationality** to "Foreigner".
+3.  Verify that "Work Pass Type" (Dropdown) and "Work Pass Expiry" (DatePicker) fields appear.
+4.  Fill in the details and save the employee.
+5.  Re-open the employee for editing and verify the details are persisted.
+6.  Change nationality to "Singapore Citizen" and verify the fields are hidden.

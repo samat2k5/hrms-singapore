@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 const DAYS = [
     { label: 'Sunday', value: 0 },
     { label: 'Monday', value: 1 },
@@ -81,7 +82,22 @@ function Sites() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this site? All schedules attached will be removed.')) return;
+        const result = await Swal.fire({
+            title: 'Delete Site?',
+            text: "Are you sure you want to delete this site? All schedules attached will be removed.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (!result.isConfirmed) return;
         try {
             await api.deleteSite(id);
             toast.success('Site deleted successfully');

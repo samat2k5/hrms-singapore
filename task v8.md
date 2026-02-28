@@ -1,0 +1,115 @@
+# Task: Explain Deduction for Absence Process
+
+- [x] Research absence deduction logic in [server/engine/payroll-engine.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/engine/payroll-engine.js)
+- [x] Investigate attendance-related calculations and data sources
+- [x] Synthesize the process into a clear explanation for the user
+- [x] Implement Payroll Detail Report
+    - [x] Create backend endpoint `GET /api/reports/payroll-detail/:year/:month`
+    - [x] Add `api.getPayrollDetail` to frontend
+    - [x] Update [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) with "Payroll Detail Report" tab and drill-down UI
+    - [x] Verify the report with dummy or real data
+- [x] Fix "no such column: p.ns_makeup_pay" error
+    - [x] Add migration for `payslips` table in [server/db/init.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/db/init.js)
+    - [x] Update `INSERT` statement in [server/routes/payroll.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/payroll.js)
+    - [x] Verify report functionality again
+- [x] Fix Payroll Detail PDF Export
+    - [x] Update [handleExportPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx#309-318) in [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) to support `detail` tab
+    - [x] Verify PDF generation
+- [x] Add Detailed Breakdowns to Payroll Detail PDF
+    - [x] Refactor [handleExportPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx#309-318) in [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) to show per-employee breakdowns
+    - [x] Verify PDF layout and content
+- [x] Refine Payroll Detail PDF Layout (Side-by-Side)
+    - [x] Update [handleExportPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx#309-318) in [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) for side-by-side tables
+    - [x] Verify final PDF output
+- [x] Refine Payroll Detail PDF (Grid Format)
+    - [x] Refactor [handleExportPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx#309-318) in [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) to use a single grid table
+    - [x] Verify alignment and styles against user image
+- [x] Refine PDF Column Widths and Row Heights
+    - [x] Increase Employee column width
+    - [x] Decrease row height by 20%
+    - [x] Equalize other columns
+    - [x] Decrease row height by another 20% (final compact layout)
+- [x] Implement Report Viewer Component
+    - [x] Create [ReportViewer.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/components/ReportViewer.jsx) component
+    - [x] Update [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) to include "Preview" functionality
+    - [x] Verify PDF rendering in the viewer
+- [x] Implement Summary Grid PDF (Detail Tab)
+    - [x] Update [handleExportPDF](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx#309-318) to support `summaryGrid` mode
+    - [x] Add "Summary PDF" button to the `detail` tab UI
+    - [x] Verify the layout matches the provided sample
+- [x] Redesign Report Navigation
+    - [x] Design "Report Selector" grid UI
+    - [x] Implement conditional rendering for Selector vs. Report view
+    - [x] Add "Back to Reports" navigation
+    - [x] Polish animations and micro-interactions
+- [x] Enhance Theme Compatibility (Light/Dark Mode)
+    - [x] Replace hardcoded dark colors in [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx)
+    - [x] Verify visibility in both modes
+    - [x] Polish card borders and shadows for light mode
+- [x] Update Payroll Detail Allowance Logic
+    - [x] Calculate header Allowances as (Gross - Basic)
+    - [x] Update PDF Export summary row
+    - [x] Update UI table summary row
+- [x] Implement Premium Date Picker for Employee Form
+    - [x] Install dependencies (`react-datepicker`, `date-fns`)
+    - [x] Create custom [DatePicker](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/components/DatePicker.jsx#6-42) component
+    - [x] Add global date picker styles to [index.css](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/index.css)
+    - [x] Integrate [DatePicker](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/components/DatePicker.jsx#6-42) into [EmployeeForm.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeForm.jsx)
+    - [x] Verify functionality and theme compatibility
+- [x] Create Database Technical Manual
+    - [x] Document all tables and column details (Complete Dictionary)
+    - [x] Explain usage and business logic for each table
+    - [x] Design Mermaid data flow diagram
+- [x] Plan SQLite to PostgreSQL Migration
+    - [x] Analyze current database architecture compatibility
+    - [x] Create comprehensive migration document
+    - [x] Outline code refactoring requirements for async PG driver
+- [x] Enhance Leave Management (Policy Compliance)
+    - [x] Update database schema (`leave_policies`, `leave_balances`)
+    - [x] Refactor backend calculation logic ([computeDynamicBalances](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/leave.js#28-195))
+    - [x] Implement year-end policy logic (Carry-forward/Encashment)
+    - [x] Implement Carried Forward Expiry/Forfeiture logic
+    - [x] Update Leave Request submission/approval logic
+    - [x] Enhance [Leave.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Leave.jsx) UI (Detailed balances, Policies tab)
+    - [x] Verify MOM compliance and flexible policies
+    - [x] Add "AWOL" leave type and integrate into calculation logic
+- [x] Fix AWOL/Unpaid Leave deduction discrepancy ($0.02) using precise MOM formula 转换
+- [x] Implement "Detailed Timesheet Attendance" report in backend 转换
+- [x] Integrate "Detailed Attendance" tab in Reports UI 转换
+- [x] Add Absent status marking for working days without clock-in 转换
+- [x] Add PDF export for Detailed Attendance report 转换
+- [x] Restart server and verify all changes 转换
+- [x] Refine Detailed Attendance Report & Navigation Rollback 转换
+    - [x] Rollback sidebar link in [Layout.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/components/Layout.jsx) 转换
+    - [x] Revert Reports dashboard card order and query param reactivity 转换
+    - [x] Update backend `detailed-attendance` route to include work hours 转换
+    - [x] Update frontend [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) table columns (Date, Shift, In, Out, Basic, OT, PH, Remarks) 转换
+    - [x] Move status (Rest Day, etc.) to Remarks column 转换
+    - [x] Update PDF export to match refined layout 转换
+- [x] Refine Data Presentation for Attendance Report 转换
+    - [x] Update backend [reports.js](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/server/routes/reports.js) to return `'-'` for zero hours or missing data 转换
+    - [x] Update frontend [Reports.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Reports.jsx) to ensure all columns display `'-'` consistently 转换
+    - [x] Verify all calendar days are correctly represented in the report UI 转换
+
+- [x] Integrate Full Attendance Report into Payslips 转换
+    - [x] Implement backend logic to generate full-month attendance for payslips 转换
+    - [x] Update individual payslip view and PDF export to use full attendance data 转换
+    - [x] Ensure bulk payslip (Master PDF) includes full attendance reports 转换
+    - [x] Verify formatting and totals in all attendance views 转换
+
+- [x] Implement PDF Preview for Itemized Payslip 转换
+    - [x] Design and plan the integration of [ReportViewer](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/components/ReportViewer.jsx#4-53) into [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx) 转换
+    - [x] Update [Payslip.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/Payslip.jsx) with Preview functionality and UI 转换
+    - [x] Verify PDF preview works for individual payslips 转换
+
+- [x] Refine Individual Payslip PDF Layout 转换
+    - [x] Increase Date column width in attendance supplement by 15% 转换
+    - [x] Decrease row height in attendance supplement by 15% 转换
+
+- [x] Implement PDF Preview for Key Employment Terms (KETs) 转换
+    - [x] Design and plan the integration of [ReportViewer](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/components/ReportViewer.jsx#4-53) into [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeKETs.jsx) 转换
+    - [x] Update [EmployeeKETs.jsx](file:///c:/Users/mathi/Desktop/AntiGravity%20Demos/HRMS%20Singapore/client/src/pages/EmployeeKETs.jsx) with Preview functionality and UI 转换
+    - [x] Verify PDF preview works for KETs 转换
+
+- [ ] (Rolled Back) Implement Cross-Entity Face Attendance 转换
+- [ ] (Rolled Back) Documentation for Face Attendance 转换

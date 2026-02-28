@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import Swal from 'sweetalert2'
 import api from '../services/api'
 
 export default function EmployeeDocuments() {
@@ -52,7 +53,22 @@ export default function EmployeeDocuments() {
     }
 
     const handleDelete = async (docId) => {
-        if (!window.confirm('Are you sure you want to delete this document?')) return
+        const result = await Swal.fire({
+            title: 'Delete Document?',
+            text: "Are you sure you want to permanently remove this document?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (!result.isConfirmed) return
         try {
             await api.deleteDocument(docId)
             toast.success('Document deleted')

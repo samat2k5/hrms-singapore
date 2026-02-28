@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
+import Swal from 'sweetalert2'
 import api from '../services/api'
 import { formatDate, formatCurrency } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
+import DatePicker from '../components/DatePicker'
+import ReportViewer from '../components/ReportViewer'
 
 const PAGE_SIZE = 20
 
@@ -30,6 +33,7 @@ export default function Leave() {
     const [showPolicy, setShowPolicy] = useState(false)
     const [form, setForm] = useState({ employee_id: '', leave_type_id: '', start_date: '', end_date: '', days: 1, reason: '' })
     const [policyForm, setPolicyForm] = useState({ employee_grade: '', leave_type_id: '', base_days: 0, increment_per_year: 0, max_days: 0, carry_forward_max: 0, carry_forward_expiry_months: 12, encashment_allowed: false })
+    const [preview, setPreview] = useState({ isOpen: false, pdfUrl: '', title: '' })
     const year = new Date().getFullYear()
 
     // Search & Filter State
@@ -87,6 +91,23 @@ export default function Leave() {
     }
 
     const handleAction = async (id, action) => {
+        const result = await Swal.fire({
+            title: `Are you sure?`,
+            text: `Do you want to ${action} this leave request?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: action === 'approve' ? '#10b981' : '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: `Yes, ${action}`,
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (!result.isConfirmed) return
+
         try {
             if (action === 'approve') await api.approveLeave(id)
             else await api.rejectLeave(id)
@@ -107,7 +128,23 @@ export default function Leave() {
     }
 
     const handleDeletePolicy = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this policy?')) return
+        const result = await Swal.fire({
+            title: 'Delete Policy?',
+            text: "Are you sure you want to remove this leave policy? This might affect existing balance calculations.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, delete it',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (!result.isConfirmed) return
+
         try {
             await api.deleteLeavePolicy(id)
             toast.success('Policy deleted')
@@ -187,7 +224,7 @@ export default function Leave() {
     const reportDateTime = new Date().toLocaleString('en-SG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
     // --- PDF Export: Summary ---
-    const exportSummaryPDF = async () => {
+    const exportSummaryPDF = async (isPreview = false) => {
         try {
             const jspdfModule = await import('jspdf');
             const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
@@ -251,8 +288,13 @@ export default function Leave() {
             } catch (e) { }
             doc.text(`Total: ${filteredEmployees.length} employees | MOM Compliant`, 148, footerY, { align: 'center' })
 
-            doc.save(`leave_summary_${year}.pdf`)
-            toast.success('Summary PDF downloaded')
+            if (isPreview) {
+                const pdfUrl = doc.output('bloburl');
+                setPreview({ isOpen: true, pdfUrl, title: `Leave Summary ${year}` });
+            } else {
+                doc.save(`leave_summary_${year}.pdf`)
+                toast.success('Summary PDF downloaded')
+            }
         } catch (err) {
             console.error('[LEAVE_SUMMARY_PDF_ERROR]', err)
             toast.error('PDF failed: ' + (err.message || 'Unknown error'))
@@ -403,11 +445,16 @@ export default function Leave() {
         return doc;
     }
 
-    const exportIndividualPDF = async (empId, data) => {
+    const exportIndividualPDF = async (empId, data, isPreview = false) => {
         try {
             const doc = await generateIndividualPDFDoc(empId, data);
-            doc.save(`leave_record_${data.code}_${year}.pdf`)
-            toast.success('Individual PDF downloaded')
+            if (isPreview) {
+                const pdfUrl = doc.output('bloburl');
+                setPreview({ isOpen: true, pdfUrl, title: `Leave Record - ${data.name}` });
+            } else {
+                doc.save(`leave_record_${data.code}_${year}.pdf`)
+                toast.success('Individual PDF downloaded')
+            }
         } catch (err) {
             console.error('[LEAVE_INDIVIDUAL_PDF_ERROR]', err)
             toast.error('PDF failed: ' + (err.message || 'Unknown error'))
@@ -477,9 +524,14 @@ export default function Leave() {
                             <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)} className="select-base w-full sm:w-40">
                                 {groups.map(g => <option key={g} value={g}>{g === 'All' ? 'All Groups' : `Group ${g}`}</option>)}
                             </select>
-                            <button onClick={exportSummaryPDF} className="px-4 py-2 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] hover:bg-cyan-500/10 transition-all text-sm whitespace-nowrap flex items-center gap-2">
-                                📥 Export Summary PDF
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={() => exportSummaryPDF(true)} className="px-4 py-2 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] hover:bg-cyan-500/10 transition-all text-sm whitespace-nowrap flex items-center gap-2">
+                                    👁️ Preview
+                                </button>
+                                <button onClick={() => exportSummaryPDF(false)} className="px-4 py-2 rounded-xl border border-[var(--brand-primary)]/30 text-[var(--brand-primary)] hover:bg-cyan-500/10 transition-all text-sm whitespace-nowrap flex items-center gap-2">
+                                    📥 Download Summary
+                                </button>
+                            </div>
                         </div>
                         <div className="flex items-center justify-between mt-3 text-xs text-[var(--text-muted)]">
                             <span>Showing {pagedEmployees.length} of {filteredEmployees.length} employees</span>
@@ -515,7 +567,8 @@ export default function Leave() {
                                             className="h-full px-3 text-[11px] rounded-lg bg-[var(--bg-input)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 hover:bg-[var(--bg-card)] transition-all cursor-pointer font-bold outline-none appearance-none"
                                             onChange={(e) => {
                                                 const val = e.target.value;
-                                                if (val === 'pdf') exportIndividualPDF(empId, data);
+                                                if (val === 'preview') exportIndividualPDF(empId, data, true);
+                                                else if (val === 'pdf') exportIndividualPDF(empId, data, false);
                                                 else if (val === 'email') handleTransmit(empId, data, 'email');
                                                 else if (val === 'whatsapp') handleTransmit(empId, data, 'whatsapp');
                                                 e.target.value = ''; // Reset
@@ -523,6 +576,7 @@ export default function Leave() {
                                             value=""
                                         >
                                             <option value="" disabled>📤 Actions</option>
+                                            <option value="preview">👁️ Preview PDF</option>
                                             <option value="pdf">📄 Download PDF</option>
                                             <option value="email">📧 Email</option>
                                             <option value="whatsapp">💬 WhatsApp</option>
@@ -748,14 +802,18 @@ export default function Leave() {
                                 </select>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm text-[var(--text-muted)] mb-1.5">Start Date</label>
-                                    <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className="input-base" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-[var(--text-muted)] mb-1.5">End Date</label>
-                                    <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className="input-base" required />
-                                </div>
+                                <DatePicker
+                                    label="Start Date"
+                                    selected={form.start_date}
+                                    onChange={val => setForm({ ...form, start_date: val })}
+                                    required
+                                />
+                                <DatePicker
+                                    label="End Date"
+                                    selected={form.end_date}
+                                    onChange={val => setForm({ ...form, end_date: val })}
+                                    required
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm text-[var(--text-muted)] mb-1.5">Days</label>
@@ -844,6 +902,13 @@ export default function Leave() {
                     </div>
                 </div>
             )}
+
+            <ReportViewer
+                isOpen={preview.isOpen}
+                onClose={() => setPreview({ ...preview, isOpen: false })}
+                pdfUrl={preview.pdfUrl}
+                title={preview.title}
+            />
         </div>
     )
 }

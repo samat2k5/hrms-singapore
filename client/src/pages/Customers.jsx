@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 function Customers() {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -57,7 +58,22 @@ function Customers() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this customer? All associated sites and their working hours will be deleted!')) return;
+        const result = await Swal.fire({
+            title: 'Are you sure?',
+            text: "All associated sites and their working hours will be deleted! This cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             await api.deleteCustomer(id);

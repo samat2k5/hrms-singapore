@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import Swal from 'sweetalert2'
 import api from '../services/api'
 import { formatCurrency, formatMonth } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
@@ -113,7 +114,22 @@ export default function Payroll() {
     }
 
     const handleRun = async () => {
-        if (!window.confirm(`Process payroll for ${employeeGroup} in ${formatMonth(year, month)}?`)) return
+        const result = await Swal.fire({
+            title: 'Initialize Payroll?',
+            text: `Process payroll for ${employeeGroup} in ${formatMonth(year, month)}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, Process',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (!result.isConfirmed) return
         setProcessing(true)
         try {
             // 1. Bulk Update Custom Allowances & Deductions
@@ -150,7 +166,22 @@ export default function Payroll() {
     }
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Delete this payroll run and all associated payslips?')) return
+        const result = await Swal.fire({
+            title: 'Are you sure?',
+            text: "This will permanently delete this payroll run and all associated payslips!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            background: 'var(--bg-main)',
+            color: 'var(--text-main)',
+            customClass: {
+                popup: 'glass-card border border-[var(--border-main)] rounded-2xl'
+            }
+        });
+
+        if (!result.isConfirmed) return
         try {
             await api.deletePayrollRun(id)
             toast.success('Payroll run deleted')

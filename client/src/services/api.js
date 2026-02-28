@@ -115,7 +115,6 @@ const api = {
     // Attendance Import
     importAttendance: (formData) => request('/attendance/import', { method: 'POST', body: formData }),
     clockInFace: (descriptor) => request('/attendance/face-clock', { method: 'POST', body: { descriptor } }),
-    clockInFaceConfirm: (employeeId, entityId) => request('/attendance/face-clock-confirm', { method: 'POST', body: { employeeId, entityId } }),
 
     // Payroll
     getPayrollRuns: () => request('/payroll/runs'),

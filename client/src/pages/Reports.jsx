@@ -4,7 +4,7 @@ import api from '../services/api'
 import { formatCurrency, formatMonth } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
 import * as XLSX from 'xlsx'
-import { Printer, Eye, Download, FileText, LayoutDashboard, Landmark, Users, ClipboardList, ShieldAlert, BadgeAlert, FileCheck, ReceiptText, ArrowLeft, MoreHorizontal } from 'lucide-react'
+import { Printer, Eye, Download, FileText, LayoutDashboard, Landmark, Users, ClipboardList, ShieldAlert, BadgeAlert, FileCheck, ReceiptText, ArrowLeft, MoreHorizontal, Calendar } from 'lucide-react'
 import ReportViewer from '../components/ReportViewer'
 
 const loadLogo = (url) => {
@@ -36,6 +36,7 @@ export default function Reports() {
     const [viewerTitle, setViewerTitle] = useState('')
     const tabs = [
         { key: 'summary', label: 'Payroll Summary', desc: 'Entity-wide payroll totals & stats', icon: LayoutDashboard, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+        { key: 'attendance', label: 'Detailed Attendance', desc: 'Monthly day-by-day timesheet', icon: Calendar, color: 'text-sky-400', bg: 'bg-sky-500/10' },
         { key: 'consolidated', label: 'Consolidated', desc: 'Grouping by employee group', icon: Landmark, color: 'text-blue-400', bg: 'bg-blue-500/10' },
         { key: 'detail', label: 'Payroll Detail', desc: 'Itemized drill-down breakdown', icon: ReceiptText, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
         { key: 'master', label: 'Employee Master', desc: 'Comprehensive employee database', icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
@@ -44,7 +45,6 @@ export default function Reports() {
         { key: 'sdl', label: 'SDL Report', desc: 'Skills Development Levy', icon: FileCheck, color: 'text-orange-400', bg: 'bg-orange-500/10' },
         { key: 'shg', label: 'SHG Report', desc: 'Self-Help Group deductions', icon: ClipboardList, color: 'text-purple-400', bg: 'bg-purple-500/10' },
         { key: 'ir8a', label: 'IR8A Summary', desc: 'Annual IRAS tax reporting', icon: BadgeAlert, color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10' },
-        { key: 'attendance', label: 'Detailed Attendance', desc: 'Monthly day-by-day timesheet', icon: ClipboardList, color: 'text-sky-400', bg: 'bg-sky-500/10' },
     ]
 
 
@@ -420,19 +420,19 @@ export default function Reports() {
                 tableData = data.report.map(r => [
                     `${r.date.split('-')[2]} ${new Date(r.date).toLocaleString('default', { month: 'short' })} (${r.dayName.substring(0, 3)})`,
                     r.shift,
-                    r.clockIn,
-                    r.clockOut,
+                    r.in_time,
+                    r.out_time,
                     r.normal_hours,
-                    r.ot15,
-                    r.ot20,
+                    r.ot_1_5_hours,
+                    r.ot_2_0_hours,
                     r.ph_hours,
-                    r.remark
+                    r.remarks
                 ]);
 
                 // Append Totals Row
                 const totalBasic = data.report.reduce((sum, r) => sum + (parseFloat(r.normal_hours) || 0), 0);
-                const totalOT15 = data.report.reduce((sum, r) => sum + (parseFloat(r.ot15) || 0), 0);
-                const totalOT20 = data.report.reduce((sum, r) => sum + (parseFloat(r.ot20) || 0), 0);
+                const totalOT15 = data.report.reduce((sum, r) => sum + (parseFloat(r.ot_1_5_hours) || 0), 0);
+                const totalOT20 = data.report.reduce((sum, r) => sum + (parseFloat(r.ot_2_0_hours) || 0), 0);
                 const totalPH = data.report.reduce((sum, r) => sum + (parseFloat(r.ph_hours) || 0), 0);
 
                 tableData.push([
@@ -464,6 +464,10 @@ export default function Reports() {
                 setIsViewerOpen(true);
                 return;
             }
+
+            const filename = tab === 'attendance'
+                ? `Attendance_Report_${data?.employee?.employee_id || 'Employee'}_${year}_${month}.pdf`
+                : `${tab}_report_${year}_${month}.pdf`;
 
             doc.save(filename);
             toast.success(filename.includes('Grid') ? 'Professional Grid PDF downloaded' : 'PDF downloaded');
@@ -845,20 +849,20 @@ export default function Reports() {
                                                             </div>
                                                         </td>
                                                         <td className="px-2 py-3 text-center text-xs text-[var(--text-muted)]">{r.shift}</td>
-                                                        <td className="px-4 py-3 text-center font-mono text-xs text-[var(--text-main)]">{r.clockIn}</td>
-                                                        <td className="px-4 py-3 text-center font-mono text-xs text-[var(--text-main)]">{r.clockOut}</td>
+                                                        <td className="px-4 py-3 text-center font-mono text-xs text-[var(--text-main)]">{r.in_time}</td>
+                                                        <td className="px-4 py-3 text-center font-mono text-xs text-[var(--text-main)]">{r.out_time}</td>
                                                         <td className="px-3 py-3 text-center font-mono text-xs text-sky-400">{r.normal_hours}</td>
-                                                        <td className="px-3 py-3 text-center font-mono text-xs text-amber-400">{r.ot15}</td>
-                                                        <td className="px-3 py-3 text-center font-mono text-xs text-orange-400">{r.ot20}</td>
+                                                        <td className="px-3 py-3 text-center font-mono text-xs text-amber-400">{r.ot_1_5_hours}</td>
+                                                        <td className="px-3 py-3 text-center font-mono text-xs text-orange-400">{r.ot_2_0_hours}</td>
                                                         <td className="px-3 py-3 text-center font-mono text-xs text-rose-400">{r.ph_hours}</td>
                                                         <td className="px-6 py-3">
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase ${r.remark === 'Rest Day' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
-                                                                r.remark === 'AWOL' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                                                                    r.remark.includes('Holiday') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                                                                        r.remark.includes('Leave') ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase ${r.remarks === 'Rest Day' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
+                                                                r.remarks === 'AWOL' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                                                    r.remarks.includes('Holiday') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                                                        r.remarks.includes('Leave') ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                                                                             'text-[var(--text-muted)]'
                                                                 }`}>
-                                                                {r.remark}
+                                                                {r.remarks}
                                                             </span>
                                                         </td>
                                                     </tr>
@@ -871,10 +875,10 @@ export default function Reports() {
                                                         {data.report.reduce((sum, r) => sum + (parseFloat(r.normal_hours) || 0), 0).toFixed(1)}
                                                     </td>
                                                     <td className="px-3 py-4 text-center font-mono text-sm text-amber-400">
-                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.ot15) || 0), 0).toFixed(1)}
+                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.ot_1_5_hours) || 0), 0).toFixed(1)}
                                                     </td>
                                                     <td className="px-3 py-4 text-center font-mono text-sm text-orange-400">
-                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.ot20) || 0), 0).toFixed(1)}
+                                                        {data.report.reduce((sum, r) => sum + (parseFloat(r.ot_2_0_hours) || 0), 0).toFixed(1)}
                                                     </td>
                                                     <td className="px-3 py-4 text-center font-mono text-sm text-rose-400">
                                                         {data.report.reduce((sum, r) => sum + (parseFloat(r.ph_hours) || 0), 0).toFixed(1)}
