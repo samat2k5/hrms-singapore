@@ -51,7 +51,9 @@ async function getDb() {
           { name: 'pr_status_start_date', type: 'DATE' },
           { name: 'cpf_full_rate_agreed', type: 'BOOLEAN DEFAULT 0' },
           { name: 'work_pass_type', type: 'TEXT' },
-          { name: 'work_pass_expiry', type: 'DATE' }
+          { name: 'work_pass_expiry', type: 'DATE' },
+          { name: 'work_pass_no', type: 'TEXT' },
+          { name: 'work_pass_start_date', type: 'DATE' }
         ];
 
         let migrated = false;
@@ -487,6 +489,10 @@ function createSchema(database) {
       photo_url TEXT,
       status TEXT DEFAULT 'Active',
       face_descriptor TEXT,
+      work_pass_type TEXT,
+      work_pass_expiry DATE,
+      work_pass_no TEXT,
+      work_pass_start_date DATE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(entity_id) REFERENCES entities(id),
       UNIQUE(entity_id, employee_id)

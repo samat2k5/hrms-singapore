@@ -17,6 +17,7 @@ const emptyEmployee = {
     status: 'Active', photo_url: null,
     other_deduction: 0,
     work_pass_type: '', work_pass_expiry: '',
+    work_pass_no: '', work_pass_start_date: '',
     _parsedCustomAllowances: [], _parsedCustomDeductions: []
 }
 
@@ -155,6 +156,8 @@ export default function EmployeeForm() {
             formData.append('status', form.status || 'Active');
             formData.append('work_pass_type', form.work_pass_type || '');
             formData.append('work_pass_expiry', form.work_pass_expiry || '');
+            formData.append('work_pass_no', form.work_pass_no || '');
+            formData.append('work_pass_start_date', form.work_pass_start_date || '');
 
             // Contact
             formData.append('mobile_number', form.mobile_number || '');
@@ -329,6 +332,8 @@ export default function EmployeeForm() {
                         <>
                             <Field form={form} setForm={setForm} label="Work Pass Type" name="work_pass_type" options={['Employment Pass', 'S Pass', 'Work Permit', 'Dependent Pass (with LOC)', 'Other']} required />
                             <DatePicker label="Work Pass Expiry" selected={form.work_pass_expiry} onChange={val => setForm({ ...form, work_pass_expiry: val })} required />
+                            <Field form={form} setForm={setForm} label="Work Pass No" name="work_pass_no" required />
+                            <DatePicker label="Work Pass Start Date" selected={form.work_pass_start_date} onChange={val => setForm({ ...form, work_pass_start_date: val })} required />
                         </>
                     )}
 
